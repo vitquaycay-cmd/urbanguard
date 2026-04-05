@@ -1,0 +1,84 @@
+UrbanGuard – Mo ta chi tiet he thong
+
+1. Tong quan he thong
+UrbanGuard la he thong ban do so cho phep nguoi dan bao cao su co giao thong, xac minh thong tin bang cong dong va hien thi tren ban do.
+
+2. Vai tro nguoi dung
+- User: gui bao cao, xem ban do, xac nhan
+- Admin: quan ly du lieu, kiem duyet
+- System: xu ly du lieu, danh gia do tin cay
+
+3. Chuc nang chi tiet
+
+3.1 Dang ky / Dang nhap
+- Tao tai khoan, dang nhap
+Rui ro:
+- spam, brute force
+Giai phap:
+- captcha, OTP
+
+3.2 Gui bao cao su co
+- Anh, GPS, mo ta
+Rui ro:
+- fake data, spam
+Giai phap:
+- AI, limit request
+
+3.3 Xem ban do
+- Marker, filter
+Rui ro:
+- lag, du lieu cu
+Giai phap:
+- pagination, cache
+
+3.4 Xac nhan cong dong
+- vote dung/sai
+Rui ro:
+- vote ao
+Giai phap:
+- reputation system
+
+3.5 Trust score
+- AI + user + cong dong
+Rui ro:
+- thao tung du lieu
+
+3.6 AI xu ly
+- nhan dien anh
+Rui ro:
+- sai ket qua
+
+3.7 Upload anh
+Rui ro:
+- file doc hai
+Giai phap:
+- validate, limit size
+
+3.8 Admin
+- duyet, xoa, khoa user
+
+3.9 Canh bao
+- canh bao khu vuc nguy hiem
+
+3.10 Database
+- luu user, report
+Rui ro:
+- mat du lieu
+Giai phap:
+- backup
+
+4. Luong he thong
+User -> Server -> AI -> DB -> Map
+
+5. Diem manh
+- real-time
+- cong dong
+
+6. Diem yeu
+- phu thuoc user
+- AI chua hoan hao
+
+7. Ket luan
+He thong giup tang an toan giao thong.
+
+UrbanGuard – Bao ve ban tren moi cung duong

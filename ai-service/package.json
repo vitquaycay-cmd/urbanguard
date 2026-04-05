@@ -1,0 +1,9 @@
+{
+  "name": "urbanguard-ai-service",
+  "private": true,
+  "description": "FastAPI + YOLO — npm run build/test ủy quyền sang Python (compileall / pytest).",
+  "scripts": {
+    "build": "py -3 -m compileall -q path_utils.py analyze_utils.py main.py tests",
+    "test": "py -3 -m pytest tests -q"
+  }
+}
