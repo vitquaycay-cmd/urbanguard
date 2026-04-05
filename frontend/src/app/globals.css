@@ -1,0 +1,167 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* --- Leaflet: marker sự cố tùy chỉnh (DangerMarker) --- */
+.leaflet-div-icon.danger-marker-div-icon {
+  background: transparent !important;
+  border: none !important;
+}
+
+/* Vỏ Leaflet khi marker gần route (đồng bộ với DangerMarker icon className). */
+.leaflet-div-icon.danger-marker-div-icon--near-route {
+  z-index: 1;
+}
+
+.danger-marker-root {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.35));
+  transform-origin: center bottom;
+  transition: transform 0.2s ease-out;
+}
+
+/*
+ * Marker gần polyline tuyến đường (≤ ~30 m): pulse + hào quang.
+ * Class được gắn có điều kiện từ buildDangerMarkerHtml (DangerMarker).
+ */
+.danger-marker-root.danger-marker--near-route {
+  animation: danger-marker-near-route-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes danger-marker-near-route-pulse {
+  0%,
+  100% {
+    transform: scale(1.02);
+    filter: drop-shadow(0 2px 4px rgba(220, 38, 38, 0.45));
+  }
+  50% {
+    transform: scale(1.12);
+    filter: drop-shadow(0 0 12px rgba(239, 68, 68, 0.9));
+  }
+}
+
+/* --- Halo pulse quanh pin (spec: scale 1 → 1.4, opacity 0.6 → 0) --- */
+.danger-marker-leaflet {
+  position: relative;
+  width: 48px;
+  height: 56px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  overflow: visible;
+  transform-origin: center bottom;
+}
+
+.danger-marker-leaflet:hover .danger-marker-root {
+  transform: scale(1.08);
+  transition: transform 0.2s ease-out;
+}
+
+.danger-marker-halo {
+  position: absolute;
+  bottom: 10px;
+  left: 50%;
+  width: 26px;
+  height: 26px;
+  margin-left: -13px;
+  border-radius: 50%;
+  background: rgba(239, 68, 68, 0.38);
+  pointer-events: none;
+  animation: danger-marker-halo-pulse 2.2s ease-in-out infinite;
+}
+
+.danger-marker-halo--delay {
+  animation-delay: 0.9s;
+}
+
+.danger-marker-halo--strong {
+  background: rgba(220, 38, 38, 0.48);
+  animation-duration: 1.35s;
+}
+
+@keyframes danger-marker-halo-pulse {
+  0% {
+    transform: scale(1);
+    opacity: 0.6;
+  }
+  50% {
+    transform: scale(1.4);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 0.6;
+  }
+}
+
+.danger-marker-leaflet--entrance .danger-marker-root {
+  animation: danger-marker-entrance 0.65s cubic-bezier(0.34, 1.45, 0.64, 1) both;
+}
+
+@keyframes danger-marker-entrance {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  70% {
+    transform: scale(1.12);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* --- Leaflet popup: card full-bleed --- */
+.leaflet-container .urbanguard-popup .leaflet-popup-content-wrapper {
+  padding: 0;
+  border-radius: 1rem;
+  overflow: hidden;
+  box-shadow:
+    0 25px 50px -12px rgb(0 0 0 / 0.25),
+    0 0 0 1px rgb(24 24 27 / 0.06);
+}
+
+.leaflet-container .urbanguard-popup .leaflet-popup-content {
+  margin: 0;
+  min-width: 0;
+}
+
+/* --- OSRM / LRM: tuyến xanh, fade-in khi vẽ --- */
+.leaflet-overlay-pane path.urbanguard-route-line {
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  animation: urbanguard-route-reveal 0.75s ease-out forwards;
+}
+
+@keyframes urbanguard-route-reveal {
+  from {
+    stroke-opacity: 0;
+    opacity: 0;
+  }
+  to {
+    stroke-opacity: inherit;
+    opacity: 1;
+  }
+}
