@@ -14,7 +14,13 @@ cd backend
 npm install ( nếu lỗi chạy npm install --force)
 npx prisma generate
 npx prisma migrate dev
-npm run start:dev
-
-cd frontend
+npm run start:
 npm run dev
+ 
+
+chạy database khởi tạo file 
+npx prisma generate
+tạo Prisma Client
+npx prisma migrate dev
+tạo & cập nhật database
+npm run start:dev
