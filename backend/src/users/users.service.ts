@@ -1,6 +1,7 @@
-import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { QueryUsersDto } from "./dto/query-users.dto";
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { Role } from "@prisma/client";
 
 @Injectable()
 export class UsersService {
@@ -44,5 +45,23 @@ export class UsersService {
       limit, // trang hiện tại
       totalPages: Math.ceil(total / limit), // tổng số trang
     };
+  }
+  async updateRole(id: number, role: Role) {
+    // Kiểm tra user có tồn tại không
+    const user = await this.prisma.user.findUnique({ where: { id } });
+    if (!user) throw new NotFoundException("User không tồn tại");
+    // Cập nhật role và trả về user sau khi cập nhật
+    return this.prisma.user.update({
+      where: { id }, // tìm đúng user theo id
+      data: { role }, // chỉ cập nhật trường role, các trường khác giữ nguyên
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        password: false,
+        reputationScore: true,
+        createdAt: true,
+      },
+    });
   }
 }
