@@ -19,6 +19,7 @@ import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import {Throttle} from '@nestjs/throttler';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -36,6 +37,7 @@ export class AuthController {
     return this.authService.register(dto);
   }
 
+  @Throttle({ auth: { limit: 5, ttl: 60000 } })
   @Post('login')
   @ApiOperation({ summary: 'Đăng nhập — trả về JWT Bearer token' })
   @ApiResponse({ status: 200, description: 'Đăng nhập thành công' })

@@ -37,6 +37,7 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { CreateReportDto } from './dto/create-report.dto';
 import { UpdateReportStatusDto } from './dto/update-report-status.dto';
 import { ReportsService } from './reports.service';
+import { Throttle } from '@nestjs/throttler';
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5MB
 const UPLOAD_DIR = join(process.cwd(), 'uploads');
@@ -109,6 +110,7 @@ export class ReportsController {
     return this.reportsService.findActiveValidated();
   }
 
+  @Throttle({ api: { limit: 10, ttl: 60000 } })
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @UseGuards(JwtAuthGuard)

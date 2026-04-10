@@ -43,6 +43,7 @@ model User {
   password         String
   reputationScore  Int      @default(0) @map("reputation_score")
   role             Role     @default(USER)
+  createdAt        DateTime @default(now())
 
   reports        Report[]
   votes          Vote[]
