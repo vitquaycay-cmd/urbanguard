@@ -64,4 +64,26 @@ export class UsersService {
       },
     });
   }
+
+  async getProfile(id: number) {
+    const [user, totalReports] = await Promise.all([
+      // Query 1: lấy thông tin user, select để không trả password ra ngoài
+      this.prisma.user.findUnique({
+        where: { id },
+        select: {
+          id: true,
+          email: true,
+          role: true,
+          reputationScore: true,
+          createdAt: true,
+        },
+      }),
+      // Query 2: đếm tổng số báo cáo user đã gửi
+      this.prisma.report.count({
+        where: { userId: id },
+      }),
+    ]);
+    if (!user) throw new NotFoundException("Khoong tìm thấy user");
+    return { ...user, totalReports };
+  }
 }
