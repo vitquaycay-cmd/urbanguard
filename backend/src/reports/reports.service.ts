@@ -4,6 +4,8 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
+import { existsSync, unlinkSync } from 'fs';
+import { join } from 'path';
 import { Prisma } from '@prisma/client';
 import { ReportStatus } from '@prisma/client';
 import { AiService } from '../ai/ai.service';
@@ -14,7 +16,7 @@ import {
 } from '../notifications/notifications.service';
 import { AdminReportStatus } from './dto/update-report-status.dto';
 import { CreateReportDto } from './dto/create-report.dto';
-
+import { QueryReportsDto } from './dto/query-reports.dto';
 const IMAGE_URL_PREFIX = '/uploads';
 
 /** Điểm uy tín user khi báo cáo được VALIDATED (admin hoặc AI tự động). */
@@ -91,6 +93,85 @@ export class ReportsService {
         status: true,
       },
     });
+  }
+  async findOne(id: number) {
+    const report = await this.prisma.report.findUnique({
+      where: { id },
+      select: {
+        ...reportSelectFull,
+        user: {
+          select: {
+            id: true,
+            email: true,
+            reputationScore: true,
+            role: true,
+          },
+        },
+      }
+    });
+
+    if (!report) {
+      throw new NotFoundException(`Không tìm thấy báo cáo #${id}`);
+    }
+    return report;
+  }
+
+  async findAll(dto: QueryReportsDto) {
+    const page = dto.page ?? 1;
+    const limit = dto.limit ?? 20;
+    const skip = (page - 1) * limit;
+
+    const where: Prisma.ReportWhereInput = {};
+
+    if (dto.status) {
+      where.status = dto.status;
+    }
+
+    if (dto.userId) {
+      where.userId = dto.userId;
+    }
+
+    if (dto.search) {
+      where.OR = [
+        { title: { contains: dto.search } },
+        { description: { contains: dto.search } },
+      ];
+    }
+
+    const sortBy = dto.sortBy ?? 'createdAt';
+    const sortOrder = dto.sortOrder ?? 'desc';
+    const orderBy = { [sortBy]: sortOrder };
+
+    const [data, total] = await Promise.all([
+      this.prisma.report.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy,
+        select: {
+          ...reportSelectFull,
+          user: {
+            select: {
+              id: true,
+              email: true,
+              reputationScore: true,
+              role: true,
+            },
+          },
+        },
+      }),
+      this.prisma.report.count({ where }),
+    ]);
+
+    return {
+      data,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 
   /**

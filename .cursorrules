@@ -1,0 +1,639 @@
+# ============================================================
+# FULL-STACK EXPERT
+# Stack: React · Next.js 14 · NestJS · FastAPI · MySQL
+# Language: TypeScript (Frontend/Backend) + Python (FastAPI)
+# ============================================================
+
+# IMPORTANT: Always reference the patterns and examples below.
+# When suggesting code, use the exact patterns shown.
+# When explaining concepts, use the terminology defined here.
+# If you don't know something, say so — don't make up patterns.
+
+---
+
+## 🗂️ Project Architecture Overview
+
+```
+project/
+├── frontend/        → Next.js 14 (App Router) + React
+├── backend-nest/    → NestJS (REST API / Auth / Business Logic)
+├── backend-python/  → FastAPI (AI / Data Processing / Heavy compute)
+└── shared/          → Shared types, constants, DTOs
+```
+
+- **Next.js**: UI, SSR, routing, public-facing pages
+- **NestJS**: Main backend, auth, CRUD, business logic, MySQL ORM
+- **FastAPI**: Python services (AI/ML, data pipelines, async compute)
+- **MySQL**: Primary database (via TypeORM in NestJS, SQLAlchemy in FastAPI)
+
+---
+
+# ══════════════════════════════════════════════
+# 1. REACT + NEXT.JS 14 (Frontend)
+# ══════════════════════════════════════════════
+
+## Core Rules
+- Use **App Router** (`/app` directory), NOT Pages Router
+- Server Components are the **default** — only add `"use client"` when needed
+- Fetch data directly in Server Components
+- Use **TypeScript strict mode** always
+- Use **Tailwind CSS** for all styling — no CSS-in-JS, no inline styles
+- Never use `any` type in TypeScript
+
+## Component Pattern
+```tsx
+// ✅ Server Component (default)
+// app/products/page.tsx
+import { getProducts } from '@/lib/api'
+
+export default async function ProductsPage() {
+  const products = await getProducts()
+  return <ProductList products={products} />
+}
+
+// ✅ Client Component (only when needed: useState, useEffect, event handlers)
+'use client'
+import { useState } from 'react'
+
+interface Props {
+  initialCount: number
+}
+
+export function Counter({ initialCount }: Props) {
+  const [count, setCount] = useState(initialCount)
+  return <button onClick={() => setCount(c => c + 1)}>{count}</button>
+}
+```
+
+## Data Fetching
+```tsx
+// ✅ Server Component — fetch from NestJS or FastAPI
+async function getData() {
+  const res = await fetch(`${process.env.API_URL}/products`, {
+    next: { revalidate: 60 }, // ISR
+  })
+  if (!res.ok) throw new Error('Failed to fetch')
+  return res.json()
+}
+
+// ✅ Client-side — use TanStack Query
+'use client'
+import { useQuery } from '@tanstack/react-query'
+import { api } from '@/lib/api'
+
+function useProducts() {
+  return useQuery({
+    queryKey: ['products'],
+    queryFn: () => api.get('/products').then(r => r.data),
+  })
+}
+```
+
+## API Client (Axios singleton)
+```tsx
+// lib/api.ts — single source of truth
+import axios from 'axios'
+
+export const api = axios.create({
+  baseURL: process.env.NEXT_PUBLIC_API_URL,
+  withCredentials: true,
+})
+
+api.interceptors.response.use(
+  res => res,
+  err => {
+    if (err.response?.status === 401) {
+      window.location.href = '/login'
+    }
+    return Promise.reject(err)
+  }
+)
+```
+
+## Naming Conventions
+- Components: `PascalCase` → `UserCard.tsx`, `ProductList.tsx`
+- Hooks: `camelCase` với prefix `use` → `useAuth.ts`, `useProducts.ts`
+- Files/folders: `kebab-case` → `user-profile/`, `product-list.tsx`
+- Constants: `UPPER_SNAKE_CASE`
+- Types/Interfaces: `PascalCase` với suffix rõ ràng → `UserDto`, `ProductResponse`
+
+## Folder Structure (Next.js)
+```
+frontend/
+├── app/
+│   ├── (auth)/login/page.tsx
+│   ├── (dashboard)/
+│   │   ├── layout.tsx
+│   │   └── products/page.tsx
+│   ├── api/              → Next.js Route Handlers (nếu cần)
+│   └── layout.tsx
+├── components/
+│   ├── ui/               → Base UI components
+│   └── features/         → Feature-specific components
+├── hooks/                → Custom hooks
+├── lib/
+│   ├── api.ts            → Axios client
+│   └── utils.ts
+└── types/                → Shared TypeScript types
+```
+
+## Anti-Patterns — React/Next.js
+```
+❌ DON'T dùng Pages Router (`/pages`)
+✅ DO dùng App Router (`/app`)
+
+❌ DON'T fetch data trong useEffect cho initial load
+✅ DO fetch trong Server Components
+
+❌ DON'T dùng `any` trong TypeScript
+✅ DO define proper interfaces/types
+
+❌ DON'T dùng CSS modules hoặc styled-components
+✅ DO dùng Tailwind CSS
+
+❌ DON'T dùng class components
+✅ DO dùng functional components + hooks
+```
+
+---
+
+# ══════════════════════════════════════════════
+# 2. NESTJS (Backend — TypeScript)
+# ══════════════════════════════════════════════
+
+## Core Rules
+- Dùng **TypeORM** cho MySQL
+- Dùng **class-validator** + **class-transformer** cho DTO validation
+- Dùng **Guards** cho authentication (JWT)
+- Mỗi feature là một **Module** riêng biệt
+- Luôn dùng **Repository pattern**
+- Xử lý lỗi qua **Exception Filters** hoặc built-in HttpException
+
+## Module Structure
+```
+backend-nest/src/
+├── app.module.ts
+├── main.ts
+├── config/               → ConfigModule, database config
+├── common/
+│   ├── decorators/
+│   ├── filters/          → Global exception filters
+│   ├── guards/           → AuthGuard, RolesGuard
+│   └── interceptors/
+└── modules/
+    ├── auth/
+    │   ├── auth.module.ts
+    │   ├── auth.controller.ts
+    │   ├── auth.service.ts
+    │   └── strategies/   → JWT strategy
+    └── products/
+        ├── products.module.ts
+        ├── products.controller.ts
+        ├── products.service.ts
+        ├── products.repository.ts
+        ├── entities/product.entity.ts
+        └── dto/
+            ├── create-product.dto.ts
+            └── update-product.dto.ts
+```
+
+## Entity (TypeORM + MySQL)
+```typescript
+// entities/product.entity.ts
+import {
+  Entity, PrimaryGeneratedColumn, Column,
+  CreateDateColumn, UpdateDateColumn, ManyToOne
+} from 'typeorm'
+import { User } from '../../users/entities/user.entity'
+
+@Entity('products')
+export class Product {
+  @PrimaryGeneratedColumn()
+  id: number
+
+  @Column({ length: 200 })
+  name: string
+
+  @Column('decimal', { precision: 10, scale: 2 })
+  price: number
+
+  @Column({ default: true })
+  isActive: boolean
+
+  @ManyToOne(() => User, user => user.products)
+  user: User
+
+  @CreateDateColumn()
+  createdAt: Date
+
+  @UpdateDateColumn()
+  updatedAt: Date
+}
+```
+
+## DTO (Validation)
+```typescript
+// dto/create-product.dto.ts
+import { IsString, IsNumber, IsPositive, MaxLength, IsOptional } from 'class-validator'
+
+export class CreateProductDto {
+  @IsString()
+  @MaxLength(200)
+  name: string
+
+  @IsNumber()
+  @IsPositive()
+  price: number
+
+  @IsOptional()
+  @IsString()
+  description?: string
+}
+```
+
+## Service Pattern
+```typescript
+// products.service.ts
+import { Injectable, NotFoundException } from '@nestjs/common'
+import { InjectRepository } from '@nestjs/typeorm'
+import { Repository } from 'typeorm'
+import { Product } from './entities/product.entity'
+import { CreateProductDto } from './dto/create-product.dto'
+
+@Injectable()
+export class ProductsService {
+  constructor(
+    @InjectRepository(Product)
+    private readonly productRepo: Repository<Product>,
+  ) {}
+
+  async findAll(): Promise<Product[]> {
+    return this.productRepo.find({ where: { isActive: true } })
+  }
+
+  async findOne(id: number): Promise<Product> {
+    const product = await this.productRepo.findOne({ where: { id } })
+    if (!product) throw new NotFoundException(`Product #${id} not found`)
+    return product
+  }
+
+  async create(dto: CreateProductDto): Promise<Product> {
+    const product = this.productRepo.create(dto)
+    return this.productRepo.save(product)
+  }
+
+  async update(id: number, dto: Partial<CreateProductDto>): Promise<Product> {
+    await this.findOne(id) // throws if not found
+    await this.productRepo.update(id, dto)
+    return this.findOne(id)
+  }
+
+  async remove(id: number): Promise<void> {
+    await this.findOne(id)
+    await this.productRepo.softDelete(id)
+  }
+}
+```
+
+## Controller Pattern
+```typescript
+// products.controller.ts
+import { Controller, Get, Post, Put, Delete, Param, Body, UseGuards, ParseIntPipe } from '@nestjs/common'
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard'
+import { ProductsService } from './products.service'
+import { CreateProductDto } from './dto/create-product.dto'
+
+@Controller('products')
+@UseGuards(JwtAuthGuard)
+export class ProductsController {
+  constructor(private readonly productsService: ProductsService) {}
+
+  @Get()
+  findAll() {
+    return this.productsService.findAll()
+  }
+
+  @Get(':id')
+  findOne(@Param('id', ParseIntPipe) id: number) {
+    return this.productsService.findOne(id)
+  }
+
+  @Post()
+  create(@Body() dto: CreateProductDto) {
+    return this.productsService.create(dto)
+  }
+
+  @Put(':id')
+  update(@Param('id', ParseIntPipe) id: number, @Body() dto: CreateProductDto) {
+    return this.productsService.update(id, dto)
+  }
+
+  @Delete(':id')
+  remove(@Param('id', ParseIntPipe) id: number) {
+    return this.productsService.remove(id)
+  }
+}
+```
+
+## Database Config (MySQL)
+```typescript
+// config/database.config.ts
+import { TypeOrmModuleOptions } from '@nestjs/typeorm'
+
+export const databaseConfig = (): TypeOrmModuleOptions => ({
+  type: 'mysql',
+  host: process.env.DB_HOST,
+  port: parseInt(process.env.DB_PORT, 10) || 3306,
+  username: process.env.DB_USER,
+  password: process.env.DB_PASS,
+  database: process.env.DB_NAME,
+  entities: [__dirname + '/../**/*.entity{.ts,.js}'],
+  synchronize: process.env.NODE_ENV !== 'production', // ⚠️ false in prod
+  logging: process.env.NODE_ENV === 'development',
+})
+```
+
+## Anti-Patterns — NestJS
+```
+❌ DON'T đặt business logic trong Controller
+✅ DO đặt logic trong Service
+
+❌ DON'T query trực tiếp không qua Repository
+✅ DO dùng Repository pattern hoặc TypeORM methods
+
+❌ DON'T synchronize: true trong production
+✅ DO dùng TypeORM migrations
+
+❌ DON'T bỏ qua validation DTO
+✅ DO dùng class-validator với ValidationPipe global
+```
+
+---
+
+# ══════════════════════════════════════════════
+# 3. FASTAPI (Backend — Python)
+# ══════════════════════════════════════════════
+
+## Core Rules
+- Dùng **Python 3.11+**
+- **Type hints bắt buộc** cho mọi function
+- Dùng **Pydantic v2** cho schemas
+- Dùng **SQLAlchemy 2.0** (async) + **aiomysql** cho MySQL
+- Dùng **async/await** cho tất cả database calls
+- Dùng **Alembic** cho migrations
+
+## Project Structure
+```
+backend-python/
+├── main.py
+├── requirements.txt
+├── alembic/              → DB migrations
+└── app/
+    ├── core/
+    │   ├── config.py     → Settings (pydantic-settings)
+    │   └── database.py   → SQLAlchemy engine/session
+    ├── models/           → SQLAlchemy models
+    ├── schemas/          → Pydantic schemas
+    ├── routers/          → APIRouter per feature
+    ├── services/         → Business logic
+    └── dependencies/     → Reusable FastAPI deps
+```
+
+## Config (pydantic-settings)
+```python
+# app/core/config.py
+from pydantic_settings import BaseSettings
+
+class Settings(BaseSettings):
+    DATABASE_URL: str
+    SECRET_KEY: str
+    DEBUG: bool = False
+    API_PREFIX: str = "/api/v1"
+
+    class Config:
+        env_file = ".env"
+
+settings = Settings()
+```
+
+## Database (SQLAlchemy async + MySQL)
+```python
+# app/core/database.py
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+from sqlalchemy.orm import DeclarativeBase
+
+engine = create_async_engine(
+    settings.DATABASE_URL.replace("mysql://", "mysql+aiomysql://"),
+    echo=settings.DEBUG,
+)
+AsyncSessionLocal = async_sessionmaker(engine, expire_on_commit=False)
+
+class Base(DeclarativeBase):
+    pass
+
+async def get_db() -> AsyncSession:
+    async with AsyncSessionLocal() as session:
+        yield session
+```
+
+## Model (SQLAlchemy)
+```python
+# app/models/product.py
+from sqlalchemy import String, Numeric, Boolean, DateTime, func
+from sqlalchemy.orm import Mapped, mapped_column
+from app.core.database import Base
+
+class Product(Base):
+    __tablename__ = "products"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(200))
+    price: Mapped[float] = mapped_column(Numeric(10, 2))
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+```
+
+## Schema (Pydantic v2)
+```python
+# app/schemas/product.py
+from pydantic import BaseModel, Field
+from decimal import Decimal
+
+class ProductBase(BaseModel):
+    name: str = Field(..., max_length=200)
+    price: Decimal = Field(..., gt=0, decimal_places=2)
+
+class ProductCreate(ProductBase):
+    pass
+
+class ProductResponse(ProductBase):
+    id: int
+    is_active: bool
+
+    model_config = {"from_attributes": True}
+```
+
+## Router Pattern
+```python
+# app/routers/products.py
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.core.database import get_db
+from app.schemas.product import ProductCreate, ProductResponse
+from app.services.product_service import ProductService
+
+router = APIRouter(prefix="/products", tags=["products"])
+
+@router.get("/", response_model=list[ProductResponse])
+async def list_products(db: AsyncSession = Depends(get_db)):
+    return await ProductService(db).get_all()
+
+@router.post("/", response_model=ProductResponse, status_code=status.HTTP_201_CREATED)
+async def create_product(
+    payload: ProductCreate,
+    db: AsyncSession = Depends(get_db),
+):
+    return await ProductService(db).create(payload)
+
+@router.get("/{product_id}", response_model=ProductResponse)
+async def get_product(product_id: int, db: AsyncSession = Depends(get_db)):
+    product = await ProductService(db).get_by_id(product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+    return product
+```
+
+## main.py
+```python
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from app.core.config import settings
+from app.routers import products
+
+app = FastAPI(title="FastAPI Service", docs_url="/docs" if settings.DEBUG else None)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.include_router(products.router, prefix=settings.API_PREFIX)
+```
+
+## Anti-Patterns — FastAPI
+```
+❌ DON'T dùng sync functions cho DB calls
+✅ DO dùng async def + await
+
+❌ DON'T bỏ type hints
+✅ DO annotate tất cả params và return type
+
+❌ DON'T trả về SQLAlchemy model trực tiếp
+✅ DO dùng Pydantic schema với from_attributes=True
+
+❌ DON'T để secret trong code
+✅ DO dùng pydantic-settings + .env file
+
+❌ DON'T synchronize schema tự động trong production
+✅ DO dùng Alembic migrations
+```
+
+---
+
+# ══════════════════════════════════════════════
+# 4. MYSQL — Quy tắc chung
+# ══════════════════════════════════════════════
+
+## Naming
+- Tables: `snake_case`, số nhiều → `products`, `user_roles`
+- Columns: `snake_case` → `created_at`, `is_active`
+- Index: `idx_table_column` → `idx_products_user_id`
+- FK: `fk_table_ref` → `fk_products_user`
+
+## Quy tắc
+- Luôn có `created_at` và `updated_at`
+- Dùng `soft delete` (cột `deleted_at`) thay vì xóa thật
+- Index các FK và cột hay filter/sort
+- Không dùng `SELECT *` trong production queries
+- Dùng transactions cho multi-table writes
+
+---
+
+# ══════════════════════════════════════════════
+# 5. CONVENTIONS CHUNG
+# ══════════════════════════════════════════════
+
+## API Design
+- Prefix: `/api/v1/` cho tất cả endpoints
+- NestJS chạy port `3001`
+- FastAPI chạy port `8000`
+- Next.js chạy port `3000`
+
+## Response Format (chuẩn hóa)
+```json
+{
+  "data": {},
+  "message": "Success",
+  "statusCode": 200
+}
+```
+
+## Error Format
+```json
+{
+  "statusCode": 404,
+  "message": "Product not found",
+  "error": "Not Found"
+}
+```
+
+## Environment Variables
+```
+# .env (mỗi service có file riêng)
+DB_HOST=localhost
+DB_PORT=3306
+DB_USER=root
+DB_PASS=secret
+DB_NAME=mydb
+JWT_SECRET=your_secret
+NODE_ENV=development
+```
+
+## Git Conventions
+- Branch: `feature/`, `fix/`, `chore/`
+- Commit: `feat:`, `fix:`, `refactor:`, `docs:`
+- PR phải có description rõ ràng
+
+## Testing
+- NestJS: Jest (`*.spec.ts`)
+- FastAPI: Pytest + httpx
+- Next.js: Vitest + React Testing Library
+
+---
+
+# ══════════════════════════════════════════════
+# 6. ANTI-PATTERNS TOÀN CỤC
+# ══════════════════════════════════════════════
+
+```
+❌ DON'T commit file .env
+✅ DO dùng .env.example và gitignore .env
+
+❌ DON'T hardcode URL / port / secret trong code
+✅ DO dùng environment variables
+
+❌ DON'T để business logic trong Controller/Router
+✅ DO tách ra Service layer
+
+❌ DON'T bỏ qua error handling
+✅ DO luôn try/catch cho async operations
+
+❌ DON'T dùng `any` trong TypeScript
+✅ DO define proper types/interfaces
+
+❌ DON'T query N+1
+✅ DO dùng JOIN hoặc eager loading (relations trong TypeORM)
+```
