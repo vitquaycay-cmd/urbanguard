@@ -2,15 +2,17 @@ import {
   ConflictException,
   Injectable,
   UnauthorizedException,
-} from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
-import { Role } from '@prisma/client';
-import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
-import * as bcrypt from 'bcrypt';
-import { PrismaService } from '../prisma/prisma.service';
-import { LoginDto } from './dto/login.dto';
-import { RegisterDto } from './dto/register.dto';
-import { JwtPayload } from './strategies/jwt.strategy';
+} from "@nestjs/common";
+import { JwtService } from "@nestjs/jwt";
+import { Role } from "@prisma/client";
+import { PrismaClientKnownRequestError } from "@prisma/client/runtime/library";
+import * as bcrypt from "bcrypt";
+import { PrismaService } from "../prisma/prisma.service";
+import { LoginDto } from "./dto/login.dto";
+import { RegisterDto } from "./dto/register.dto";
+import { JwtPayload } from "./strategies/jwt.strategy";
+import { ConfigService } from "@nestjs/config";
+import { generate } from "rxjs";
 
 const SALT_ROUNDS = 10;
 
@@ -19,6 +21,7 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
+    private readonly configService: ConfigService,
   ) {}
 
   async register(dto: RegisterDto) {
@@ -26,7 +29,7 @@ export class AuthService {
       where: { email: dto.email.toLowerCase() },
     });
     if (existing) {
-      throw new ConflictException('Email đã được sử dụng');
+      throw new ConflictException("Email đã được sử dụng");
     }
 
     const passwordHash = await bcrypt.hash(dto.password, SALT_ROUNDS);
@@ -47,8 +50,8 @@ export class AuthService {
       });
       return user;
     } catch (e) {
-      if (e instanceof PrismaClientKnownRequestError && e.code === 'P2002') {
-        throw new ConflictException('Email đã được sử dụng');
+      if (e instanceof PrismaClientKnownRequestError && e.code === "P2002") {
+        throw new ConflictException("Email đã được sử dụng");
       }
       throw e;
     }
@@ -59,22 +62,28 @@ export class AuthService {
       where: { email: dto.email.toLowerCase() },
     });
     if (!user) {
-      throw new UnauthorizedException('Email hoặc mật khẩu không đúng');
+      throw new UnauthorizedException("Email hoặc mật khẩu không đúng");
     }
 
     const match = await bcrypt.compare(dto.password, user.password);
     if (!match) {
-      throw new UnauthorizedException('Email hoặc mật khẩu không đúng');
+      throw new UnauthorizedException("Email hoặc mật khẩu không đúng");
     }
 
-    const payload: JwtPayload = {
-      sub: user.id,
-      email: user.email,
-      role: user.role,
-    };
+    // const payload: JwtPayload = {
+    //   sub: user.id,
+    //   email: user.email,
+    //   role: user.role,
+    // };
+
+    // Tạo cặp token mới và lưu refresh token vào DB
+    const { access_token, refresh_token } = this.generateTokens(user);
+    await this.saveRefreshToken(user.id, refresh_token);
 
     return {
-      access_token: this.jwtService.sign(payload),
+      // access_token: this.jwtService.sign(payload),
+      access_token,
+      refresh_token,
       user: {
         id: user.id,
         email: user.email,
@@ -82,5 +91,76 @@ export class AuthService {
         reputationScore: user.reputationScore,
       },
     };
+  }
+
+  private generateTokens(user: { id: number; email: string; role: Role }) {
+    // Payload là dữ liệu được mã hóa bên trong token
+    // Khi giải mã token sẽ biết được token này thuộc về ai (id, email, role)
+    // sub = subject — quy ước JWT, thường là id của user
+    const payload: JwtPayload = {
+      sub: user.id,
+      email: user.email,
+      role: user.role,
+    };
+    // Access token — sống ngắn (15p theo JWT_EXPIRES_IN trong .env)
+    // Không truyền options → jwtService dùng JWT_SECRET và JWT_EXPIRES_IN đã cấu hình sẵn trong AuthModule
+    const access_token = this.jwtService.sign(payload);
+
+    // Refresh token — sống dài (7 ngày theo JWT_REFRESH_EXPIRES_IN trong .env)
+    // Dùng secret RIÊNG (JWT_REFRESH_SECRET) để 2 loại token không hoán đổi được cho nhau
+    // configService.get() đọc giá trị từ file .env
+    const refresh_token = this.jwtService.sign(payload, {
+      secret: this.configService.get("JWT_REFRESH_SECRET"),
+      expiresIn: this.configService.get("JWT_REFRESH_EXPIRES_IN"),
+    });
+
+    return { access_token, refresh_token };
+  }
+
+  // Lưu refresh token vào DB sau khi tạo
+  // Mục đích: khi client gửi refresh token lên, server tra DB kiểm tra có tồn tại và còn hạn khôngS
+  private async saveRefreshToken(userId: number, token: string) {
+    // Tính thời điểm hết hạn = hiện tại + 7 ngày
+    // Dùng để check khi client gọi POST /auth/refresh
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 7);
+
+    // Lưu vào bảng refresh_tokens
+    return this.prisma.refreshToken.create({
+      data: {
+        token, // giá trị refresh token
+        userId, // id của user sở hữu token này
+        expiresAt, // thời điểm hết hạn vừa tính ở trên
+      },
+    });
+  }
+
+  async refresh(token: string) {
+    //Tìm token trong DB
+    const record = await this.prisma.refreshToken.findUnique({
+      where: { token },
+    });
+
+    if (!record) throw new UnauthorizedException("Refresh token không hợp lệ");
+
+    // Xóa token hết hạn khỏi DB trước (là rác, giữ lại vô nghĩa) rồi mới throw
+    if (record.expiresAt < new Date()) {
+      await this.prisma.refreshToken.delete({ where: { token } });
+      throw new UnauthorizedException("Refresh token đã hết hạn");
+    }
+
+    //Tìm user sở hữu token
+    const user = await this.prisma.user.findUnique({
+      where: { id: record.userId },
+    });
+    if (!user) throw new UnauthorizedException("Không tim thấy user");
+
+    // Mỗi lần refresh phải hủy token cũ → tránh dùng lại nhiều lần
+    await this.prisma.refreshToken.delete({ where: { token } });
+
+    //Tạo cặp token mới, lưu refresh token mới vào DB
+    const { access_token, refresh_token } = this.generateTokens(user);
+    await this.saveRefreshToken(user.id, refresh_token);
+    return { access_token, refresh_token };
   }
 }

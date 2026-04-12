@@ -48,6 +48,7 @@ model User {
   reports        Report[]
   votes          Vote[]
   notifications  Notification[]
+  refreshTokens RefreshToken[]
 
   @@map("users")
 }
@@ -109,4 +110,16 @@ model Notification {
   @@index([userId])
   @@index([reportId])
   @@map("notifications")
+}
+// Xử lý Token
+model RefreshToken {
+  id            Int @id @default(autoincrement())
+  token         String @unique
+  userId        Int @map("user_id")
+  expiresAt     DateTime
+  createdAt     DateTime @default(now())
+
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("refresh_tokens")
 }
