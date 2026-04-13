@@ -1,6 +1,7 @@
 import {
   ConflictException,
   Injectable,
+  NotFoundException,
   UnauthorizedException,
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
@@ -10,9 +11,10 @@ import * as bcrypt from "bcrypt";
 import { PrismaService } from "../prisma/prisma.service";
 import { LoginDto } from "./dto/login.dto";
 import { RegisterDto } from "./dto/register.dto";
+import { ChangePasswordDto } from "./dto/change-password.dto";
 import { JwtPayload } from "./strategies/jwt.strategy";
 import { ConfigService } from "@nestjs/config";
-import { generate } from "rxjs";
+import { generate, NotFoundError } from "rxjs";
 
 const SALT_ROUNDS = 10;
 
@@ -162,5 +164,23 @@ export class AuthService {
     const { access_token, refresh_token } = this.generateTokens(user);
     await this.saveRefreshToken(user.id, refresh_token);
     return { access_token, refresh_token };
+  }
+
+  async changePassword(userId: number, dto: ChangePasswordDto) {
+    // Tìm user theo id — lấy password hash để so sánh
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException("Không tìm thấy user");
+    // So sánh mật khẩu cũ user nhập với hash trong DB
+    const match = await bcrypt.compare(dto.oldPassword, user.password);
+    if (!match) throw new UnauthorizedException("Mật khẩu không đúng");
+    // Hash mật khẩu mới trước khi lưu — không bao giờ lưu plain text
+    const newHash = await bcrypt.hash(dto.newPassword, SALT_ROUNDS);
+    // Chỉ update trường password
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { password: newHash },
+    });
+
+    return { message: "Đổi mật khẩu thành công" };
   }
 }
