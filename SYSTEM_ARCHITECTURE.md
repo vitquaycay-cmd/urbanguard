@@ -1,215 +1,412 @@
 # SYSTEM_ARCHITECTURE — UrbanGuard
 
-Tài liệu **kiến trúc hệ thống tổng hợp** (đồng bộ với code trong repo tại thời điểm biên soạn). Dùng làm bản tham chiếu nhanh khi demo, onboard hoặc mở rộng. Chi tiết C4, API và DB sâu hơn: [`docs/01-system-design/`](./docs/01-system-design/).
+## 0) Scope & Snapshot
+
+Tài liệu này mô tả kiến trúc **full stack** hiện tại: `backend/`, `frontend/`, `ai-service/` và tham chiếu `docs/`.
+
+### Backend
+
+- Framework: **NestJS 10** + TypeScript
+- Database: **MySQL** + **Prisma ORM**
+- Auth: **JWT Access Token (15p)** + **Refresh Token (7 ngày)** lưu DB + Passport (`JwtAuthGuard`, `JwtStrategy`, `RolesGuard`)
+- Bảo mật mở rộng: **Rate limiting** (`@nestjs/throttler` — login 5 req/60s, reports 10 req/60s), **giới hạn 3 thiết bị** đồng thời (tự xóa phiên cũ nhất)
+- AI: **FastAPI + Ultralytics YOLOv8n** (Python, process riêng) — `POST /ai/analyze`; gọi qua `AiModule` (`@nestjs/axios`)
+- Realtime: **Socket.IO** namespace `/realtime`, sự kiện `report:new`
+- Upload: **Multer** → `backend/uploads/`, phục vụ qua static `/uploads/`
+- API prefix: `/api`
+- Swagger UI: **`/api/docs`**
+
+### Frontend
+
+- **Next.js** (App Router) + React + TypeScript + Tailwind CSS
+- Bản đồ: **Leaflet** + **react-leaflet** + **OpenStreetMap** tiles
+- Routing tìm đường: **leaflet-routing-machine** + **OSRM** công khai
+- Realtime: **socket.io-client** → `/realtime`, lắng nghe `report:new` → refetch active reports
+- Auth: JWT Bearer token lưu phía client
+- Trang chính: `/` (landing), `/map` (bản đồ + routing + né sự cố)
+
+### AI service
+
+- **FastAPI** + **Uvicorn** + **Ultralytics YOLOv8n** (COCO, lọc nhãn giao thông)
+- Endpoint chính: `POST /ai/analyze` — nhận `{ image_path }`, trả `detected`, `confidence`, `labels`, `predict`
+- Endpoint tương thích: `POST /predict`
+- Health check: `GET /health`
+- Swagger AI: `http://localhost:8000/docs`
 
 ---
 
-## 1. Tầm nhìn & ranh giới
+## 1) Layered Architecture (Kiến trúc phân tầng)
 
-| Mục tiêu | Cách đạt |
-|----------|----------|
-| Tách UI, API nghiệp vụ, AI | Next.js · NestJS · FastAPI (YOLO) chạy **process riêng** |
-| Dữ liệu quan hệ thống nhất | **MySQL** + **Prisma** |
-| Bản đồ công khai tin cậy | Chỉ **`Report.status = VALIDATED`** lên map công khai (`GET /api/reports/active`) |
-| Cập nhật gần realtime | **Socket.IO** namespace `/realtime`, sự kiện **`report:new`** |
-| Ảnh báo cáo | Filesystem **`backend/uploads/`**, URL **`/uploads/...`** qua Nest static |
-| Tiles & routing bản đồ | **OSM** (CDN) + **OSRM công khai** — **chỉ trên trình duyệt**, không qua Nest |
+### 1.1 Phân tầng tổng thể
 
----
+Hệ thống theo mô hình **module-based + layered**:
 
-## 2. Cấu trúc repository (monorepo)
+1. **Controller Layer** — Nhận HTTP request, bind DTO, áp Guard, gọi Service
+2. **Service Layer** — Chứa nghiệp vụ cốt lõi (auth, reports, AI, notifications)
+3. **Prisma Layer** — Truy cập DB thông qua `PrismaService` (global)
+4. **Persistence Layer** — MySQL: `users`, `reports`, `votes`, `refresh_tokens`, `notifications`
 
-Không dùng npm workspace ở root — **cài đặt và chạy riêng** từng thư mục.
+### 1.2 Module NestJS hiện có
 
-| Thư mục | Stack | Vai trò |
-|--------|-------|---------|
-| **`backend/`** | NestJS 10, Prisma, Passport JWT, Multer, Socket.IO, `@nestjs/axios` | REST `/api/*`, upload, điều phối AI, emit realtime |
-| **`frontend/`** | Next.js (App Router), React, Tailwind, react-leaflet, LRM, socket.io-client | `/`, `/map`, marker, OSRM client, banner né đường |
-| **`ai-service/`** | FastAPI, Ultralytics YOLOv8n | `POST /ai/analyze` — đọc ảnh theo tên file trong `uploads` |
-| **`docs/`** | Markdown | Thiết kế: kiến trúc, API, DB, sequence |
+| Module | Vai trò | Thành phần chính |
+|--------|---------|-----------------|
+| `AuthModule` | Đăng ký / đăng nhập / refresh / logout / đổi mật khẩu + JWT strategy | `AuthController`, `AuthService`, `JwtStrategy`, `JwtAuthGuard`, `RolesGuard` |
+| `UsersModule` | Quản lý user, role, profile, ban | `UsersController`, `UsersService` |
+| `ReportsModule` | CRUD báo cáo, tích hợp AI, emit Socket | `ReportsController`, `ReportsService` |
+| `AiModule` | Gọi Python FastAPI `/ai/analyze` | `AiService` (HTTP → Python) |
+| `NotificationsModule` | Gateway Socket.IO `/realtime`, emit `report:new` | `NotificationsGateway`, `NotificationsService` |
+| `AdminModule` | Khung admin — mở rộng sau | stub |
+| `StatisticsModule` | Thống kê, heatmap data — mở rộng sau | stub |
+| `UploadsModule` | Khung upload | stub (upload chính qua Multer trong Reports) |
+| `MapModule` | Khung map | stub |
+| `PrismaModule` | Global DB access | `PrismaService` |
 
-File bổ trợ sản phẩm: `UrbanGuard.md`, `README.md` (cài đặt & cổng dev).
+### 1.3 Sơ đồ phân tầng (Mermaid)
 
----
+```mermaid
+flowchart TD
+  C[Controllers] --> S[Services]
+  S --> P[PrismaService]
+  S --> AI[AiService HTTP]
+  S --> N[NotificationsService]
+  P --> DB[(MySQL)]
+  AI --> PY[FastAPI Python]
+  N --> WS[Socket.IO /realtime]
+```
 
-## 3. Tiến trình & cổng mặc định (development)
-
-| Process | Cổng (mặc định) | Lệnh gợi ý |
-|---------|-----------------|------------|
-| MySQL | 3306 | XAMPP / instance local |
-| Nest API | 3000 | `cd backend && npm run start:dev` |
-| FastAPI AI | 8000 | `cd ai-service && uvicorn main:app --reload --port 8000` |
-| Next.js | **3001** (tránh trùng API) | `cd frontend && npx next dev --turbopack -p 3001` |
-
-**Biến môi trường chính**
-
-| Biến | Nơi đặt | Ý nghĩa |
-|------|---------|---------|
-| `DATABASE_URL` | `backend/.env` | Prisma → MySQL |
-| `JWT_SECRET`, `JWT_EXPIRES_IN` | `backend/.env` | JWT |
-| `AI_SERVICE_URL` | `backend/.env` | Gốc Python, **không** `/` cuối (vd. `http://127.0.0.1:8000`) |
-| `PORT` | `backend/.env` | Cổng Nest (mặc định 3000) |
-| `UPLOADS_ROOT` | `ai-service` (tùy chọn) | Đường dẫn tuyệt đối tới `backend/uploads` nếu layout khác mặc định |
-| `NEXT_PUBLIC_API_URL` | `frontend/.env.local` | Gốc backend (vd. `http://localhost:3000`) |
-| `NEXT_PUBLIC_DEV_REPORT_IMAGE_TOOLS` | `frontend/.env.local` (tùy chọn) | Bật panel dev ảnh test trên `/map` |
-
----
-
-## 4. Sơ đồ triển khai logic
+### 1.4 Sơ đồ chức năng (functional map)
 
 ```mermaid
 flowchart TB
-  subgraph browser["Trình duyệt"]
-    FE[Next.js]
+  subgraph user["Người dùng"]
+    U1[Khách / chưa đăng nhập]
+    U2[User đã đăng nhập]
+    U3[Admin]
   end
 
-  subgraph host["Host dev / server"]
-    BE[NestJS API]
-    PY[FastAPI AI]
+  subgraph fe["Frontend (Next.js)"]
+    MAP["/map — Bản đồ Leaflet"]
+    AUTH["Auth: login / register"]
+    FORM["Form gửi báo cáo"]
+    ADMIN_UI["Trang admin duyệt"]
+    ROUTE["Tìm đường OSRM + né sự cố"]
+    RT["Socket report:new → refetch"]
+  end
+
+  subgraph api["API NestJS /api"]
+    JWT_G["JWT + RolesGuard"]
+    THROTTLE["Rate limiting Throttler"]
+    REP["Reports CRUD + AI"]
+    AUTH_API["Auth: login/register/refresh/logout"]
+    USERS_API["Users: list/role/profile/ban"]
+    AI_MOD["AiModule HTTP"]
+    NOTIF["NotificationsGateway Socket.IO"]
+  end
+
+  subgraph ai["AI service (Python :8000)"]
+    YOLO["YOLOv8n /ai/analyze"]
+  end
+
+  subgraph data["Persistence"]
     DB[(MySQL)]
     FS[uploads/]
   end
 
-  OSM[(OSM tiles)]
-  OSRM[(OSRM public)]
-
-  FE -->|REST /api + Bearer| BE
-  FE -->|Socket.IO /realtime| BE
-  FE -.->|tiles| OSM
-  FE -.->|routing LRM| OSRM
-  BE -->|Prisma| DB
-  BE -->|read/write| FS
-  BE -->|POST /ai/analyze JSON| PY
-  PY -->|read image| FS
+  U1 --> MAP
+  MAP --> ROUTE
+  U2 --> FORM
+  U2 --> AUTH
+  U3 --> ADMIN_UI
+  FORM --> REP
+  REP --> JWT_G
+  REP --> THROTTLE
+  REP --> AI_MOD
+  AI_MOD --> YOLO
+  REP --> NOTIF
+  NOTIF --> RT
+  AUTH --> AUTH_API
+  ADMIN_UI --> USERS_API
+  ADMIN_UI --> REP
+  REP --> DB
+  REP --> FS
+  AUTH_API --> DB
+  USERS_API --> DB
 ```
 
 ---
 
-## 5. Module NestJS (đăng ký trong `AppModule`)
+## 2) API & Endpoint Map
 
-| Module | Chức năng thực tế |
-|--------|-------------------|
-| **PrismaModule** | Global — truy cập DB |
-| **AuthModule** | Register / login JWT, `JwtAuthGuard` |
-| **UsersModule** | Người dùng |
-| **ReportsModule** | `GET /reports/active`, `POST /reports` (multipart), `PATCH /reports/:id/status` (admin); import **AiModule**, **NotificationsModule** |
-| **AiModule** | `AiService` — `HttpService` → Python `POST {AI_SERVICE_URL}/ai/analyze` body `{ image_path }` |
-| **NotificationsModule** | `NotificationsGateway` — namespace **`/realtime`**, emit **`report:new`** / `report:update` |
-| **UploadsModule** | Khung upload (ảnh chính qua Multer trong Reports) |
-| **MapModule**, **AdminModule**, **StatisticsModule** | Khung / mở rộng |
-| **AiReviewModule** | Stub / tương thích — luồng AI chính: **AiModule** + Python |
+> Tất cả route đều có tiền tố `/api` từ `main.ts`.
 
-Global: prefix **`api`**, static **`/uploads/`**, CORS, Swagger tại **`/api/docs`**.
+### 2.1 Hạ tầng
 
----
+| Method | Path | Guard | Mô tả |
+|--------|------|-------|-------|
+| GET | `/health` | None | Health check |
+| N/A | `/api/docs` | None | Swagger UI |
+| GET | `/uploads/*` | None | Static file ảnh báo cáo |
 
-## 6. Luồng nghiệp vụ báo cáo (ReportsService — đồng bộ code)
+### 2.2 Auth APIs
 
-1. **Upload (HTTP):** Multer lưu file vào `uploads/`, tạo `Report` **`PENDING`**, `trustScore = 0`, `imageUrl = /uploads/<file>`.
-2. **AI:** `AiService.analyze(filename)` → FastAPI **`POST /ai/analyze`**.
-3. **Validation & scoring:**
-   - Nếu **`confidence > 0.7`** → cập nhật **`VALIDATED`**, ghi **`aiSummary`**, **`aiLabels`**, **`trustScore`** (hằng auto-validated trong code), **`reputationScore` user +5** (transaction).
-   - Nếu **`confidence ≤ 0.7`** → giữ **`PENDING`**, vẫn lưu kết quả AI (khi có) để admin xem.
-   - Lỗi AI / timeout → **`PENDING`**, `aiSummary` ghi payload lỗi.
-4. **Realtime:** `NotificationsService.emitReportNew({ report })` → client refetch **`GET /api/reports/active`**.
-5. **Admin:** `PATCH /api/reports/:id/status` — **VALIDATED** / **REJECTED** (chỉ từ **PENDING**); **VALIDATED** cũng emit **`report:new`** và có thể cộng reputation (theo service).
+| Method | Path | Guard | Mô tả | Trạng thái |
+|--------|------|-------|-------|-----------|
+| POST | `/auth/register` | None | Đăng ký, hash bcrypt | ✅ |
+| POST | `/auth/login` | Throttle 5/60s | JWT + refresh token, giới hạn 3 thiết bị | ✅ |
+| GET | `/auth/me` | JWT | Profile từ token | ✅ |
+| POST | `/auth/refresh` | None | Đổi refresh → cặp token mới | ✅ |
+| PATCH | `/auth/password` | JWT | Đổi mật khẩu | ✅ |
+| POST | `/auth/logout` | JWT | Xóa 1 refresh token | ✅ |
+| POST | `/auth/logout-all` | JWT | Xóa tất cả refresh token | 🔨 |
 
-**Bản đồ công khai:** `GET /api/reports/active` chỉ trả **`status: VALIDATED`**.
+### 2.3 Users APIs
 
----
+| Method | Path | Guard | Mô tả | Trạng thái |
+|--------|------|-------|-------|-----------|
+| GET | `/users` | JWT + ADMIN | Danh sách user, filter role, phân trang | ✅ |
+| PATCH | `/users/:id/role` | JWT + ADMIN | Gán role qua API | ✅ |
+| GET | `/users/:id/profile` | JWT | reputationScore + totalReports | ✅ |
+| PATCH | `/users/:id/ban` | JWT + ADMIN | Khóa / mở khóa tài khoản | 🔨 |
+| DELETE | `/users/:id` | JWT + ADMIN | Xóa tài khoản | 🔨 |
 
-## 7. AI service (Python)
+### 2.4 Reports APIs
 
-- **Model:** YOLOv8n (COCO), lọc nhãn liên quan ngữ cảnh giao thông trong code.
-- **Input analyze:** JSON `{ "image_path": "<tên file trong uploads>" }`.
-- **Output (Nest expect):** `detected`, `confidence`, `labels[]`, … (xem `backend/src/ai/ai.service.ts` type `AiAnalyzeResponse`).
+| Method | Path | Guard | Mô tả | Trạng thái |
+|--------|------|-------|-------|-----------|
+| GET | `/reports/active` | None | Chỉ VALIDATED — dùng cho map | ✅ |
+| POST | `/reports` | JWT + Throttle 10/60s | Tạo báo cáo + AI auto-validate | ✅ |
+| PATCH | `/reports/:id/status` | JWT + ADMIN | PENDING → VALIDATED / REJECTED | ✅ |
+| GET | `/reports` | JWT + ADMIN | Danh sách tất cả báo cáo, filter | 🔨 Dev A |
+| GET | `/reports/:id` | JWT + ADMIN | Chi tiết 1 báo cáo | 🔨 Dev A |
+| DELETE | `/reports/:id` | JWT + ADMIN | Xóa báo cáo + file | 🔨 Dev A |
+| POST | `/reports/:id/vote` | JWT | UPVOTE / DOWNVOTE | 🔨 Dev C |
 
----
+### 2.5 Admin APIs
 
-## 8. Frontend — kiến trúc trang & logic map
+| Method | Path | Guard | Mô tả | Trạng thái |
+|--------|------|-------|-------|-----------|
+| GET | `/admin/reports/pending` | JWT + ADMIN | Queue duyệt PENDING | 🔨 Dev A |
 
-| Route | Nội dung |
-|-------|----------|
-| **`/`** | Landing (trang chủ) |
-| **`/map`** | `MapWithNoSSR` → **`ActiveReportsMap`**: Leaflet, tile OSM, marker, vòng danger, **IncidentRouteControl** (LRM + OSRM) |
+### 2.6 Statistics APIs
 
-**Dữ liệu map**
-
-- Fetch: **`GET ${NEXT_PUBLIC_API_URL}/api/reports/active`** → `ActiveReport[]` (kèm `aiLabels`, `trustScore`, …).
-- Socket: **`io(`${API}/realtime`)`** — **`report:new`** → refetch danh sách.
-
-**Hiển thị marker (client)**
-
-- Lọc hiển thị: **`status === "VALIDATED"`** (phòng thủ phía client; API đã lọc).
-- Popup: **`ReportDangerPopup`** — nhấn mạnh **`aiLabels`**.
-
-**Tìm đường & né sự cố (client-only)**
-
-- Chỉ incident **`VALIDATED` + trustScore > 0** tham gia logic né (`getValidatedReportsForRouting`).
-- **Đệm phát hiện va chạm tuyến:** **`INCIDENT_BUFFER_M = 115`** (trong `frontend/src/services/routingService.ts`) — khoảng cách tâm sự cố → polyline OSRM.
-- Vòng đỏ trên map: bán kính hiển thị ~50 m (theme), độc lập với đệm 115 m.
-- Khi tuyến cắt đệm: banner vàng qua **`formatIncidentAvoidanceBanner`**, nội dung dạng: *Đã phát hiện sự cố [nhãn] trên lộ trình, đang điều hướng tránh né.*
-- Chèn waypoint: **`computeDetourWaypoint`** (generate điểm lệch + chọn phía), chiến lược bước **`DETOUR_STRATEGY_METERS`**, giới hạn **`MAX_DETOUR_INJECTIONS`**; hết chiến lược → thông báo fallback, giữ polyline OSRM cuối.
-
-**Dev tiện ích ảnh test:** `backend` script `fixture:report-image`, frontend `NEXT_PUBLIC_DEV_REPORT_IMAGE_TOOLS` (xem `README.md`).
+| Method | Path | Guard | Mô tả | Trạng thái |
+|--------|------|-------|-------|-----------|
+| GET | `/statistics/overview` | JWT + ADMIN | Tổng quan, tỉ lệ auto-validated | 🔨 Dev C |
+| GET | `/statistics/heatmap-data` | None | Tọa độ + mật độ cho Leaflet heatmap | 🔨 Dev C |
 
 ---
 
-## 9. API REST tóm tắt
+## 3) Luồng nghiệp vụ chính
 
-| Method | Path | Auth | Mô tả |
-|--------|------|------|--------|
-| POST | `/api/auth/register` | — | Đăng ký |
-| POST | `/api/auth/login` | — | JWT |
-| GET | `/api/auth/me` | JWT | Profile |
-| GET | `/api/reports/active` | — | Chỉ **VALIDATED** (map) |
-| POST | `/api/reports` | JWT | Multipart: ảnh + meta → AI → có thể auto VALIDATED |
-| PATCH | `/api/reports/:id/status` | JWT + **ADMIN** | PENDING → VALIDATED / REJECTED |
+### 3.1 Luồng tạo báo cáo + AI
 
-Swagger đầy đủ: **`/api/docs`**.
+```
+User POST /api/reports (JWT, multipart ảnh)
+  → Multer lưu file vào uploads/, tạo Report PENDING
+  → AiService.analyze(filename) → FastAPI POST /ai/analyze
+      confidence > 0.7  → VALIDATED, trustScore=15, aiLabels, reputation +5
+      confidence < 0.5  → PENDING chờ admin
+      lỗi AI            → PENDING, aiSummary ghi lỗi
+  → NotificationsService.emitReportNew() → Socket report:new
+  → Client map refetch GET /api/reports/active
+```
+
+### 3.2 Luồng auth + refresh token
+
+```
+Đăng nhập → access_token (15p) + refresh_token (7 ngày) lưu DB
+  → Tối đa 3 thiết bị đồng thời (xóa phiên cũ nhất nếu vượt)
+
+Access token hết hạn:
+  POST /auth/refresh → kiểm tra DB → xóa token cũ → cấp cặp mới
+
+Đăng xuất:
+  POST /auth/logout     → xóa 1 refresh token
+  POST /auth/logout-all → xóa tất cả (🔨)
+```
+
+### 3.3 Luồng admin duyệt báo cáo
+
+```
+Admin GET /api/admin/reports/pending (🔨 Dev A)
+  → Xem danh sách PENDING + aiSummary
+  → PATCH /api/reports/:id/status → VALIDATED / REJECTED
+  → VALIDATED: emit report:new → map cập nhật realtime
+```
+
+### 3.4 Luồng tìm đường né sự cố (Frontend)
+
+```
+User nhập điểm đến trên /map
+  → leaflet-routing-machine gọi OSRM public
+  → routingService kiểm tra polyline vs incident buffer (115m)
+  → Có sự cố trên lộ trình: computeDetourWaypoint() chèn waypoint né
+  → Hiển thị banner cảnh báo vàng với aiLabels
+```
 
 ---
 
-## 10. Realtime (Socket.IO)
+## 4) Tiến trình & cổng mặc định (development)
 
-| Namespace | Sự kiện | Payload gợi ý |
-|-----------|---------|----------------|
-| `/realtime` | **`report:new`** | `{ report: { … } }` — sau create + AI hoặc admin VALIDATED |
-| `/realtime` | `report:update` | Gateway hỗ trợ; tích hợp báo cáo tùy luồng sau này |
+| Process | Cổng | Lệnh |
+|---------|------|------|
+| MySQL | 3306 | XAMPP / local |
+| NestJS API | 3000 | `cd backend && npm run start:dev` |
+| FastAPI AI | 8000 | `cd ai-service && uvicorn main:app --reload --port 8000` |
+| Next.js | 3001 | `cd frontend && npx next dev --turbopack -p 3001` |
+
+### Biến môi trường chính
+
+| Biến | Nơi đặt | Ý nghĩa |
+|------|---------|---------|
+| `DATABASE_URL` | `backend/.env` | Prisma → MySQL |
+| `JWT_SECRET` | `backend/.env` | Access token secret |
+| `JWT_EXPIRES_IN` | `backend/.env` | Thời hạn access token (15m) |
+| `JWT_REFRESH_SECRET` | `backend/.env` | Refresh token secret (khác access) |
+| `JWT_REFRESH_EXPIRES_IN` | `backend/.env` | Thời hạn refresh token (7d) |
+| `AI_SERVICE_URL` | `backend/.env` | Gốc Python, không `/` cuối |
+| `PORT` | `backend/.env` | Cổng Nest (mặc định 3000) |
+| `NEXT_PUBLIC_API_URL` | `frontend/.env.local` | Gốc backend |
 
 ---
 
-## 11. Rủi ro vận hành & phụ thuộc
+## 5) Database Schema
+
+```mermaid
+erDiagram
+  USER ||--o{ REPORT : creates
+  USER ||--o{ VOTE : casts
+  USER ||--o{ NOTIFICATION : receives
+  USER ||--o{ REFRESH_TOKEN : owns
+  REPORT ||--o{ VOTE : has
+  REPORT ||--o{ NOTIFICATION : triggers
+
+  USER {
+    Int id PK
+    String email
+    String password
+    Int reputationScore
+    Role role
+    Boolean isBanned
+    DateTime createdAt
+  }
+
+  REPORT {
+    Int id PK
+    String title
+    String description
+    Float latitude
+    Float longitude
+    String imageUrl
+    ReportStatus status
+    Float trustScore
+    Json aiSummary
+    Json aiLabels
+    Int userId FK
+    DateTime createdAt
+  }
+
+  REFRESH_TOKEN {
+    Int id PK
+    String token
+    Int userId FK
+    DateTime expiresAt
+    DateTime createdAt
+  }
+
+  VOTE {
+    Int id PK
+    Int userId FK
+    Int reportId FK
+    VoteType type
+  }
+```
+
+**Enum:**
+
+| Enum | Giá trị |
+|------|---------|
+| `Role` | `USER`, `ADMIN` |
+| `ReportStatus` | `PENDING`, `VALIDATED`, `REJECTED`, `RESOLVED`, `VERIFIED` |
+| `VoteType` | `UPVOTE`, `DOWNVOTE` |
+
+---
+
+## 6) Bảo mật
+
+| Cơ chế | Chi tiết |
+|--------|---------|
+| Bcrypt | Hash mật khẩu, SALT_ROUNDS = 10 |
+| JWT dual secret | Access: `JWT_SECRET` · Refresh: `JWT_REFRESH_SECRET` khác nhau |
+| Token rotation | Mỗi refresh → xóa token cũ, cấp token mới |
+| Giới hạn thiết bị | Tối đa 3 phiên đồng thời, tự xóa phiên cũ nhất |
+| Rate limiting | `@nestjs/throttler` — login 5/60s, reports 10/60s |
+| RolesGuard | Kiểm tra role ADMIN trước mọi admin endpoint |
+| Ban user | `isBanned` — chặn đăng nhập (🔨 đang làm) |
+| CORS | Chỉ cho phép origin từ `CORS_ORIGIN` trong `.env` |
+
+---
+
+## 7) Rủi ro vận hành
 
 | Rủi ro | Hệ quả / xử lý |
 |--------|----------------|
-| AI tắt / lỗi | Báo cáo vẫn tạo, **PENDING**, admin duyệt sau |
-| MySQL down | API phụ thuộc DB lỗi toàn phần |
-| OSRM / OSM ngoài | Chỉ ảnh hưởng tuyến & tile trên client |
-| OSRM public rate limit | Có thể cần OSRM self-host khi scale |
+| AI tắt / lỗi | Báo cáo vẫn tạo, PENDING, admin duyệt sau |
+| MySQL down | API lỗi toàn phần |
+| OSRM / OSM ngoài | Chỉ ảnh hưởng tìm đường và tile trên client |
+| OSRM public rate limit | Cần self-host khi scale |
+| Token refresh DB quá nhiều | Giới hạn 3 thiết bị tránh tích lũy vô hạn |
 
 ---
 
-## 12. Kiểm thử trong repo
+## 8) Task còn lại theo dev
 
-```bash
-cd backend && npm test
-cd frontend && npm test
-cd ai-service && npm test   # pytest
-```
-
----
-
-## 13. Liên kết tài liệu chi tiết
-
-| Chủ đề | File |
-|--------|------|
-| Kiến trúc (bản song song trong docs) | [`docs/01-system-design/system-architecture.md`](./docs/01-system-design/system-architecture.md) |
-| C4 & luồng mở rộng | [`docs/01-system-design/architecture.md`](./docs/01-system-design/architecture.md) |
-| Cài đặt & demo | [`README.md`](./README.md) |
-| Mô tả sản phẩm | [`UrbanGuard.md`](./UrbanGuard.md) |
-| Schema DB | [`docs/01-system-design/database-design.md`](./docs/01-system-design/database-design.md) |
+| Dev | Task | Ưu tiên |
+|-----|------|---------|
+| **Dev A** | GET /reports, GET /reports/:id, GET /admin/reports/pending | P1 |
+| **Dev A** | DELETE /reports/:id | P2 |
+| **Dev B** | POST /auth/logout-all | P2 |
+| **Dev B** | PATCH /users/:id/ban | P2 |
+| **Dev B** | DELETE /users/:id | P3 |
+| **Dev C** | POST /reports/:id/vote, PATCH RESOLVED, dọn file | P2 |
+| **Dev C** | Statistics, heatmap, cron, Socket update | P3 |
+| **Dev D** | Trang admin (chờ Dev A P1) | P1 |
+| **Dev D** | Form gửi báo cáo, heatmap UI, model AI | P2-P3 |
 
 ---
 
-*UrbanGuard — Bảo vệ bạn trên mọi cung đường.*
+## 9) Quick Traceability (File tham chiếu chính)
+
+### Backend
+
+- Bootstrap: `backend/src/main.ts`
+- App wiring: `backend/src/app.module.ts`
+- Auth: `backend/src/auth/*`
+- Users: `backend/src/users/*`
+- Reports: `backend/src/reports/*`
+- AI: `backend/src/ai/*`
+- Notifications: `backend/src/notifications/*`
+- Prisma schema: `backend/prisma/schema.prisma`
+
+### Frontend
+
+- App entry: `frontend/src/app/`
+- Bản đồ: `frontend/src/app/map/`
+- Routing service: `frontend/src/services/routingService.ts`
+- Socket client: `frontend/src/services/socket.ts`
+
+### AI service
+
+- Entry: `ai-service/main.py`
+- Analyze endpoint: `ai-service/routers/analyze.py`
+
+### Docs
+
+- `docs/01-system-design/system-architecture.md`
+- `docs/01-system-design/database-design.md`
+- `AUTH_USERS_FLOW.md`
+- `TASK_ASSIGNMENT_v2.md`
+
+---
+
+*UrbanGuard — Bảo vệ bạn trên mọi cung đường*
