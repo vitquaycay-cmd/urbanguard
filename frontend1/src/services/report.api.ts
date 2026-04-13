@@ -1,67 +1,14 @@
 /**
- * API báo cáo sự cố + auth tối thiểu cho luồng gửi nhanh.
- * Backend: POST /api/reports (multipart), GET /api/reports/active.
+ * UrbanGuard — Report API service
+ * Xử lý: tạo báo cáo, lấy danh sách báo cáo active
  */
 
-import { MAP_API_BASE, fetchActiveReports } from "@/lib/mapActiveReports";
+import { API_BASE, getStoredAccessToken } from "@/services/auth.api";
+import { fetchActiveReports, MAP_API_BASE } from "@/lib/mapActiveReports";
 
 export { MAP_API_BASE, fetchActiveReports };
 
-/** ✅ BASE URL (VITE) */
-const API_BASE =
-  import.meta.env.VITE_API_URL || "http://localhost:3001";
-
-/** localStorage — JWT sau đăng nhập. */
-export const AUTH_TOKEN_KEY = "urbanguard_access_token";
-
-export function getStoredAccessToken(): string | null {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem(AUTH_TOKEN_KEY);
-}
-
-export function setStoredAccessToken(token: string | null): void {
-  if (typeof window === "undefined") return;
-  if (token) localStorage.setItem(AUTH_TOKEN_KEY, token);
-  else localStorage.removeItem(AUTH_TOKEN_KEY);
-}
-
-export type LoginResponse = {
-  access_token: string;
-  user?: { id: number; email: string; role?: string };
-};
-
-export async function loginRequest(
-  email: string,
-  password: string,
-  signal?: AbortSignal,
-): Promise<LoginResponse> {
-  const res = await fetch(`${API_BASE}/api/auth/login`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email: email.trim(), password }),
-    signal,
-  });
-
-  const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-
-  if (!res.ok) {
-    const msg =
-      typeof data.message === "string"
-        ? data.message
-        : Array.isArray(data.message)
-        ? String(data.message[0])
-        : `Đăng nhập thất bại (${res.status})`;
-    throw new Error(msg);
-  }
-
-  const token = data.access_token;
-
-  if (typeof token !== "string" || !token) {
-    throw new Error("Phản hồi đăng nhập không hợp lệ");
-  }
-
-  return data as LoginResponse;
-}
+// ── Types ─────────────────────────────────────────────────────
 
 export type CreateReportPayload = {
   title: string;
@@ -79,6 +26,8 @@ export type CreateReportResponse = {
   aiLabels?: string[] | null;
 };
 
+// ── Helper parse lỗi ──────────────────────────────────────────
+
 function parseErrorMessage(res: Response, data: unknown): string {
   if (data && typeof data === "object" && "message" in data) {
     const m = (data as { message: unknown }).message;
@@ -88,16 +37,21 @@ function parseErrorMessage(res: Response, data: unknown): string {
   return `Gửi báo cáo thất bại (${res.status})`;
 }
 
+// ── API calls ─────────────────────────────────────────────────
+
 /**
  * POST /api/reports — multipart
+ * Tạo báo cáo sự cố mới, cần JWT
  */
 export async function createReportRequest(
-  accessToken: string,
   payload: CreateReportPayload,
   signal?: AbortSignal,
 ): Promise<CreateReportResponse> {
-  const fd = new FormData();
+  const accessToken = getStoredAccessToken();
 
+  if (!accessToken) throw new Error("Chưa đăng nhập");
+
+  const fd = new FormData();
   fd.append("title", payload.title.trim());
   fd.append("description", payload.description.trim());
   fd.append("latitude", String(payload.latitude));

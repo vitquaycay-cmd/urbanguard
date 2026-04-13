@@ -2,6 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import RegisterCard from "../components/login/RegisterCard";
 import RegisterForm from "../components/login/RegisterForm";
+import { registerRequest } from "@/services/auth.api";
 import "../styles/auth.css";
 
 export default function RegisterPage() {
@@ -14,31 +15,45 @@ export default function RegisterPage() {
   });
 
   const [isPasswordFocused, setIsPasswordFocused] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     if (!formData.email || !formData.password || !formData.confirmPassword) {
-      alert("Vui lòng nhập đầy đủ thông tin.");
+      setError("Vui lòng nhập đầy đủ thông tin.");
       return;
     }
 
     if (formData.password !== formData.confirmPassword) {
-      alert("Mật khẩu xác nhận không khớp.");
+      setError("Mật khẩu xác nhận không khớp.");
       return;
     }
 
-    alert("Đăng ký thành công.");
-    navigate("/login");
+    if (formData.password.length < 6) {
+      setError("Mật khẩu phải có ít nhất 6 ký tự.");
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      // Gọi API đăng ký thật
+      await registerRequest(formData.email, formData.password);
+      // Đăng ký thành công → chuyển sang trang đăng nhập
+      navigate("/login");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Đăng ký thất bại");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -52,6 +67,8 @@ export default function RegisterPage() {
           onSubmit={handleSubmit}
           onPasswordFocus={() => setIsPasswordFocused(true)}
           onPasswordBlur={() => setIsPasswordFocused(false)}
+          error={error}
+          loading={loading}
         />
       </RegisterCard>
     </div>
