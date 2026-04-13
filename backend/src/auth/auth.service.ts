@@ -15,7 +15,6 @@ import { ChangePasswordDto } from "./dto/change-password.dto";
 import { LogoutDto } from "./dto/logout.dto";
 import { JwtPayload } from "./strategies/jwt.strategy";
 import { ConfigService } from "@nestjs/config";
-import { generate, NotFoundError } from "rxjs";
 
 const SALT_ROUNDS = 10;
 
@@ -121,8 +120,18 @@ export class AuthService {
   }
 
   // Lưu refresh token vào DB sau khi tạo
-  // Mục đích: khi client gửi refresh token lên, server tra DB kiểm tra có tồn tại và còn hạn khôngS
+  // Mục đích: khi client gửi refresh token lên, server tra DB kiểm tra có tồn tại và còn hạn không
   private async saveRefreshToken(userId: number, token: string) {
+    const count = await this.prisma.refreshToken.count({ where: { userId } });
+    if (count>=3) {
+      const oldest= await this.prisma.refreshToken.findFirst({
+        where: {userId},
+        orderBy: {createdAt: 'asc'},
+      });
+      if (oldest){
+        await this.prisma.refreshToken.delete({where: {id: oldest.id}})
+      }
+    }
     // Tính thời điểm hết hạn = hiện tại + 7 ngày
     // Dùng để check khi client gọi POST /auth/refresh
     const expiresAt = new Date();
