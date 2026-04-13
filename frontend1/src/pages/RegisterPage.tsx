@@ -1,15 +1,16 @@
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
-import LoginCard from "../components/login/LoginCard";
-import LoginForm from "../components/login/LoginForm";
+import RegisterCard from "../components/login/RegisterCard";
+import RegisterForm from "../components/login/RegisterForm";
 import "../styles/auth.css";
 
-export default function LoginPage() {
+export default function RegisterPage() {
   const navigate = useNavigate();
 
   const [formData, setFormData] = useState({
     email: "",
     password: "",
+    confirmPassword: "",
   });
 
   const [isPasswordFocused, setIsPasswordFocused] = useState(false);
@@ -26,28 +27,33 @@ export default function LoginPage() {
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    if (!formData.email || !formData.password) {
-      alert("Vui lòng nhập đầy đủ email và mật khẩu.");
+    if (!formData.email || !formData.password || !formData.confirmPassword) {
+      alert("Vui lòng nhập đầy đủ thông tin.");
       return;
     }
 
-    alert("Đăng nhập thành công giả lập.");
-    navigate("/map");
+    if (formData.password !== formData.confirmPassword) {
+      alert("Mật khẩu xác nhận không khớp.");
+      return;
+    }
+
+    alert("Đăng ký thành công.");
+    navigate("/login");
   };
 
   return (
     <div className="auth-page">
       <div className="auth-grid" />
 
-      <LoginCard isPasswordFocused={isPasswordFocused}>
-        <LoginForm
+      <RegisterCard isPasswordFocused={isPasswordFocused}>
+        <RegisterForm
           formData={formData}
           onChange={handleChange}
           onSubmit={handleSubmit}
           onPasswordFocus={() => setIsPasswordFocused(true)}
           onPasswordBlur={() => setIsPasswordFocused(false)}
         />
-      </LoginCard>
+      </RegisterCard>
     </div>
   );
 }

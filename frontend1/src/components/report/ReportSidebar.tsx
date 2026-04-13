@@ -1,3 +1,5 @@
+import { Link } from "react-router-dom";
+
 export default function ReportSidebar() {
   return (
     <aside className="report-sidebar">
@@ -8,8 +10,13 @@ export default function ReportSidebar() {
 
       <div className="report-menu-group">
         <div className="report-menu-title">Chính</div>
+
         <div className="report-menu-item">Dashboard</div>
-        <div className="report-menu-item">Bản đồ</div>
+
+        {/* 👇 SỬA Ở ĐÂY */}
+        <Link to="/map" className="report-menu-item">
+          Bản đồ
+        </Link>
       </div>
 
       <div className="report-menu-group">
