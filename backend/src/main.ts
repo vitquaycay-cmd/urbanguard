@@ -18,17 +18,8 @@ async function bootstrap() {
 
   app.useStaticAssets(join(process.cwd(), 'uploads'), { prefix: '/uploads/' });
 
-  const corsRaw = process.env.CORS_ORIGIN?.trim();
-  let corsOrigin = corsRaw
-    ? corsRaw.split(',').map((o) => o.trim()).filter(Boolean)
-    : ['http://localhost:3000', 'http://localhost:3001'];
-
-  if (corsOrigin.length === 0) {
-    corsOrigin = ['http://localhost:3000', 'http://localhost:3001'];
-  }
-
   app.enableCors({
-    origin: corsOrigin.length === 1 ? corsOrigin[0] : corsOrigin,
+    origin: true,
     credentials: true,
   });
 

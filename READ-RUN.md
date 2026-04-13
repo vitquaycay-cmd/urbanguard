@@ -24,3 +24,8 @@ tạo Prisma Client
 npx prisma migrate dev
 tạo & cập nhật database
 npm run start:dev
+
+
+ backend 
+ npx prisma studio
+  kiểm tra csdl 
