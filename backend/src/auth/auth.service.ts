@@ -12,6 +12,7 @@ import { PrismaService } from "../prisma/prisma.service";
 import { LoginDto } from "./dto/login.dto";
 import { RegisterDto } from "./dto/register.dto";
 import { ChangePasswordDto } from "./dto/change-password.dto";
+import { LogoutDto } from "./dto/logout.dto";
 import { JwtPayload } from "./strategies/jwt.strategy";
 import { ConfigService } from "@nestjs/config";
 import { generate, NotFoundError } from "rxjs";
@@ -182,5 +183,19 @@ export class AuthService {
     });
 
     return { message: "Đổi mật khẩu thành công" };
+  }
+
+  async logout(token: string) {
+    // Tìm refresh token trong DB
+    // Nếu không tìm thấy → token giả hoặc đã bị xóa trước đó
+    const record = await this.prisma.refreshToken.findUnique({
+      where: { token },
+    });
+    if (!record) throw new UnauthorizedException("Refresh token không hợp lệ");
+    // Xóa refresh token khỏi DB
+    // Sau khi xóa, dù token chưa hết hạn cũng không thể refresh được nữa
+    await this.prisma.refreshToken.delete({ where: { token } });
+
+    return { message: "Đăng xuất thành công" };
   }
 }

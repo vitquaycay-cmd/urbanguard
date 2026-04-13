@@ -23,6 +23,7 @@ import { RefreshTokenDto } from "./dto/refresh-token.dto";
 import { JwtAuthGuard } from "./guards/jwt-auth.guard";
 import { Throttle } from "@nestjs/throttler";
 import { ChangePasswordDto } from "./dto/change-password.dto";
+import { LogoutDto } from "./dto/logout.dto";
 
 @ApiTags("auth")
 @Controller("auth")
@@ -74,19 +75,26 @@ export class AuthController {
     return this.authService.refresh(dto.refreshToken);
   }
 
-  @Patch('password')
+  @Patch("password")
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({summary: 'Đổi mật khẩu'})
-  @ApiResponse({status:200, description: 'Đổi mật khẩu thành công'})
-  @ApiResponse({status: 401})
-  @ApiResponse({status: 404})
-  updatePassword(
-    @Body() dto: ChangePasswordDto,
-    @Req() req: Request
-) {
-  return this.authService.changePassword(req.user!.id, dto);
-}
+  @ApiOperation({ summary: "Đổi mật khẩu" })
+  @ApiResponse({ status: 200, description: "Đổi mật khẩu thành công" })
+  @ApiResponse({ status: 401 })
+  @ApiResponse({ status: 404 })
+  updatePassword(@Body() dto: ChangePasswordDto, @Req() req: Request) {
+    return this.authService.changePassword(req.user!.id, dto);
+  }
 
+  @Post("logout")
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "Đăng xuất — xóa refresh token khỏi DB" })
+  @ApiResponse({ status: 200, description: "Đăng xuất thành công" })
+  @ApiResponse({ status: 401, description: "Refresh token không hợp lệ" })
+  logout(@Body() dto: LogoutDto) {
+    return this.authService.logout(dto.refreshToken);
+  }
 }
