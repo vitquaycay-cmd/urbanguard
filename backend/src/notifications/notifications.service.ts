@@ -56,7 +56,7 @@ export class NotificationsService {
     this.gateway.emitReportNew(payload as unknown as Record<string, unknown>);
   }
 
-  broadcastReportUpdate(payload: Record<string, unknown>) {
-    this.gateway.emitReportUpdate(payload);
+  broadcastReportUpdate(payload: { id: number; status: string }) {
+    this.gateway.emitReportUpdate(payload as unknown as Record<string, unknown>);
   }
 }

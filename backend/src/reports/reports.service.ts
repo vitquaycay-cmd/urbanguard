@@ -221,10 +221,17 @@ export class ReportsService {
    * Khi duyệt VALIDATED, cộng reputationScore cho user tạo báo cáo.
    */
   async updateStatus(reportId: number, action: AdminReportStatus) {
-    const nextDbStatus: ReportStatus =
-      action === AdminReportStatus.VALIDATED
-        ? REPORT_STATUS_VALIDATED
-        : REPORT_STATUS_REJECTED;
+    // [Cũ] Sửa: Logic cũ phân loại đích đến của Dev A:
+    // const nextDbStatus: ReportStatus =
+    //   action === AdminReportStatus.VALIDATED
+    //     ? REPORT_STATUS_VALIDATED
+    //     : REPORT_STATUS_REJECTED;
+
+    // [Mới] Logic thêm flow RESOLVED
+    let nextDbStatus: ReportStatus;
+    if (action === AdminReportStatus.VALIDATED) nextDbStatus = ReportStatus.VALIDATED;
+    else if (action === AdminReportStatus.REJECTED) nextDbStatus = ReportStatus.REJECTED;
+    else nextDbStatus = ReportStatus.RESOLVED;
 
     const result = await this.prisma.$transaction(async (tx) => {
       const report = await tx.report.findUnique({
@@ -235,10 +242,23 @@ export class ReportsService {
       if (!report) {
         throw new NotFoundException(`Không tìm thấy báo cáo #${reportId}`);
       }
-      if (report.status !== ReportStatus.PENDING) {
-        throw new BadRequestException(
-          `Chỉ có thể duyệt báo cáo đang PENDING (hiện tại: ${report.status})`,
-        );
+
+      // [Cũ] Sửa: Cữ chặn cũ của Dev A (Chỉ duyệt PENDING):
+      // if (report.status !== ReportStatus.PENDING) {
+      //   throw new BadRequestException(
+      //     `Chỉ có thể duyệt báo cáo đang PENDING (hiện tại: ${report.status})`,
+      //   );
+      // }
+
+      // [Mới] Cữ chặn linh hoạt cho RESOLVED:
+      if (report.status === ReportStatus.PENDING && action === AdminReportStatus.RESOLVED) {
+        throw new BadRequestException(`Báo cáo PENDING không thể chuyển thẳng thành RESOLVED`);
+      }
+      if (report.status === ReportStatus.VALIDATED && (action === AdminReportStatus.VALIDATED || action === AdminReportStatus.REJECTED)) {
+         throw new BadRequestException(`Báo cáo đang hiển thị (VALIDATED) chỉ có thể chuyển thành đã khắc phục (RESOLVED)`);
+      }
+      if (report.status === ReportStatus.RESOLVED || report.status === ReportStatus.REJECTED) {
+         throw new BadRequestException(`Báo cáo này đã kết thúc, không thể thay đổi trạng thái nữa`);
       }
 
       let trustForValidated = report.trustScore;
@@ -281,6 +301,14 @@ export class ReportsService {
       this.notificationsService.emitReportNew({
         ...buildReportNewSocketPayload(report),
         report,
+      });
+    }
+
+    // [Mới] DEV C WIRE VÀO FLOW RESOLVED / REJECTED ĐỂ PHÁT SOCKET
+    if (adminAction === AdminReportStatus.RESOLVED || adminAction === AdminReportStatus.REJECTED) {
+      this.notificationsService.broadcastReportUpdate({
+        id: report.id,
+        status: adminAction,
       });
     }
 
