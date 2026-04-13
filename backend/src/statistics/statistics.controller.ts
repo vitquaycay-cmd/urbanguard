@@ -10,6 +10,11 @@ export class StatisticsController {
     return this.statisticsService.getOverview();
   }
 
+  @Get('heatmap-data')
+  async getHeatmapData() {
+    return this.statisticsService.getHeatmapData();
+  }
+
   @Get()
   placeholder() {
     return this.statisticsService.getModuleInfo();
