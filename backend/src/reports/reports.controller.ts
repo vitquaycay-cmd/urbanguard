@@ -291,4 +291,22 @@ export class ReportsController {
   ) {
     return this.reportsService.updateStatus(id, dto.status);
   }
+  @Delete(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Xóa báo cáo giả (admin) — xóa record + file ảnh',
+  })
+  @ApiParam({ name: 'id', type: Number, description: 'ID của báo cáo cần xóa' })
+  @ApiResponse({
+    status: 200,
+    description: 'Đã xóa báo cáo và file ảnh',
+  })
+  @ApiResponse({ status: 403, description: 'Không phải ADMIN' })
+  @ApiResponse({ status: 404, description: 'Không tìm thấy báo cáo' })
+  remove(@Param('id', ParseIntPipe) id: number) {
+    return this.reportsService.remove(id);
+  }
+
 }

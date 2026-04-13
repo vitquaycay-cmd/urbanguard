@@ -173,6 +173,38 @@ export class ReportsService {
       },
     };
   }
+    async remove(id: number) {
+      const report = await this.prisma.report.findUnique({
+        where: { id },
+        select: { id: true, imageUrl: true },
+      });
+  
+      if (!report) {
+        throw new NotFoundException(`Không tìm thấy báo cáo #${id}`);
+      }
+  
+      if (report.imageUrl) {
+        const filename = report.imageUrl.replace(/^\/uploads\//, '');
+        const filePath = join(process.cwd(), 'uploads', filename);
+        try {
+          if (existsSync(filePath)) {
+            unlinkSync(filePath);
+          }
+        } catch (err) {
+          this.logger.warn(
+            `Không thể xóa file ${filePath}: ${(err as Error).message}`,
+          );
+        }
+      }
+  
+      // Vote.report có onDelete: Cascade — không cần deleteMany
+  
+      await this.prisma.report.delete({ where: { id } });
+  
+      return { message: `Báo cáo #${id} đã bị xóa`, deletedId: id };
+    }
+  
+
 
   /**
    * Quy trình tạo báo cáo:
