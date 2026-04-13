@@ -1,7 +1,16 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Transform } from 'class-transformer';
-import { IsNumber, IsString, Max, MaxLength, Min, MinLength } from 'class-validator';
+import { Transform, Type } from 'class-transformer';
+import {
+  IsNumber,
+  IsString,
+  Max,
+  MaxLength,
+  Min,
+  MinLength,
+  IsNotEmpty,
+} from 'class-validator';
 
+// Hàm convert sang số (tránh lỗi form-data gửi string)
 function toFloat(value: unknown): number {
   if (value === '' || value === undefined || value === null) {
     return Number.NaN;
@@ -12,33 +21,42 @@ function toFloat(value: unknown): number {
   return parseFloat(String(value));
 }
 
-/**
- * DTO cho multipart/form-data: latitude/longitude là số thực (Double) tương thích Leaflet / WGS84.
- */
 export class CreateReportDto {
   @ApiProperty({ example: 'Ổ gà nguy hiểm tại ngã tư' })
   @IsString()
+  @IsNotEmpty()
   @MinLength(1)
   @MaxLength(255)
   title: string;
 
   @ApiProperty({ example: 'Mô tả chi tiết vị trí và mức độ sự cố giao thông.' })
   @IsString()
+  @IsNotEmpty()
   @MinLength(1)
-  @MaxLength(10_000)
+  @MaxLength(10000)
   description: string;
 
-  @ApiProperty({ example: 10.762622, type: Number, description: 'Vĩ độ (WGS84)' })
+  @ApiProperty({
+    example: 10.762622,
+    type: Number,
+    description: 'Vĩ độ (latitude) -90 đến 90',
+  })
   @Transform(({ value }) => toFloat(value))
-  @IsNumber({}, { message: 'latitude phải là số (Double)' })
-  @Min(-90)
-  @Max(90)
+  @Type(() => Number)
+  @IsNumber({}, { message: 'latitude phải là số hợp lệ' })
+  @Min(-90, { message: 'latitude không được nhỏ hơn -90' })
+  @Max(90, { message: 'latitude không được lớn hơn 90' })
   latitude: number;
 
-  @ApiProperty({ example: 106.660172, type: Number, description: 'Kinh độ (WGS84)' })
+  @ApiProperty({
+    example: 106.660172,
+    type: Number,
+    description: 'Kinh độ (longitude) -180 đến 180',
+  })
   @Transform(({ value }) => toFloat(value))
-  @IsNumber({}, { message: 'longitude phải là số (Double)' })
-  @Min(-180)
-  @Max(180)
+  @Type(() => Number)
+  @IsNumber({}, { message: 'longitude phải là số hợp lệ' })
+  @Min(-180, { message: 'longitude không được nhỏ hơn -180' })
+  @Max(180, { message: 'longitude không được lớn hơn 180' })
   longitude: number;
 }
