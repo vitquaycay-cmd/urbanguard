@@ -9,6 +9,7 @@ import AccountManagementPage from "./pages/AccountManagementPage";
 import ProfilePage from "./pages/ProfilePage";
 import ReportManagementPage from "./pages/ReportManagementPage";
 import SettingsPage from "./pages/SettingsPage";  
+import NotificationsPage from "./pages/NotificationsPage";
 export default function App() {
   return (
     <Routes>
@@ -25,6 +26,7 @@ export default function App() {
       <Route path="/profile" element={<ProfilePage />} />
       <Route path="/report-management" element={<ReportManagementPage />} />
       <Route path="/settings" element={<SettingsPage />} />
+      <Route path="/notifications" element={<NotificationsPage />} />
     </Routes>
   );
 }

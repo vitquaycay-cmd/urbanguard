@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 type TopbarProps = {
   title: string;
   subtitle?: string;
@@ -20,9 +21,9 @@ export default function Topbar({ title, subtitle }: TopbarProps) {
           placeholder="Tìm kiếm sự cố..."
         />
 
-        <button className="app-topbar__icon-btn" type="button">
-          🔔
-        </button>
+        <Link to="/notifications" className="app-topbar__icon-btn">
+        🔔
+        </Link>
 
         <button className="app-topbar__icon-btn" type="button">
           ↩
