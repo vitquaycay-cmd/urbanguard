@@ -115,3 +115,94 @@ enum NotificationType {
   REPORT_UPDATE
   SYSTEM
 }
+<<<<<<< HEAD
+=======
+
+/// Người dùng hệ thống — 1 User có nhiều Report (báo cáo do chính user tạo).
+model User {
+  id               Int      @id @default(autoincrement())
+  email            String   @unique
+  password         String
+  reputationScore  Int      @default(0) @map("reputation_score")
+  role             Role     @default(USER)
+  createdAt        DateTime @default(now())
+
+  reports        Report[]
+  votes          Vote[]
+  notifications  Notification[]
+  refreshTokens RefreshToken[]
+
+  @@map("users")
+}
+
+model Report {
+  id          Int            @id @default(autoincrement())
+  title       String
+  description String         @db.Text
+  latitude    Float
+  longitude   Float
+  imageUrl    String?        @map("image_url")
+  status      ReportStatus   @default(PENDING)
+  trustScore  Float          @default(0) @map("trust_score")
+  /// Kết quả thô từ service AI (FastAPI /predict), JSON.
+  aiSummary   Json?          @map("ai_summary")
+  /// Nhãn AI (ví dụ danh sách class_name) — JSON array string.
+  aiLabels    Json?          @map("ai_labels")
+  createdAt   DateTime       @default(now()) @map("created_at")
+
+  userId Int  @map("user_id")
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  votes          Vote[]
+  notifications  Notification[]
+
+  @@index([userId])
+  @@index([latitude, longitude])
+  @@map("reports")
+}
+
+/// Một user chỉ một lần vote cho một report (dùng để tính Trust Score).
+model Vote {
+  id       Int      @id @default(autoincrement())
+  userId   Int      @map("user_id")
+  reportId Int      @map("report_id")
+  type     VoteType
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  report Report @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, reportId])
+  @@map("votes")
+}
+
+/// Thông báo / cảnh báo khu vực cho user (đồng bộ module notifications).
+model Notification {
+  id        Int              @id @default(autoincrement())
+  userId    Int              @map("user_id")
+  title     String
+  body      String           @db.Text
+  type      NotificationType @default(REPORT_UPDATE)
+  reportId  Int?             @map("report_id")
+  readAt    DateTime?        @map("read_at")
+  createdAt DateTime         @default(now()) @map("created_at")
+
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  report Report? @relation(fields: [reportId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([reportId])
+  @@map("notifications")
+}
+// Xử lý Token
+model RefreshToken {
+  id            Int @id @default(autoincrement())
+  token         String @unique
+  userId        Int @map("user_id")
+  expiresAt     DateTime
+  createdAt     DateTime @default(now())
+
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("refresh_tokens")
+}
+>>>>>>> HuyHoang

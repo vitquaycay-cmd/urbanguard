@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   FileTypeValidator,
   Get,
   HttpCode,
@@ -11,6 +12,7 @@ import {
   ParseIntPipe,
   Patch,
   Post,
+  Query,
   Req,
   UnauthorizedException,
   UploadedFile,
@@ -25,6 +27,7 @@ import {
   ApiOperation,
   ApiResponse,
   ApiTags,
+  ApiParam,
 } from '@nestjs/swagger';
 import { randomUUID } from 'crypto';
 import { Request } from 'express';
@@ -35,8 +38,10 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { CreateReportDto } from './dto/create-report.dto';
+import { QueryReportsDto } from './dto/query-reports.dto';
 import { UpdateReportStatusDto } from './dto/update-report-status.dto';
 import { ReportsService } from './reports.service';
+import { Throttle } from '@nestjs/throttler';
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5MB
 const UPLOAD_DIR = join(process.cwd(), 'uploads');
@@ -56,6 +61,22 @@ function multerFilename(
 @Controller('reports')
 export class ReportsController {
   constructor(private readonly reportsService: ReportsService) {}
+
+  @Get()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Danh sách báo cáo (admin) — filter + phân trang + sort',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Danh sách báo cáo với metadata phân trang',
+  })
+  @ApiResponse({ status: 403, description: 'Không phải ADMIN' })
+  findAll(@Query() query: QueryReportsDto) {
+    return this.reportsService.findAll(query);
+  }
 
   @Get('active')
   @ApiOperation({
@@ -109,6 +130,19 @@ export class ReportsController {
     return this.reportsService.findActiveValidated();
   }
 
+  @Get(':id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Chi tiết một báo cáo' })
+  @ApiParam({ name: 'id', type: Number, description: 'ID của báo cáo' })
+  @ApiResponse({
+    status: 200,
+    description: 'Đầy đủ thông tin báo cáo kèm user',
+  })
+  @ApiResponse({ status: 404, description: 'Không tìm thấy báo cáo' })
+  findOne(@Param('id', ParseIntPipe) id: number) {
+    return this.reportsService.findOne(id);
+  }
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @UseGuards(JwtAuthGuard)
@@ -258,4 +292,22 @@ export class ReportsController {
   ) {
     return this.reportsService.updateStatus(id, dto.status);
   }
+  @Delete(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Xóa báo cáo giả (admin) — xóa record + file ảnh',
+  })
+  @ApiParam({ name: 'id', type: Number, description: 'ID của báo cáo cần xóa' })
+  @ApiResponse({
+    status: 200,
+    description: 'Đã xóa báo cáo và file ảnh',
+  })
+  @ApiResponse({ status: 403, description: 'Không phải ADMIN' })
+  @ApiResponse({ status: 404, description: 'Không tìm thấy báo cáo' })
+  remove(@Param('id', ParseIntPipe) id: number) {
+    return this.reportsService.remove(id);
+  }
+
 }
