@@ -115,8 +115,6 @@ enum NotificationType {
   REPORT_UPDATE
   SYSTEM
 }
-<<<<<<< HEAD
-=======
 
 /// Người dùng hệ thống — 1 User có nhiều Report (báo cáo do chính user tạo).
 model User {
@@ -205,4 +203,4 @@ model RefreshToken {
 
   @@map("refresh_tokens")
 }
->>>>>>> HuyHoang
+
