@@ -46,6 +46,10 @@ export default function Sidebar() {
           Hồ sơ
         </NavLink>
 
+        <NavLink to="/account-management" className={getClassName}>
+          Quản lý tài khoản 
+        </NavLink>
+
         <NavLink to="/settings" className={getClassName}>
           Cài đặt
         </NavLink>

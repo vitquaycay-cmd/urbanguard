@@ -5,6 +5,7 @@ import RegisterPage from "./pages/RegisterPage";
 import DashboardPage from "./pages/DashboardPage";
 import MapPage from "./pages/MapPage";
 import ReportPage from "./pages/ReportPage";
+import AccountManagementPage from "./pages/AccountManagementPage";
 
 export default function App() {
   return (
@@ -18,6 +19,7 @@ export default function App() {
       <Route path="/report" element={<ReportPage />} />
 
       <Route path="*" element={<Navigate to="/" />} />
+      <Route path="/account-management" element={<AccountManagementPage />} />
     </Routes>
   );
 }
