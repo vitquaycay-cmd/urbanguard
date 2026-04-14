@@ -15,6 +15,7 @@ model User {
   reputationScore Int            @default(0) @map("reputation_score")
   role            Role           @default(USER)
   createdAt       DateTime       @default(now())
+  isBanned  Boolean  @default(false)  @map("is_banned")
   notifications   Notification[]
   refreshTokens   RefreshToken[]
   reports         Report[]
@@ -38,6 +39,7 @@ model Report {
   aiSummary     Json?          @map("ai_summary")
   /// Nhãn AI (ví dụ danh sách class_name) — JSON array string.
   aiLabels      Json?          @map("ai_labels")
+  updated_at    DateTime
   notifications Notification[]
   user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   votes         Vote[]

@@ -11,9 +11,10 @@ import { Query, UseGuards } from "@nestjs/common";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { RolesGuard } from "../auth/guards/roles.guard";
 import { Roles } from "../auth/decorators/roles.decorator";
-import { Role } from "@prisma/client";
+import { Prisma, Role } from "@prisma/client";
 import { QueryUsersDto } from "./dto/query-users.dto";
 import { UpdateRoleDto } from "./dto/update-role.dto";
+import { BanuserDto } from "./dto/ban-user.dto";
 import {
   ApiBearerAuth,
   ApiOperation,
@@ -64,5 +65,17 @@ export class UsersController {
   @ApiResponse({ status: 401 })
   getProfile(@Param("id", ParseIntPipe) id: number) {
     return this.usersService.getProfile(id);
+  }
+
+  @Patch(":id/ban")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "Khoá Tài khoản" })
+  @ApiResponse({ status: 200 })
+  @ApiResponse({ status: 404, description: "User không tồn tại" })
+  @ApiResponse({ status: 401 })
+  ban(@Param("id", ParseIntPipe) id: number, @Body() dto: BanuserDto) {
+    return this.usersService.banUser(id, dto.isBanned);
   }
 }

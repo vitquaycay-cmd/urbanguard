@@ -86,4 +86,15 @@ export class UsersService {
     if (!user) throw new NotFoundException("Khoong tìm thấy user");
     return { ...user, totalReports };
   }
+
+  async banUser(id: number, isBanned: boolean){
+    const user=await this.prisma.user.findUnique({where: {id}})
+    if (!user) throw new NotFoundException('Không tìm thấy người dùng')
+
+    await this.prisma.user.update({
+      where: {id}, data:{isBanned}
+    })
+
+    return {message: isBanned ? 'Đã khóa tài khoản' : 'Đã mở khóa tài khoản'}
+  }
 }
