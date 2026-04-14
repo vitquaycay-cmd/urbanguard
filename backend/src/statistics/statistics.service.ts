@@ -26,7 +26,6 @@ export class StatisticsService {
     // 2. Tích luỹ tổng số lượng
     statusCounts.forEach((item) => {
       totalReports += item._count.id;
-      // Ép kiểu an toàn hoặc gán trực tiếp vào object bằng key
       const statusKey = item.status as keyof typeof byStatus;
       byStatus[statusKey] = item._count.id;
     });
@@ -66,13 +65,12 @@ export class StatisticsService {
     });
 
     // 2. Format lại thành mảng array of arrays: [lat, lng, intensity] cho Leaflet
-    return activeReports.map((report) => {
-      // Leaflet heatmap dùng khoảng 0 -> 1 cho tham số intensity (độ chói chói)
+    // Leaflet heatmap dùng khoảng 0 -> 1 cho tham số intensity (độ chói chói)
       // Giả định trustScore là thang 100 (0 -> 100).
       // Dùng Math.min để lỡ trustScore có nhảy vọt > 100 thì vẫn kìm lại ở mốc 1 (đỏ max)
+    return activeReports.map((report) => {
       const intensity = Math.min((report.trustScore || 0) / 100 + 0.3, 1.0); 
-
-      // Trả ra format mảng [lat, lng, weight]
+      
       return [report.latitude, report.longitude, Number(intensity.toFixed(2))];
     });
   }

@@ -1,6 +1,6 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
-import { ScheduleModule } from "@nestjs/schedule"; // Diep @Cron decorator
+import { ScheduleModule } from "@nestjs/schedule"; // @Cron decorator
 import { AppController } from "./app.controller";
 import { AppService } from "./app.service";
 import { PrismaModule } from "./prisma/prisma.module";
@@ -19,7 +19,7 @@ import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
-    ScheduleModule.forRoot(), // Diep @Cron CleanupCron hoạt động
+    ScheduleModule.forRoot(), // @Cron CleanupCron hoạt động
     PrismaModule,
     AuthModule,
     UsersModule,
@@ -52,4 +52,4 @@ import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
     },
   ],
 })
-export class AppModule {}
+export class AppModule { }

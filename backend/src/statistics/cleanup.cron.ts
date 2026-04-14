@@ -1,14 +1,12 @@
-
-
 import { Injectable, Logger } from '@nestjs/common';
-import { Cron, CronExpression } from '@nestjs/schedule';
+import { Cron } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
 import { ReportsService } from '../reports/reports.service';
 
-// So ngay toi da mot bao cao RESOLVED duoc giu lai truoc khi bi xoa
-const MAX_RESOLVED_AGE_DAYS = 7;
-
-// So record toi da xu ly moi lan cron chay (tranh block I/O hang loat)
+// const HIDE_AFTER_DAYS = 7;     // 7 ngày → ẨN
+// const DELETE_AFTER_DAYS = 30; //  30 ngày → XOÁ
+const HIDE_AFTER_SECONDS = 10;   // 10 giây → ẨN
+const DELETE_AFTER_SECONDS = 60; // 20 giây → XOÁ
 const BATCH_SIZE = 100;
 
 @Injectable()
@@ -20,63 +18,79 @@ export class CleanupCron {
     private readonly reportsService: ReportsService,
   ) {}
 
-  /**
-   * Cron chay luc 2:00 sang moi ngay.
-   *
-   * DE TEST NHANH: doi decorator thanh @Cron('0/30 * * * * *')
-   * de no chay moi 30 giay, kiem tra log trong terminal la biet ngay
-   */
-  @Cron(CronExpression.EVERY_DAY_AT_2AM)
+  @Cron('*/30 * * * * *') // 👉 30 giây chạy 1 lần (test)
   async cleanupOldResolvedReports(): Promise<void> {
-    this.logger.log('[CleanupCron] Bat dau don bao cao RESOLVED qua han...');
+    this.logger.log('🔄 Bắt đầu dọn dẹp report...');
 
-    // Tinh moc thoi gian: 7 ngay truoc tu thoi diem hien tai
-    const cutoffDate = new Date();
-    cutoffDate.setDate(cutoffDate.getDate() - MAX_RESOLVED_AGE_DAYS);
+    const now = new Date();
 
-    // Buoc 1: Tim cac report RESOLVED da qua 7 ngay (chi lay ID de nhe RAM)
-    const oldReports = await this.prisma.report.findMany({
+    // =========================
+    // 1. ẨN report quá 7 ngày
+    // =========================
+    // const hideDate = new Date();
+    // hideDate.setDate(now.getDate() - HIDE_AFTER_DAYS);
+    const hideDate = new Date(now.getTime() - HIDE_AFTER_SECONDS * 1000);
+
+    const reportsToHide = await this.prisma.report.findMany({
       where: {
         status: 'RESOLVED',
-        updatedAt: {
-          lt: cutoffDate,
-        },
+        updatedAt: { lt: hideDate },
+        isHidden: false,
       },
-      select: {
-        id: true,
-      },
+      select: { id: true },
       take: BATCH_SIZE,
     });
 
-    if (oldReports.length === 0) {
-      this.logger.log('[CleanupCron] Khong co bao cao nao can don.');
-      return;
+    for (const report of reportsToHide) {
+      try {
+        await this.prisma.report.update({
+          where: { id: report.id },
+          data: { isHidden: true },
+        });
+      } catch (err) {
+        this.logger.warn(
+          `[HIDE] Lỗi report #${report.id}: ${(err as Error).message}`,
+        );
+      }
     }
 
-    this.logger.log(
-      `[CleanupCron] Tim thay ${oldReports.length} bao cao can xoa (batch <= ${BATCH_SIZE}).`,
-    );
+    this.logger.log(`👻 Đã ẩn: ${reportsToHide.length} report`);
+
+    // =========================
+    // 2. XOÁ report quá 30 ngày
+    // =========================
+    // const deleteDate = new Date();
+    // deleteDate.setDate(now.getDate() - DELETE_AFTER_DAYS);
+    const deleteDate = new Date(now.getTime() - DELETE_AFTER_SECONDS * 1000);
+
+    const reportsToDelete = await this.prisma.report.findMany({
+      where: {
+        status: 'RESOLVED',
+        updatedAt: { lt: deleteDate },
+      },
+      select: { id: true },
+      take: BATCH_SIZE,
+    });
 
     let deletedCount = 0;
     let failedCount = 0;
 
-    // Buoc 2: Vong lap goi reportsService.remove() cua Dev A cho tung record
-    // Ham remove() cua Dev A tu xu ly: xoa file vat ly trong uploads/ + xoa record trong DB
-    for (const report of oldReports) {
+    for (const report of reportsToDelete) {
       try {
-        await this.reportsService.remove(report.id);
+        await this.reportsService.remove(report.id); // dùng lại logic Dev A
         deletedCount++;
       } catch (err) {
         failedCount++;
         this.logger.warn(
-          `[CleanupCron] Khong the xoa report #${report.id}: ${(err as Error).message}`,
+          `[DELETE] Không thể xóa report #${report.id}: ${(err as Error).message}`,
         );
-        // Khong throw: tiep tuc xoa cac report con lai du co 1 cai bi loi
       }
     }
 
     this.logger.log(
-      `[CleanupCron] Hoan tat: Xoa thanh cong ${deletedCount}, that bai ${failedCount}.`,
+      `🗑️ Xóa: ${deletedCount}, lỗi: ${failedCount}`,
     );
+
+    this.logger.log('✅ Cleanup hoàn tất');
   }
 }

@@ -67,16 +67,19 @@ model Report {
   /// Nhãn AI (ví dụ danh sách class_name) — JSON array string.
   aiLabels    Json?          @map("ai_labels")
   createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @updatedAt @map("updated_at")
 
   userId Int  @map("user_id")
   user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
+  isHidden  Boolean  @default(false) 
   votes          Vote[]
   notifications  Notification[]
 
   @@index([userId])
   @@index([latitude, longitude])
   @@map("reports")
+  
+
 }
 
 /// Một user chỉ một lần vote cho một report (dùng để tính Trust Score).
