@@ -9,12 +9,14 @@ datasource db {
 
 /// Người dùng hệ thống — 1 User có nhiều Report (báo cáo do chính user tạo).
 model User {
-  id              Int            @id @default(autoincrement())
-  email           String         @unique
+  id              Int              @id @default(autoincrement())
+  email           String           @unique
   password        String
-  reputationScore Int            @default(0) @map("reputation_score")
-  role            Role           @default(USER)
+  reputationScore Int              @default(0) @map("reputation_score")
+  role            Role             @default(USER)
+  createdAt       DateTime         @default(now())
   notifications   Notification[]
+  refresh_tokens  refresh_tokens[]
   reports         Report[]
   votes           Vote[]
 
@@ -75,6 +77,17 @@ model Notification {
   @@index([userId])
   @@index([reportId])
   @@map("notifications")
+}
+
+model refresh_tokens {
+  id        Int      @id @default(autoincrement())
+  token     String   @unique @db.VarChar(512)
+  user_id   Int
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  users     User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id], map: "refresh_tokens_user_id_fkey")
 }
 
 enum Role {
