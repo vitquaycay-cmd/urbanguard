@@ -6,7 +6,8 @@ import DashboardPage from "./pages/DashboardPage";
 import MapPage from "./pages/MapPage";
 import ReportPage from "./pages/ReportPage";
 import AccountManagementPage from "./pages/AccountManagementPage";
-
+import ProfilePage from "./pages/ProfilePage";
+import ReportManagementPage from "./pages/ReportManagementPage";
 export default function App() {
   return (
     <Routes>
@@ -20,6 +21,8 @@ export default function App() {
 
       <Route path="*" element={<Navigate to="/" />} />
       <Route path="/account-management" element={<AccountManagementPage />} />
+      <Route path="/profile" element={<ProfilePage />} />
+      <Route path="/report-management" element={<ReportManagementPage />} />
     </Routes>
   );
 }
