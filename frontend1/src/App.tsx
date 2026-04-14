@@ -8,6 +8,7 @@ import ReportPage from "./pages/ReportPage";
 import AccountManagementPage from "./pages/AccountManagementPage";
 import ProfilePage from "./pages/ProfilePage";
 import ReportManagementPage from "./pages/ReportManagementPage";
+import SettingsPage from "./pages/SettingsPage";  
 export default function App() {
   return (
     <Routes>
@@ -23,6 +24,7 @@ export default function App() {
       <Route path="/account-management" element={<AccountManagementPage />} />
       <Route path="/profile" element={<ProfilePage />} />
       <Route path="/report-management" element={<ReportManagementPage />} />
+      <Route path="/settings" element={<SettingsPage />} />
     </Routes>
   );
 }
