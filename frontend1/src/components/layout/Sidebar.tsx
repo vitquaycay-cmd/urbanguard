@@ -7,7 +7,7 @@ export default function Sidebar() {
   return (
     <aside className="app-sidebar">
       <div className="app-sidebar__brand">
-        <div className="app-sidebar__logo">UG</div>
+        <div className="app-sidebar__logo">🛡️</div>
 
         <div>
           <div className="app-sidebar__title">UrbanGuard</div>
@@ -16,52 +16,91 @@ export default function Sidebar() {
       </div>
 
       <nav className="app-sidebar__nav">
-        <div className="app-sidebar__group-title">Chính</div>
+        <div className="app-sidebar__group-title">Tổng quan</div>
 
         <NavLink to="/dashboard" className={getClassName}>
-          Dashboard
+          <span className="app-sidebar__item-left">
+            <span className="app-sidebar__item-icon">⌘</span>
+            <span>Dashboard</span>
+          </span>
         </NavLink>
 
         <NavLink to="/map" className={getClassName}>
-          Bản đồ
+          <span className="app-sidebar__item-left">
+            <span className="app-sidebar__item-icon">🗺️</span>
+            <span>Bản đồ</span>
+          </span>
+          <span className="app-sidebar__badge app-sidebar__badge--live">LIVE</span>
         </NavLink>
-
-        <div className="app-sidebar__group-title app-sidebar__group-title--spaced">
-          Báo cáo
-        </div>
 
         <NavLink to="/report" className={getClassName}>
-          Gửi báo cáo
-        </NavLink>
-
-        <NavLink to="/report-management" className={getClassName}>
-          Quản lý báo cáo
+          <span className="app-sidebar__item-left">
+            <span className="app-sidebar__item-icon">📝</span>
+            <span>Báo cáo</span>
+          </span>
+          <span className="app-sidebar__badge app-sidebar__badge--orange">5</span>
         </NavLink>
 
         <div className="app-sidebar__group-title app-sidebar__group-title--spaced">
-          Tài khoản
+          Cộng đồng
+        </div>
+
+        <NavLink to="/forum" className={getClassName}>
+          <span className="app-sidebar__item-left">
+            <span className="app-sidebar__item-icon">💬</span>
+            <span>Diễn đàn</span>
+          </span>
+          <span className="app-sidebar__badge app-sidebar__badge--green">12</span>
+        </NavLink>
+
+        <NavLink to="/notifications" className={getClassName}>
+          <span className="app-sidebar__item-left">
+            <span className="app-sidebar__item-icon">🔔</span>
+            <span>Thông báo</span>
+          </span>
+          <span className="app-sidebar__badge app-sidebar__badge--red">3</span>
+        </NavLink>
+
+        <div className="app-sidebar__group-title app-sidebar__group-title--spaced">
+          Cá nhân
         </div>
 
         <NavLink to="/profile" className={getClassName}>
-          Hồ sơ
+          <span className="app-sidebar__item-left">
+            <span className="app-sidebar__item-icon">👤</span>
+            <span>Hồ sơ</span>
+          </span>
         </NavLink>
 
         <NavLink to="/account-management" className={getClassName}>
-          Quản lý tài khoản 
+          <span className="app-sidebar__item-left">
+            <span className="app-sidebar__item-icon">👥</span>
+            <span>Tài khoản</span>
+          </span>
         </NavLink>
 
         <NavLink to="/settings" className={getClassName}>
-          Cài đặt
+          <span className="app-sidebar__item-left">
+            <span className="app-sidebar__item-icon">⚙️</span>
+            <span>Cài đặt</span>
+          </span>
         </NavLink>
       </nav>
 
-      <div className="app-sidebar__profile">
-        <div className="app-sidebar__avatar">N</div>
+      <div className="app-sidebar__footer">
+        <div className="app-sidebar__profile">
+          <div className="app-sidebar__avatar">N</div>
 
-        <div>
-          <div className="app-sidebar__profile-name">Nguyễn An</div>
-          <div className="app-sidebar__profile-role">Thành viên tích cực</div>
+          <div className="app-sidebar__profile-content">
+            <div className="app-sidebar__profile-name">Nguyễn Văn An</div>
+            <div className="app-sidebar__profile-role">⭐ Thành viên tích cực</div>
+          </div>
         </div>
+
+        <button type="button" className="app-sidebar__logout">
+          <span className="app-sidebar__logout-icon">↪</span>
+          <span>Đăng xuất</span>
+        </button>
       </div>
     </aside>
   );
