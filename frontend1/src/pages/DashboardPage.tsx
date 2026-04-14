@@ -1,4 +1,9 @@
 import AppShell from "../components/layout/AppShell";
+import DashboardGreeting from "../components/dashboard/DashboardGreeting";
+import DashboardStats from "../components/dashboard/DashboardStats";
+import DashboardCharts from "../components/dashboard/DashboardCharts";
+import DashboardRecentReports from "../components/dashboard/DashboardRecentReports";
+import "../styles/dashboard.css";
 
 export default function DashboardPage() {
   return (
@@ -6,8 +11,11 @@ export default function DashboardPage() {
       title="Dashboard"
       subtitle="Tổng quan hệ thống UrbanGuard"
     >
-      <div style={{ background: "#fff", padding: "24px", borderRadius: "24px", border: "1px solid #dbeadf" }}>
-        Nội dung dashboard overview sẽ nằm ở đây.
+      <div className="db-page">
+        <DashboardGreeting />
+        <DashboardStats />
+        <DashboardCharts />
+        <DashboardRecentReports />
       </div>
     </AppShell>
   );
