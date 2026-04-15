@@ -29,3 +29,4 @@ npm run start:dev
  backend 
  npx prisma studio
   kiểm tra csdl 
+  npx prisma migrate dev
