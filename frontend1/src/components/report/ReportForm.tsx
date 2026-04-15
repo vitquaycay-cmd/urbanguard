@@ -48,10 +48,7 @@ export default function ReportForm() {
 
   return (
     <div className="report-form-card">
-      <h2 className="report-form-title">📷 Gửi báo cáo sự cố</h2>
-      <p className="report-subtitle">
-        Giúp cộng đồng bằng cách báo cáo sự cố giao thông gần bạn
-      </p>
+      
 
       <form className="report-form" onSubmit={handleSubmit}>
         <div className="report-upload-box">
