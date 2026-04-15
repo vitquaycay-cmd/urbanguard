@@ -23,11 +23,8 @@ export class CleanupCron {
     this.logger.log('🔄 Bắt đầu dọn dẹp report...');
 
     const now = new Date();
-
-    // =========================
-    // 1. ẨN report quá 7 ngày
-    // =========================
-    // const hideDate = new Date();
+    
+    // const hideDate = new Date();//// 1. ẨN report quá 7 ngày
     // hideDate.setDate(now.getDate() - HIDE_AFTER_DAYS);
     const hideDate = new Date(now.getTime() - HIDE_AFTER_SECONDS * 1000);
 
