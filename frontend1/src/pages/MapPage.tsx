@@ -1,31 +1,47 @@
 import AppShell from "../components/layout/AppShell";
 import ActiveReportsMap from "../components/ActiveReportsMap";
 
+import { useEffect, useState } from "react";
+import { getStatisticsOverview } from "../services/statistics.api";
+import type { StatsOverview } from "../services/statistics.api";
+
 function MapRightPanel() {
+  const [stats, setStats] = useState<StatsOverview | null>(null);
+
+  useEffect(() => {
+    // 🔗 KẾT NỐI: Lấy số lượng thống kê thực tế cho Panel bên phải bản đồ
+    getStatisticsOverview()
+      .then(setStats)
+      .catch((err) => console.error("Lỗi tải thống kê Map Panel:", err));
+  }, []);
+
+  const data = stats?.byStatus || { VALIDATED: 0, PENDING: 0, RESOLVED: 0, REJECTED: 0, VERIFIED: 0 };
+
   return (
     <>
       <div className="ug-stats-card">
-        <div className="ug-panel-title">Overview</div>
+        <div className="ug-panel-title">Overview (Live)</div>
 
         <div className="ug-stats-grid">
           <div className="ug-stat-box">
-            <div className="ug-stat-value">201</div>
+            <div className="ug-stat-value">{data.VALIDATED}</div>
             <div className="ug-stat-label">Validated</div>
           </div>
 
           <div className="ug-stat-box">
-            <div className="ug-stat-value ug-stat-value--red">142</div>
-            <div className="ug-stat-label">Pothole</div>
+             {/* 🔗 KẾT NỐI: Giả định PENDING là các sự cố mới cần chú ý */}
+            <div className="ug-stat-value ug-stat-value--red">{data.PENDING}</div>
+            <div className="ug-stat-label">Pending</div>
           </div>
 
           <div className="ug-stat-box">
-            <div className="ug-stat-value ug-stat-value--orange">38</div>
-            <div className="ug-stat-label">Accident</div>
+            <div className="ug-stat-value ug-stat-value--orange">{data.RESOLVED}</div>
+            <div className="ug-stat-label">Resolved</div>
           </div>
 
           <div className="ug-stat-box">
-            <div className="ug-stat-value ug-stat-value--blue">21</div>
-            <div className="ug-stat-label">Flooding</div>
+            <div className="ug-stat-value ug-stat-value--blue">{data.REJECTED}</div>
+            <div className="ug-stat-label">Rejected</div>
           </div>
         </div>
       </div>

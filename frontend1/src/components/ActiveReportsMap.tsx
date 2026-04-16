@@ -5,10 +5,11 @@ import { dangerZoneRadiusMeters } from "@/lib/dangerMarkerTheme";
 import {
   fetchActiveReports,
   MAP_API_BASE,
-  type ActiveReport,
 } from "@/lib/mapActiveReports";
+import type { ActiveReport } from "@/lib/mapActiveReports"; // 🔗 KẾT NỐI: Dùng import type
 import type { LatLngLiteral } from "@/lib/routingAvoidance";
 import { getValidatedReportsForRouting } from "@/services/routingService";
+import { getHeatmapData } from "@/services/statistics.api"; // 🔗 KẾT NỐI: API heatmap
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "leaflet.markercluster/dist/MarkerCluster.css";
@@ -16,8 +17,13 @@ import "leaflet.markercluster/dist/MarkerCluster.Default.css";
 import { Link } from "react-router-dom";
 import { io, type Socket } from "socket.io-client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { MapContainer, TileLayer, useMap, ZoomControl } from "react-leaflet";
+import { MapContainer, TileLayer, useMap, ZoomControl, CircleMarker } from "react-leaflet";
 import "../styles/map.css";
+
+// Xử lý các lỗi type do ReactLeaflet v5 và React 19 chưa khớp hoàn toàn về types
+const MapContainerComp = MapContainer as any;
+const TileLayerComp = TileLayer as any;
+const CircleMarkerComp = CircleMarker as any;
 
 export type { ActiveReport };
 
@@ -99,6 +105,8 @@ export default function ActiveReportsMap({
   enableMarkerClustering,
 }: ActiveReportsMapProps = {}) {
   const [reports, setReports] = useState<ActiveReport[]>([]);
+  const [heatmapPoints, setHeatmapPoints] = useState<[number, number, number][]>([]); // 🔗 Dữ liệu heatmap
+  const [showHeatmap, setShowHeatmap] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [routeWarning, setRouteWarning] = useState("");
@@ -134,12 +142,23 @@ export default function ActiveReportsMap({
     }
   }, []);
 
+  // 🔗 KẾT NỐI: Tải dữ liệu Heatmap từ Backend Dev C
+  const loadHeatmap = useCallback(async () => {
+    try {
+      const data = await getHeatmapData();
+      setHeatmapPoints(data);
+    } catch (err) {
+      console.warn("Không tải được dữ liệu heatmap:", err);
+    }
+  }, []);
+
   useEffect(() => {
     const ac = new AbortController();
     setLoading(true);
     void loadReports(ac.signal);
+    void loadHeatmap();
     return () => ac.abort();
-  }, [loadReports]);
+  }, [loadReports, loadHeatmap]);
 
   useEffect(() => {
     if (!MAP_API_BASE) return;
@@ -160,7 +179,16 @@ export default function ActiveReportsMap({
 
       if (p && ("report" in p || typeof p.id === "number")) {
         void loadReports();
+        void loadHeatmap(); // Làm mới khi có mới
       }
+    };
+
+    // 🔗 KẾT NỐI: Lắng nghe sự kiện report:update từ NotificationsGateway
+    // (Xảy ra khi Dev A chuyển status sang RESOLVED hoặc REJECTED)
+    const onReportUpdate = (payload: unknown) => {
+      console.log("[UrbanGuard realtime] Nhận cập nhật trạng thái:", payload);
+      void loadReports(); // Reload để bản đồ tự mất marker đã RESOLVED/REJECTED
+      void loadHeatmap();
     };
 
     const onConnectError = (err: Error) => {
@@ -168,14 +196,16 @@ export default function ActiveReportsMap({
     };
 
     socket.on("report:new", onReportNew);
+    socket.on("report:update", onReportUpdate); // 🔗 Đăng ký sự kiện cập nhật
     socket.on("connect_error", onConnectError);
 
     return () => {
       socket.off("report:new", onReportNew);
+      socket.off("report:update", onReportUpdate);
       socket.off("connect_error", onConnectError);
       socket.disconnect();
     };
-  }, [loadReports]);
+  }, [loadReports, loadHeatmap]);
 
   const validatedReports = useMemo(
     () =>
@@ -229,14 +259,24 @@ export default function ActiveReportsMap({
         </div>
       )}
 
-      <MapContainer
+      {/* 🔗 UI: Nút chuyển đổi Heatmap Mode */}
+      <div className="ug-map-controls-overlay">
+        <button 
+          className={`ug-btn-toggle ${showHeatmap ? 'ug-btn-toggle--active' : ''}`}
+          onClick={() => setShowHeatmap(!showHeatmap)}
+        >
+          {showHeatmap ? "🔥 Heatmap: ON" : "📍 Markers: ON"}
+        </button>
+      </div>
+
+      <MapContainerComp
         center={DEFAULT_CENTER}
         zoom={DEFAULT_ZOOM}
         className="ug-leaflet-map"
         zoomControl={false}
         scrollWheelZoom
       >
-        <TileLayer
+        <TileLayerComp
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
@@ -250,21 +290,40 @@ export default function ActiveReportsMap({
           onRouteGeometryChange={handleRouteGeometryChange}
         />
 
-        {validatedReports.map((r) => (
-          <DangerZoneCircle
-            key={`zone-${r.id}`}
-            position={{ lat: r.latitude, lng: r.longitude }}
-            radius={dangerZoneRadiusMeters(r)}
+        {/* 🔗 HIỂN THỊ: Heatmap Layer (vẽ bằng các vòng tròn đặc biệt) */}
+        {showHeatmap && heatmapPoints.map((p, idx) => (
+          <CircleMarkerComp
+            key={`heat-${idx}`}
+            center={[p[0], p[1]]}
+            radius={25 + p[2] * 15} // Bán kính tùy vào intensity
+            pathOptions={{
+              fillColor: p[2] > 0.6 ? '#ff0000' : p[2] > 0.3 ? '#ffae00' : '#ffff00',
+              fillOpacity: 0.15 + p[2] * 0.3,
+              stroke: false,
+              interactive: false
+            }}
           />
         ))}
 
-        <DangerMarkersGroup
-          reports={validatedReports}
-          routePolyline={routeCoordsDebounced}
-          clustering={clustering}
-          entranceReportIds={entranceReportIds}
-        />
-      </MapContainer>
+        {!showHeatmap && (
+          <>
+            {validatedReports.map((r) => (
+              <DangerZoneCircle
+                key={`zone-${r.id}`}
+                position={{ lat: r.latitude, lng: r.longitude }}
+                radius={dangerZoneRadiusMeters(r)}
+              />
+            ))}
+
+            <DangerMarkersGroup
+              reports={validatedReports}
+              routePolyline={routeCoordsDebounced}
+              clustering={clustering}
+              entranceReportIds={entranceReportIds}
+            />
+          </>
+        )}
+      </MapContainerComp>
 
       <SearchOverlay />
 
@@ -285,7 +344,7 @@ export default function ActiveReportsMap({
             ? "Tuyến đang hiển thị — kéo waypoint để đổi lộ trình. Vào đệm quanh sự cố sẽ có cảnh báo và thử né tự động."
             : "Chọn điểm đi / đến trên bản đồ để xem tuyến OSRM."}
 
-          {clustering && (
+          {clustering && !showHeatmap && (
             <div className="ug-map-footer-sub">
               Đang gom cụm marker — zoom để xem từng sự cố.
             </div>
