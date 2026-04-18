@@ -9,8 +9,18 @@ import {
   MoreHorizontal,
 } from "lucide-react";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 
 export default function DashboardPage() {
+  const navigate = useNavigate();
+  const { user } = useCurrentUser();
+  const displayName =
+    user?.fullname?.split(" ").pop() ||
+    user?.username ||
+    user?.email?.split("@")[0] ||
+    "bạn";
+
   const [activeTab, setActiveTab] = useState("week");
 
   const chartData = [
@@ -60,14 +70,20 @@ export default function DashboardPage() {
       <div className="mb-8 flex items-center justify-between">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold text-gray-900">Chào buổi sáng, An</h1>
+            <h1 className="text-2xl font-bold text-gray-900">
+              {`Chào buổi sáng, ${displayName}`}
+            </h1>
             <Hand size={20} className="text-yellow-400" />
           </div>
           <p className="mt-2 text-sm text-gray-500">
             Hệ thống ghi nhận 12 cảnh báo mới trong 2 giờ qua.
           </p>
         </div>
-        <button className="flex items-center gap-2 rounded-xl bg-green-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-green-700">
+        <button
+          type="button"
+          onClick={() => navigate("/report")}
+          className="flex items-center gap-2 rounded-xl bg-green-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-green-700"
+        >
           <Plus size={16} />
           Báo cáo mới
         </button>
