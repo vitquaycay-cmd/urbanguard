@@ -37,7 +37,7 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { CreateReportDto } from './dto/create-report.dto';
 import { UpdateReportStatusDto } from './dto/update-report-status.dto';
 import { ReportsService } from './reports.service';
-import { Throttle, SkipThrottle  } from '@nestjs/throttler';
+import { SkipThrottle, Throttle } from '@nestjs/throttler';
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5MB
 const UPLOAD_DIR = join(process.cwd(), 'uploads');
@@ -210,6 +210,7 @@ export class ReportsController {
     return this.reportsService.create(user.id, dto, file);
   }
 
+  @SkipThrottle()
   @Patch(':id/status')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)

@@ -42,11 +42,15 @@ export class AuthService {
         data: {
           email: dto.email.toLowerCase(),
           password: passwordHash,
+          username: dto.username,
+          fullname: dto.fullname,
           role: Role.USER,
         },
         select: {
           id: true,
           email: true,
+          username: true,
+          fullname: true,
           role: true,
           reputationScore: true,
         },
@@ -89,6 +93,8 @@ export class AuthService {
       user: {
         id: user.id,
         email: user.email,
+        username: user.username,
+        fullname: user.fullname,
         role: user.role,
         reputationScore: user.reputationScore,
       },
@@ -206,5 +212,22 @@ export class AuthService {
     await this.prisma.refreshToken.delete({ where: { token } });
 
     return { message: "Đăng xuất thành công" };
+  }
+
+  async getMe(userId: number) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        username: true,
+        fullname: true,
+        role: true,
+        reputationScore: true,
+        createdAt: true,
+      },
+    });
+    if (!user) throw new NotFoundException("Không tìm thấy user");
+    return user;
   }
 }

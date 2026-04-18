@@ -1,21 +1,45 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Role } from '@prisma/client';
-import { IsOptional, IsEnum, Min, Max } from 'class-validator';
-import { Type } from 'class-transformer';
+import {
+  IsBoolean,
+  IsEnum,
+  IsOptional,
+  IsString,
+  Max,
+  Min,
+} from 'class-validator';
+import { Transform, Type } from 'class-transformer';
 
-export class QueryUsersDto{
-    @IsOptional()
-    @IsEnum(Role)
-    role?: Role;
+export class QueryUsersDto {
+  @IsOptional()
+  @IsEnum(Role)
+  role?: Role;
 
-    @IsOptional()
-    @Type(()=> Number)
-    @Min(1)
-    page?=1;
+  /** Lọc theo email / fullname / username / id */
+  @ApiPropertyOptional({ description: 'Tìm kiếm (email, tên, username, hoặc id)' })
+  @IsOptional()
+  @IsString()
+  search?: string;
 
-    @IsOptional()
-    @Type(()=> Number)
-    @Min(1)
-    @Max(50)
-    limit?=10; 
+  /** Lọc trạng thái khóa (query: true / false) */
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Transform(({ value }) => {
+    if (value === true || value === 'true') return true;
+    if (value === false || value === 'false') return false;
+    return undefined;
+  })
+  @IsBoolean()
+  isBanned?: boolean;
+
+  @IsOptional()
+  @Type(() => Number)
+  @Min(1)
+  page? = 1;
+
+  @IsOptional()
+  @Type(() => Number)
+  @Min(1)
+  @Max(50)
+  limit? = 10;
 }
