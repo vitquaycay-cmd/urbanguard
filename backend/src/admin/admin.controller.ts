@@ -18,6 +18,7 @@ import { AdminService } from './admin.service';
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(Role.ADMIN)
 export class AdminController {
+
   constructor(private readonly adminService: AdminService) {}
 
   @Get('reports/pending')
@@ -40,4 +41,6 @@ export class AdminController {
       limit ? parseInt(limit, 10) : 20,
     );
   }
+
 }
+

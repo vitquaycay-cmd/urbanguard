@@ -70,8 +70,10 @@ function SearchOverlay() {
         </span>
 
         <div className="ug-search-copy">
-          <div className="ug-search-brand">UrbanGuard</div>
-          <div className="ug-search-sub">Tìm địa điểm (sắp có)</div>
+          <div className="ug-search-brand">UrbanGuard Search</div>
+          <div className="ug-search-sub">
+            Tìm địa điểm, tuyến đường hoặc khu vực sự cố
+          </div>
         </div>
       </div>
     </div>
@@ -86,11 +88,7 @@ type MessageBannerProps = {
 function MessageBanner({ text, type = "warning" }: MessageBannerProps) {
   if (!text) return null;
 
-  return (
-    <div className={`ug-banner ug-banner--${type}`}>
-      {text}
-    </div>
-  );
+  return <div className={`ug-banner ug-banner--${type}`}>{text}</div>;
 }
 
 type ActiveReportsMapProps = {
@@ -284,7 +282,7 @@ export default function ActiveReportsMap({
       <div className="ug-map-footer">
         <div className="ug-map-footer-card">
           {routeCoords
-            ? "Tuyến đang hiển thị — kéo waypoint để đổi lộ trình. Vào đệm khoảng 115m quanh sự cố sẽ có cảnh báo và thử né tự động."
+            ? "Tuyến đang hiển thị — kéo waypoint để đổi lộ trình. Vào đệm quanh sự cố sẽ có cảnh báo và thử né tự động."
             : "Chọn điểm đi / đến trên bản đồ để xem tuyến OSRM."}
 
           {clustering && (

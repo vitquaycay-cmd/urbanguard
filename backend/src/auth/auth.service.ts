@@ -3,6 +3,7 @@ import {
   Injectable,
   NotFoundException,
   UnauthorizedException,
+  ForbiddenException,
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { Role } from "@prisma/client";
@@ -41,11 +42,15 @@ export class AuthService {
         data: {
           email: dto.email.toLowerCase(),
           password: passwordHash,
+          username: dto.username,
+          fullname: dto.fullname,
           role: Role.USER,
         },
         select: {
           id: true,
           email: true,
+          username: true,
+          fullname: true,
           role: true,
           reputationScore: true,
         },
@@ -71,24 +76,25 @@ export class AuthService {
     if (!match) {
       throw new UnauthorizedException("Email hoặc mật khẩu không đúng");
     }
-
-    // const payload: JwtPayload = {
-    //   sub: user.id,
-    //   email: user.email,
-    //   role: user.role,
-    // };
+    // Kiểm tra tài khoản có bị khóa không
+    if (user.isBanned) {
+      throw new ForbiddenException(
+        "Tài khoản đã bị khóa. Vui lòng liên hệ admin.",
+      );
+    }
 
     // Tạo cặp token mới và lưu refresh token vào DB
     const { access_token, refresh_token } = this.generateTokens(user);
     await this.saveRefreshToken(user.id, refresh_token);
 
     return {
-      // access_token: this.jwtService.sign(payload),
       access_token,
       refresh_token,
       user: {
         id: user.id,
         email: user.email,
+        username: user.username,
+        fullname: user.fullname,
         role: user.role,
         reputationScore: user.reputationScore,
       },
@@ -123,13 +129,13 @@ export class AuthService {
   // Mục đích: khi client gửi refresh token lên, server tra DB kiểm tra có tồn tại và còn hạn không
   private async saveRefreshToken(userId: number, token: string) {
     const count = await this.prisma.refreshToken.count({ where: { userId } });
-    if (count>=3) {
-      const oldest= await this.prisma.refreshToken.findFirst({
-        where: {userId},
-        orderBy: {createdAt: 'asc'},
+    if (count >= 3) {
+      const oldest = await this.prisma.refreshToken.findFirst({
+        where: { userId },
+        orderBy: { createdAt: "asc" },
       });
-      if (oldest){
-        await this.prisma.refreshToken.delete({where: {id: oldest.id}})
+      if (oldest) {
+        await this.prisma.refreshToken.delete({ where: { id: oldest.id } });
       }
     }
     // Tính thời điểm hết hạn = hiện tại + 7 ngày
@@ -206,5 +212,22 @@ export class AuthService {
     await this.prisma.refreshToken.delete({ where: { token } });
 
     return { message: "Đăng xuất thành công" };
+  }
+
+  async getMe(userId: number) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        username: true,
+        fullname: true,
+        role: true,
+        reputationScore: true,
+        createdAt: true,
+      },
+    });
+    if (!user) throw new NotFoundException("Không tìm thấy user");
+    return user;
   }
 }

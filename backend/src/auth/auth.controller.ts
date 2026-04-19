@@ -21,7 +21,7 @@ import { LoginDto } from "./dto/login.dto";
 import { RegisterDto } from "./dto/register.dto";
 import { RefreshTokenDto } from "./dto/refresh-token.dto";
 import { JwtAuthGuard } from "./guards/jwt-auth.guard";
-import { Throttle } from "@nestjs/throttler";
+import { SkipThrottle, Throttle } from "@nestjs/throttler";
 import { ChangePasswordDto } from "./dto/change-password.dto";
 import { LogoutDto } from "./dto/logout.dto";
 
@@ -30,6 +30,7 @@ import { LogoutDto } from "./dto/logout.dto";
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  @SkipThrottle()
   @Post("register")
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
@@ -50,14 +51,16 @@ export class AuthController {
     return this.authService.login(dto);
   }
 
+  @SkipThrottle()
   @Get("me")
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "Thông tin user hiện tại (JWT)" })
   me(@Req() req: Request) {
-    return req.user;
+    return this.authService.getMe(req.user!.id);
   }
 
+  @SkipThrottle()
   @Post("refresh")
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -75,6 +78,7 @@ export class AuthController {
     return this.authService.refresh(dto.refreshToken);
   }
 
+  @SkipThrottle()
   @Patch("password")
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
@@ -87,6 +91,7 @@ export class AuthController {
     return this.authService.changePassword(req.user!.id, dto);
   }
 
+  @SkipThrottle()
   @Post("logout")
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
