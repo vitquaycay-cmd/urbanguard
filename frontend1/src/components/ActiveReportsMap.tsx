@@ -22,8 +22,8 @@ import "../styles/map.css";
 export type { ActiveReport };
 
 const CLUSTER_AUTO_THRESHOLD = 12;
-const DEFAULT_CENTER: L.LatLngExpression = [10.762622, 106.660172];
-const DEFAULT_ZOOM = 12;
+const DEFAULT_CENTER: L.LatLngExpression = [12.684696, 108.050915];
+const DEFAULT_ZOOM = 10;
 
 function useDebouncedValue<T>(value: T, ms: number): T {
   const [debounced, setDebounced] = useState(value);

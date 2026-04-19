@@ -69,3 +69,37 @@ coverage/
 # ========================
 .cache/
 .tmp/
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+/playwright/.auth/
+frontend/test-results/
+frontend1/test-results/
+frontend1/playwright-report/
+
+# ========================
+# TEST FILES (ROOT)
+# ========================
+/tests/
+/playwright.config.ts
+/vitest.config.ts
+/tsconfig.json
+/package.json
+/package-lock.json
+
+# ========================
+# CLAUDE / CURSOR / GITHUB
+# ========================
+.claude/
+CLAUDE.md
+.cursor/
+.github/
+
+# ========================
+# FRONTEND1 TEST CONFIG
+# ========================
+frontend1/playwright.config.ts
+frontend1/vitest.config.ts

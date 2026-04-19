@@ -3,8 +3,13 @@ import { Server } from 'socket.io';
 
 function socketCorsOrigins(): string | string[] {
   const raw = process.env.CORS_ORIGIN?.trim();
-  if (!raw) return 'http://localhost:3001';
-  const list = raw.split(',').map((s) => s.trim()).filter(Boolean);
+  let list = raw
+    ? raw.split(',').map((s) => s.trim()).filter(Boolean)
+    : ['http://localhost:3001'];
+  // Vite (frontend1) chạy :5173 — bổ sung khi dev để không phụ thuộc .env cũ chỉ có :3001
+  if (process.env.NODE_ENV !== 'production') {
+    list = [...new Set([...list, 'http://localhost:5173'])];
+  }
   return list.length <= 1 ? (list[0] ?? 'http://localhost:3001') : list;
 }
 
