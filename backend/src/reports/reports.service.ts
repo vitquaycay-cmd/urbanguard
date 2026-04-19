@@ -103,6 +103,8 @@ export class ReportsService {
           select: {
             id: true,
             email: true,
+            fullname: true,
+            username: true,
             reputationScore: true,
             role: true,
           },
@@ -154,6 +156,8 @@ export class ReportsService {
             select: {
               id: true,
               email: true,
+              fullname: true,
+              username: true,
               reputationScore: true,
               role: true,
             },

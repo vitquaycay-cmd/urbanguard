@@ -34,6 +34,8 @@ export class AdminService {
             select: {
               id: true,
               email: true,
+              fullname: true,
+              username: true,
               reputationScore: true,
             },
           },

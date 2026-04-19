@@ -22,13 +22,14 @@ import {
   ApiTags,
 } from "@nestjs/swagger";
 import { SkipThrottle } from "@nestjs/throttler";
+import { skipAllThrottles } from "../common/throttle-skip";
 
 @ApiTags("users")
 @Controller("users")
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
-  @SkipThrottle()
+  @SkipThrottle(skipAllThrottles)
   @Get()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
@@ -42,7 +43,7 @@ export class UsersController {
 
   // PATCH /api/users/:id/role
   // Chỉ ADMIN mới được gọi endpoint này
-  @SkipThrottle()
+  @SkipThrottle(skipAllThrottles)
   @Patch(":id/role")
   @UseGuards(JwtAuthGuard, RolesGuard) // Guard 1: kiểm tra JWT hợp lệ, Guard 2: kiểm tra role ADMIN
   @Roles(Role.ADMIN) // Khai báo role được phép — RolesGuard đọc metadata này
@@ -59,7 +60,7 @@ export class UsersController {
     return this.usersService.updateRole(id, dto.role);
   }
 
-  @SkipThrottle()
+  @SkipThrottle(skipAllThrottles)
   @Get(":id/profile")
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
@@ -71,7 +72,7 @@ export class UsersController {
     return this.usersService.getProfile(id);
   }
 
-  @SkipThrottle()
+  @SkipThrottle(skipAllThrottles)
   @Patch(":id/ban")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)

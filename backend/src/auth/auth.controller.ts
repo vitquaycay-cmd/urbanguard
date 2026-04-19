@@ -22,6 +22,7 @@ import { RegisterDto } from "./dto/register.dto";
 import { RefreshTokenDto } from "./dto/refresh-token.dto";
 import { JwtAuthGuard } from "./guards/jwt-auth.guard";
 import { SkipThrottle, Throttle } from "@nestjs/throttler";
+import { skipAllThrottles } from "../common/throttle-skip";
 import { ChangePasswordDto } from "./dto/change-password.dto";
 import { LogoutDto } from "./dto/logout.dto";
 
@@ -30,7 +31,7 @@ import { LogoutDto } from "./dto/logout.dto";
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  @SkipThrottle()
+  @SkipThrottle(skipAllThrottles)
   @Post("register")
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
@@ -51,7 +52,7 @@ export class AuthController {
     return this.authService.login(dto);
   }
 
-  @SkipThrottle()
+  @SkipThrottle(skipAllThrottles)
   @Get("me")
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
@@ -60,7 +61,7 @@ export class AuthController {
     return this.authService.getMe(req.user!.id);
   }
 
-  @SkipThrottle()
+  @SkipThrottle(skipAllThrottles)
   @Post("refresh")
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -78,7 +79,7 @@ export class AuthController {
     return this.authService.refresh(dto.refreshToken);
   }
 
-  @SkipThrottle()
+  @SkipThrottle(skipAllThrottles)
   @Patch("password")
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
@@ -91,7 +92,7 @@ export class AuthController {
     return this.authService.changePassword(req.user!.id, dto);
   }
 
-  @SkipThrottle()
+  @SkipThrottle(skipAllThrottles)
   @Post("logout")
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)

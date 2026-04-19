@@ -41,7 +41,8 @@ import { CreateReportDto } from './dto/create-report.dto';
 import { QueryReportsDto } from './dto/query-reports.dto';
 import { UpdateReportStatusDto } from './dto/update-report-status.dto';
 import { ReportsService } from './reports.service';
-import { SkipThrottle, Throttle } from '@nestjs/throttler';
+import { SkipThrottle } from '@nestjs/throttler';
+import { skipAllThrottles } from '../common/throttle-skip';
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5MB
 const UPLOAD_DIR = join(process.cwd(), 'uploads');
@@ -62,6 +63,7 @@ function multerFilename(
 export class ReportsController {
   constructor(private readonly reportsService: ReportsService) {}
 
+  @SkipThrottle(skipAllThrottles)
   @Get()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
@@ -130,6 +132,7 @@ export class ReportsController {
     return this.reportsService.findActiveValidated();
   }
 
+  @SkipThrottle(skipAllThrottles)
   @Get(':id')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
@@ -241,7 +244,7 @@ export class ReportsController {
     return this.reportsService.create(user.id, dto, file);
   }
 
-  @SkipThrottle()
+  @SkipThrottle(skipAllThrottles)
   @Patch(':id/status')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
@@ -293,6 +296,8 @@ export class ReportsController {
   ) {
     return this.reportsService.updateStatus(id, dto.status);
   }
+
+  @SkipThrottle(skipAllThrottles)
   @Delete(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)

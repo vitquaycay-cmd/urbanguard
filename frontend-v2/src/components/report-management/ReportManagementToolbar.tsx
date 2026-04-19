@@ -3,6 +3,9 @@ import { Search } from 'lucide-react'
 export type StatusFilterValue = 'all' | 'PENDING' | 'VALIDATED' | 'REJECTED'
 export type TypeFilterValue = 'all' | 'pothole' | 'accident' | 'flood'
 
+export type ReportSortByValue = 'createdAt' | 'trustScore' | 'status'
+export type ReportSortOrderValue = 'asc' | 'desc'
+
 type Props = {
   search: string
   onSearchChange: (v: string) => void
@@ -10,6 +13,12 @@ type Props = {
   onStatusFilterChange: (v: StatusFilterValue) => void
   typeFilter: TypeFilterValue
   onTypeFilterChange: (v: TypeFilterValue) => void
+  /** Ẩn khi đang dùng hàng chờ PENDING (FIFO cố định). */
+  showServerSort?: boolean
+  sortBy?: ReportSortByValue
+  sortOrder?: ReportSortOrderValue
+  onSortByChange?: (v: ReportSortByValue) => void
+  onSortOrderChange?: (v: ReportSortOrderValue) => void
 }
 
 const selectClass =
@@ -22,6 +31,11 @@ export default function ReportManagementToolbar({
   onStatusFilterChange,
   typeFilter,
   onTypeFilterChange,
+  showServerSort = false,
+  sortBy = 'createdAt',
+  sortOrder = 'desc',
+  onSortByChange,
+  onSortOrderChange,
 }: Props) {
   return (
     <div className="mb-4 flex flex-wrap gap-3">
@@ -62,6 +76,33 @@ export default function ReportManagementToolbar({
         <option value="accident">Tai nạn</option>
         <option value="flood">Ngập lụt</option>
       </select>
+      {showServerSort && onSortByChange && onSortOrderChange && (
+        <>
+          <select
+            className={selectClass}
+            value={sortBy}
+            onChange={(e) =>
+              onSortByChange(e.target.value as ReportSortByValue)
+            }
+            aria-label="Sắp xếp theo trường"
+          >
+            <option value="createdAt">Ngày tạo</option>
+            <option value="trustScore">Trust score</option>
+            <option value="status">Trạng thái</option>
+          </select>
+          <select
+            className={selectClass}
+            value={sortOrder}
+            onChange={(e) =>
+              onSortOrderChange(e.target.value as ReportSortOrderValue)
+            }
+            aria-label="Chiều sắp xếp"
+          >
+            <option value="desc">Giảm dần</option>
+            <option value="asc">Tăng dần</option>
+          </select>
+        </>
+      )}
     </div>
   )
 }
