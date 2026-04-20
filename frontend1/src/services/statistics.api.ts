@@ -1,6 +1,6 @@
 /**
  * UrbanGuard — Statistics API service
- * Kết nối các endpoint thống kê và dữ liệu heatmap từ Dev C
+ * Kết nối các endpoint thống kê và dữ liệu heatmap 
  */
 
 import { API_BASE } from "./auth.api";

@@ -142,7 +142,7 @@ export default function ActiveReportsMap({
     }
   }, []);
 
-  // 🔗 KẾT NỐI: Tải dữ liệu Heatmap từ Backend Dev C
+  // 🔗 KẾT NỐI: Tải dữ liệu Heatmap từ Backend 
   const loadHeatmap = useCallback(async () => {
     try {
       const data = await getHeatmapData();

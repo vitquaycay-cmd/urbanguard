@@ -33,7 +33,7 @@ export default function DashboardStats() {
   const [stats, setStats] = useState<StatsOverview | null>(null);
 
   useEffect(() => {
-    // 🔗 KẾT NỐI: Gọi API thống kê tổng quan từ Backend Dev C
+    // 🔗 KẾT NỐI: Gọi API thống kê tổng quan từ Backend
     getStatisticsOverview()
       .then(setStats)
       .catch((err) => console.error("Lỗi tải thống kê Dashboard:", err));

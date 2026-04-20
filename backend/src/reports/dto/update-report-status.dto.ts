@@ -7,7 +7,7 @@ import { IsEnum } from 'class-validator';
 export enum AdminReportStatus {
   VALIDATED = 'VALIDATED',
   REJECTED = 'REJECTED',
-  RESOLVED = 'RESOLVED', // Phẩn DEV C thêm: Thêm trạng thái RESOLVED cho flow
+  RESOLVED = 'RESOLVED', // Thêm trạng thái RESOLVED cho flow
 }
 
 export class UpdateReportStatusDto {

@@ -418,7 +418,7 @@ export class ReportsService {
       });
     }
 
-    // [Mới] DEV C WIRE VÀO FLOW RESOLVED / REJECTED ĐỂ PHÁT SOCKET
+    // WIRE VÀO FLOW RESOLVED / REJECTED ĐỂ PHÁT SOCKET
     if (adminAction === AdminReportStatus.RESOLVED || adminAction === AdminReportStatus.REJECTED) {
       this.notificationsService.broadcastReportUpdate({
         id: report.id,
