@@ -7,10 +7,13 @@ import {
   Droplets,
   CheckCircle,
   MoreHorizontal,
+  RefreshCcw,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { getStatisticsOverview } from "@/services/statistics.api"; // 🔗 KẾT NỐI: API thống kê
+import type { StatsOverview } from "@/services/statistics.api";
 
 export default function DashboardPage() {
   const navigate = useNavigate();
@@ -22,6 +25,28 @@ export default function DashboardPage() {
     "bạn";
 
   const [activeTab, setActiveTab] = useState("week");
+  const [stats, setStats] = useState<StatsOverview | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // 🔗 KẾT NỐI: Lấy dữ liệu thực từ Backend (StatisticsOverview)
+  const fetchStats = async () => {
+    try {
+      setIsLoading(true);
+      const data = await getStatisticsOverview();
+      setStats(data);
+    } catch (error) {
+      console.error("Lỗi khi tải thống kê:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchStats();
+  }, []);
+
+  const data = stats?.byStatus || { PENDING: 0, VALIDATED: 0, RESOLVED: 0, REJECTED: 0, VERIFIED: 0 };
+  const autoRate = stats?.autoValidatedRate || 0;
 
   const chartData = [
     { day: "T2", value: 18 },
@@ -76,84 +101,101 @@ export default function DashboardPage() {
             <Hand size={20} className="text-yellow-400" />
           </div>
           <p className="mt-2 text-sm text-gray-500">
-            Hệ thống ghi nhận 12 cảnh báo mới trong 2 giờ qua.
+            {/* 🔗 KẾT NỐI: Hiển thị số lượng sự cố đang chờ xử lý từ Backend */}
+            Hệ thống ghi nhận {data.PENDING} cảnh báo mới đang chờ duyệt.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => navigate("/report")}
-          className="flex items-center gap-2 rounded-xl bg-green-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-green-700"
-        >
-          <Plus size={16} />
-          Báo cáo mới
-        </button>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={fetchStats}
+            title="Làm mới dữ liệu"
+            className="flex items-center justify-center rounded-xl bg-white p-2 text-gray-500 shadow-sm border border-gray-100 transition-colors hover:bg-gray-50"
+          >
+            <RefreshCcw size={16} className={isLoading ? "animate-spin" : ""} />
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate("/report")}
+            className="flex items-center gap-2 rounded-xl bg-green-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-green-700"
+          >
+            <Plus size={16} />
+            Báo cáo mới
+          </button>
+        </div>
       </div>
 
       {/* SECTION 2 — 4 Stat Cards */}
       <div className="mb-6 grid grid-cols-4 gap-4">
-        {/* Card 1: Ổ gà */}
+        {/* Card 1: Tổng sự cố (Pending + Validated) */}
         <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
           <div className="flex items-start justify-between">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-50">
               <HardHat size={20} className="text-orange-500" />
             </div>
             <div className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-bold text-green-700">
-              +12%
+              Đang có
             </div>
           </div>
-          <div className="mt-2 text-3xl font-bold text-gray-900">142</div>
-          <div className="mt-0.5 text-sm text-gray-500">Ổ gà</div>
+          {/* 🔗 KẾT NỐI: Tổng số sự cố thực tế */}
+          <div className="mt-2 text-3xl font-bold text-gray-900">
+            {data.PENDING + data.VALIDATED}
+          </div>
+          <div className="mt-0.5 text-sm text-gray-500">Sự cố hiện tại</div>
           <div className="mt-3 h-1.5 rounded-full bg-gray-100">
             <div className="h-full w-3/4 rounded-full bg-orange-400"></div>
           </div>
         </div>
 
-        {/* Card 2: Tai nạn */}
+        {/* Card 2: Chờ duyệt */}
         <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
           <div className="flex items-start justify-between">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-50">
               <Car size={20} className="text-red-500" />
             </div>
             <div className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-bold text-red-600">
-              -5%
+              Gấp
             </div>
           </div>
-          <div className="mt-2 text-3xl font-bold text-gray-900">38</div>
-          <div className="mt-0.5 text-sm text-gray-500">Tai nạn</div>
+          {/* 🔗 KẾT NỐI: Số lượng PENDING */}
+          <div className="mt-2 text-3xl font-bold text-gray-900">{data.PENDING}</div>
+          <div className="mt-0.5 text-sm text-gray-500">Đang chờ duyệt</div>
           <div className="mt-3 h-1.5 rounded-full bg-gray-100">
             <div className="h-full w-1/4 rounded-full bg-red-400"></div>
           </div>
         </div>
 
-        {/* Card 3: Ngập lụt */}
+        {/* Card 3: Đã hoàn thành (Resolved) */}
         <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
           <div className="flex items-start justify-between">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50">
               <Droplets size={20} className="text-blue-500" />
             </div>
             <div className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-bold text-green-700">
-              +30%
+              Xong
             </div>
           </div>
-          <div className="mt-2 text-3xl font-bold text-gray-900">21</div>
-          <div className="mt-0.5 text-sm text-gray-500">Ngập lụt</div>
+          {/* 🔗 KẾT NỐI: Số lượng RESOLVED */}
+          <div className="mt-2 text-3xl font-bold text-gray-900">{data.RESOLVED}</div>
+          <div className="mt-0.5 text-sm text-gray-500">Đã khắc phục</div>
           <div className="mt-3 h-1.5 rounded-full bg-gray-100">
             <div className="h-full w-1/5 rounded-full bg-blue-400"></div>
           </div>
         </div>
 
-        {/* Card 4: Đã xử lý */}
+        {/* Card 4: Tỷ lệ AI */}
         <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
           <div className="flex items-start justify-between">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-green-50">
               <CheckCircle size={20} className="text-green-500" />
             </div>
             <div className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-bold text-green-700">
-              +3%
+              Auto
             </div>
           </div>
-          <div className="mt-2 text-3xl font-bold text-gray-900">89%</div>
-          <div className="mt-0.5 text-sm text-gray-500">Đã xử lý</div>
+          {/* 🔗 KẾT NỐI: Tỷ lệ auto-validated từ Backend */}
+          <div className="mt-2 text-3xl font-bold text-gray-900">{autoRate}%</div>
+          <div className="mt-0.5 text-sm text-gray-500">AI tự động duyệt</div>
           <div className="mt-3 h-1.5 rounded-full bg-gray-100">
             <div className="h-full w-4/5 rounded-full bg-green-500"></div>
           </div>
@@ -283,6 +325,14 @@ export default function DashboardPage() {
                 className="flex h-7 w-7 items-center justify-center rounded bg-gray-800 text-sm text-white transition-colors hover:bg-gray-700"
               >
                 −
+              </button>
+            </div>
+            <div className="absolute left-0 top-0 flex h-full w-full items-center justify-center bg-transparent backdrop-blur-[1px]">
+              <button 
+                onClick={() => navigate("/map")}
+                className="rounded-lg bg-green-600/90 px-4 py-2 text-xs font-bold text-white shadow-lg transition-all hover:scale-105 hover:bg-green-500"
+              >
+                XEM BẢN ĐỒ THỰC TẾ
               </button>
             </div>
           </div>

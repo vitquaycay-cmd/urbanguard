@@ -4,7 +4,7 @@
  * Mọi fetch REST/Socket phải dùng giá trị này — không hardcode host trong component.
  */
 
-const DEV_FALLBACK_API_BASE = "http://localhost:3000";
+const DEV_FALLBACK_API_BASE = "http://localhost:3001";
 
 export function getApiBaseUrl(): string {
   const raw = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "").trim();
