@@ -4,14 +4,16 @@ import { useNavigate } from "react-router-dom";
 
 interface Props {
   open: boolean;
+  onClose: () => void;
 }
 
-export default function BannedModal({ open }: Props) {
+export default function BannedModal({ open, onClose }: Props) {
   const navigate = useNavigate();
 
   if (!open) return null;
 
   function handleOk() {
+    onClose();
     removeStoredTokens();
     navigate("/login");
   }

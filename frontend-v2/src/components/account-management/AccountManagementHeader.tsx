@@ -52,7 +52,7 @@ export default function AccountManagementHeader({
         className="flex items-center gap-2 rounded-xl bg-green-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-green-700"
       >
         <Plus className="h-4 w-4" />
-        + Tạo tài khoản mới
+        Tạo tài khoản mới
       </button>
     </div>
   );

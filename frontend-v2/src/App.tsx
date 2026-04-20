@@ -129,7 +129,7 @@ function AppContent() {
         <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
-      <BannedModal open={isBanned} />
+      <BannedModal open={isBanned} onClose={() => setIsBanned(false)} />
     </>
   );
 }
