@@ -12,8 +12,6 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { SkipThrottle } from '@nestjs/throttler';
 import { skipAllThrottles } from '../common/throttle-skip';
-import { SkipThrottle } from '@nestjs/throttler';
-import { skipAllThrottles } from '../common/throttle-skip';
 import { AdminService } from './admin.service';
 
 @ApiTags('admin')
