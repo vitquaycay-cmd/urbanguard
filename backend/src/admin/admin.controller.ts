@@ -10,6 +10,8 @@ import { Role } from '@prisma/client';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
+import { SkipThrottle } from '@nestjs/throttler';
+import { skipAllThrottles } from '../common/throttle-skip';
 import { AdminService } from './admin.service';
 
 @ApiTags('admin')
@@ -18,8 +20,10 @@ import { AdminService } from './admin.service';
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(Role.ADMIN)
 export class AdminController {
+
   constructor(private readonly adminService: AdminService) {}
 
+  @SkipThrottle(skipAllThrottles)
   @Get('reports/pending')
   @ApiOperation({
     summary: 'Queue báo cáo PENDING chờ duyệt (cũ nhất trước)',
@@ -40,4 +44,5 @@ export class AdminController {
       limit ? parseInt(limit, 10) : 20,
     );
   }
+
 }

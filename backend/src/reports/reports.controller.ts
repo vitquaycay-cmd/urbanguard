@@ -41,7 +41,7 @@ import { CreateReportDto } from './dto/create-report.dto';
 import { QueryReportsDto } from './dto/query-reports.dto';
 import { UpdateReportStatusDto } from './dto/update-report-status.dto';
 import { ReportsService } from './reports.service';
-import { Throttle } from '@nestjs/throttler';
+import { SkipThrottle, Throttle } from '@nestjs/throttler';
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5MB
 const UPLOAD_DIR = join(process.cwd(), 'uploads');
@@ -62,6 +62,7 @@ function multerFilename(
 export class ReportsController {
   constructor(private readonly reportsService: ReportsService) {}
 
+<<<<<<< HEAD
   @Get()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
@@ -78,6 +79,9 @@ export class ReportsController {
     return this.reportsService.findAll(query);
   }
 
+=======
+  @SkipThrottle()
+>>>>>>> Viet
   @Get('active')
   @ApiOperation({
     summary: 'Bản đồ: danh sách báo cáo đã duyệt (status = VALIDATED)',
@@ -241,6 +245,7 @@ export class ReportsController {
     return this.reportsService.create(user.id, dto, file);
   }
 
+  @SkipThrottle()
   @Patch(':id/status')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)

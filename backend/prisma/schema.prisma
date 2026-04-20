@@ -9,14 +9,17 @@ datasource db {
 
 /// Người dùng hệ thống — 1 User có nhiều Report (báo cáo do chính user tạo).
 model User {
-  id              Int              @id @default(autoincrement())
-  email           String           @unique
+  id              Int            @id @default(autoincrement())
+  email           String         @unique
   password        String
-  reputationScore Int              @default(0) @map("reputation_score")
-  role            Role             @default(USER)
-  createdAt       DateTime         @default(now())
+  username        String?        @unique
+  fullname        String? 
+  reputationScore Int            @default(0) @map("reputation_score")
+  role            Role           @default(USER)
+  createdAt       DateTime       @default(now())
+  isBanned  Boolean  @default(false)  @map("is_banned")
   notifications   Notification[]
-  refresh_tokens  refresh_tokens[]
+  refreshTokens   RefreshToken[]
   reports         Report[]
   votes           Vote[]
 
@@ -38,6 +41,7 @@ model Report {
   aiSummary     Json?          @map("ai_summary")
   /// Nhãn AI (ví dụ danh sách class_name) — JSON array string.
   aiLabels      Json?          @map("ai_labels")
+  updated_at    DateTime
   notifications Notification[]
   user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   votes         Vote[]
@@ -79,15 +83,16 @@ model Notification {
   @@map("notifications")
 }
 
-model refresh_tokens {
+model RefreshToken {
   id        Int      @id @default(autoincrement())
   token     String   @unique @db.VarChar(512)
-  user_id   Int
+  userId    Int      @map("user_id")
   expiresAt DateTime
   createdAt DateTime @default(now())
-  users     User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([user_id], map: "refresh_tokens_user_id_fkey")
+  @@index([userId], map: "refresh_tokens_user_id_fkey")
+  @@map("refresh_tokens")
 }
 
 enum Role {

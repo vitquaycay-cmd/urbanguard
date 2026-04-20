@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 /*
   Warnings:
 
@@ -5,4 +6,6 @@
 
 */
 -- AlterTable
+=======
+>>>>>>> Viet
 ALTER TABLE `reports` ADD COLUMN `updated_at` DATETIME(3) NOT NULL;

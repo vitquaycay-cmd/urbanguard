@@ -11,21 +11,24 @@ import { Query, UseGuards } from "@nestjs/common";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { RolesGuard } from "../auth/guards/roles.guard";
 import { Roles } from "../auth/decorators/roles.decorator";
-import { Role } from "@prisma/client";
+import { Prisma, Role } from "@prisma/client";
 import { QueryUsersDto } from "./dto/query-users.dto";
 import { UpdateRoleDto } from "./dto/update-role.dto";
+import { BanuserDto } from "./dto/ban-user.dto";
 import {
   ApiBearerAuth,
   ApiOperation,
   ApiResponse,
   ApiTags,
 } from "@nestjs/swagger";
+import { SkipThrottle } from "@nestjs/throttler";
 
 @ApiTags("users")
 @Controller("users")
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
+  @SkipThrottle()
   @Get()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
@@ -39,6 +42,7 @@ export class UsersController {
 
   // PATCH /api/users/:id/role
   // Chỉ ADMIN mới được gọi endpoint này
+  @SkipThrottle()
   @Patch(":id/role")
   @UseGuards(JwtAuthGuard, RolesGuard) // Guard 1: kiểm tra JWT hợp lệ, Guard 2: kiểm tra role ADMIN
   @Roles(Role.ADMIN) // Khai báo role được phép — RolesGuard đọc metadata này
@@ -55,6 +59,7 @@ export class UsersController {
     return this.usersService.updateRole(id, dto.role);
   }
 
+  @SkipThrottle()
   @Get(":id/profile")
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
@@ -64,5 +69,18 @@ export class UsersController {
   @ApiResponse({ status: 401 })
   getProfile(@Param("id", ParseIntPipe) id: number) {
     return this.usersService.getProfile(id);
+  }
+
+  @SkipThrottle()
+  @Patch(":id/ban")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "Khoá Tài khoản" })
+  @ApiResponse({ status: 200 })
+  @ApiResponse({ status: 404, description: "User không tồn tại" })
+  @ApiResponse({ status: 401 })
+  ban(@Param("id", ParseIntPipe) id: number, @Body() dto: BanuserDto) {
+    return this.usersService.banUser(id, dto.isBanned);
   }
 }
