@@ -2,17 +2,37 @@ import {
   resolveReportImageUrl,
   type ActiveReport,
 } from "@/lib/mapActiveReports";
+import { voteReportRequest } from "@/services/report.api"; // 🔗 KẾT NỐI: Vote API
+import { ThumbsUp, ThumbsDown, Loader2 } from "lucide-react"; // 🔗 KẾT NỐI: Icons cho Vote
+import { useState } from "react";
 
 type Props = {
   report: ActiveReport;
 };
 
 export function ReportDangerPopup({ report }: Props) {
+  const [loading, setLoading] = useState<"UPVOTE" | "DOWNVOTE" | null>(null);
+  const [localTrust, setLocalTrust] = useState(report.trustScore);
+
   const imgUrl = resolveReportImageUrl(report.imageUrl);
   const aiText =
     report.aiLabels && report.aiLabels.length > 0
       ? report.aiLabels.join(", ")
       : "Chưa có nhãn AI";
+
+  // 🔗 KẾT NỐI: Hàm xử lý vote
+  const handleVote = async (type: "UPVOTE" | "DOWNVOTE") => {
+    setLoading(type);
+    try {
+      const response = await voteReportRequest(report.id, type);
+      setLocalTrust(response.newTrustScore);
+    } catch (err) {
+      console.error("Lỗi khi bình chọn:", err);
+      alert(err instanceof Error ? err.message : "Cần đăng nhập để bình chọn");
+    } finally {
+      setLoading(null);
+    }
+  };
 
   return (
     <div className="ug-popup">
@@ -22,7 +42,7 @@ export function ReportDangerPopup({ report }: Props) {
 
       <div className="ug-popup__badges">
         <span className="ug-popup__badge ug-popup__badge--trust">
-          Trust {report.trustScore}
+          Trust {localTrust}
         </span>
 
         <span
@@ -47,6 +67,29 @@ export function ReportDangerPopup({ report }: Props) {
       )}
 
       <div className="ug-popup__desc">{report.description}</div>
+
+      {/* 🔗 KẾT NỐI: Khu vực nút bình chọn */}
+      <div className="ug-popup__actions">
+        <button 
+          className={`ug-btn-vote ug-btn-vote--up ${loading === 'UPVOTE' ? 'ug-btn-vote--loading' : ''}`}
+          onClick={() => handleVote("UPVOTE")}
+          disabled={!!loading}
+          title="Tin cậy"
+        >
+          {loading === 'UPVOTE' ? <Loader2 className="ug-icon-spin" size={16} /> : <ThumbsUp size={16} />}
+          <span>Xác thực</span>
+        </button>
+
+        <button 
+          className={`ug-btn-vote ug-btn-vote--down ${loading === 'DOWNVOTE' ? 'ug-btn-vote--loading' : ''}`}
+          onClick={() => handleVote("DOWNVOTE")}
+          disabled={!!loading}
+          title="Báo cáo giả/sai"
+        >
+          {loading === 'DOWNVOTE' ? <Loader2 className="ug-icon-spin" size={16} /> : <ThumbsDown size={16} />}
+          <span>Báo giả</span>
+        </button>
+      </div>
     </div>
   );
 }

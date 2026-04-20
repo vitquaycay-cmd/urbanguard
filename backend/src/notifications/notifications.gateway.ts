@@ -3,9 +3,9 @@ import { Server } from 'socket.io';
 
 function socketCorsOrigins(): string | string[] {
   const raw = process.env.CORS_ORIGIN?.trim();
-  if (!raw) return 'http://localhost:3001';
+  if (!raw) return 'http://localhost:3000';
   const list = raw.split(',').map((s) => s.trim()).filter(Boolean);
-  return list.length <= 1 ? (list[0] ?? 'http://localhost:3001') : list;
+  return list.length <= 1 ? (list[0] ?? 'http://localhost:3000') : list;
 }
 
 /**

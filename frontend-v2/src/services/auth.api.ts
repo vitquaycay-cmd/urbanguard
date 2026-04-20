@@ -5,7 +5,7 @@
 
 /** Base URL từ biến môi trường Vite */
 export const API_BASE =
-  import.meta.env.VITE_API_URL || "http://localhost:3001";
+  import.meta.env.VITE_API_URL || "http://localhost:3000";
 
 /** Key lưu access token trong localStorage */
 export const AUTH_TOKEN_KEY = "urbanguard_access_token";
@@ -111,6 +111,13 @@ export async function getMeRequest(signal?: AbortSignal): Promise<MeUser> {
     headers: { Authorization: `Bearer ${token}` },
     signal,
   });
+
+  if (res.status === 401) {
+    // 🔗 KẾT NỐI: Nếu server trả về 401, nghĩa là token đã hết hạn hoặc không còn hợp lệ trong DB mới
+    // Tự động xoá token để "reset" trạng thái app, tránh treo app vĩnh viễn ở 401
+    clearStoredTokens();
+    throw new Error("Phiên đăng nhập đã hết hạn");
+  }
 
   if (!res.ok) {
     throw new Error("Không thể lấy thông tin user");

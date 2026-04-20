@@ -13,6 +13,7 @@ import { AdminModule } from "./admin/admin.module";
 import { AiReviewModule } from "./ai-review/ai-review.module";
 import { NotificationsModule } from "./notifications/notifications.module";
 import { StatisticsModule } from "./statistics/statistics.module";
+import { VoteModule } from "./vote/vote.module";
 import { APP_GUARD } from "@nestjs/core";
 import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
 
@@ -30,6 +31,7 @@ import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
     AiReviewModule,
     NotificationsModule,
     StatisticsModule,
+    VoteModule,
     ThrottlerModule.forRoot([
       {
         name: "auth", // tên rule

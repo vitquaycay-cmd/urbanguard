@@ -86,3 +86,35 @@ export async function createReportRequest(
 
   return { ...(data as CreateReportResponse), id };
 }
+
+/**
+ * 🔗 KẾT NỐI: Vote Feature API
+ * POST /api/reports/:id/vote
+ * Gửi bình chọn UPVOTE/DOWNVOTE, cần JWT.
+ */
+export async function voteReportRequest(
+  reportId: number,
+  type: "UPVOTE" | "DOWNVOTE",
+  signal?: AbortSignal,
+): Promise<{ newTrustScore: number }> {
+  const accessToken = getStoredAccessToken();
+  if (!accessToken) throw new Error("Chưa đăng nhập");
+
+  const res = await fetch(`${API_BASE}/api/reports/${reportId}/vote`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({ type }),
+    signal,
+  });
+
+  const data = await res.json().catch(() => null);
+
+  if (!res.ok) {
+    throw new Error(parseErrorMessage(res, data));
+  }
+
+  return data as { newTrustScore: number };
+}
