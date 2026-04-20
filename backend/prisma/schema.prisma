@@ -45,6 +45,8 @@ model Report {
   notifications Notification[]
   user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   votes         Vote[]
+  updatedAt DateTime @updatedAt
+  isHidden   Boolean  @default(false)
 
   @@index([userId])
   @@index([latitude, longitude])

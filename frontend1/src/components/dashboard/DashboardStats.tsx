@@ -1,3 +1,7 @@
+import { useEffect, useState } from "react";
+import { getStatisticsOverview } from "../../services/statistics.api";
+import type { StatsOverview } from "../../services/statistics.api";
+
 type StatCardProps = {
   icon: string;
   value: string;
@@ -26,42 +30,55 @@ function StatCard({
 }
 
 export default function DashboardStats() {
+  const [stats, setStats] = useState<StatsOverview | null>(null);
+
+  useEffect(() => {
+    // 🔗 KẾT NỐI: Gọi API thống kê tổng quan từ Backend
+    getStatisticsOverview()
+      .then(setStats)
+      .catch((err) => console.error("Lỗi tải thống kê Dashboard:", err));
+  }, []);
+
+  // Nếu chưa có data, hiện giá trị 0 hoặc loading
+  const data = stats?.byStatus || { PENDING: 0, VALIDATED: 0, RESOLVED: 0, REJECTED: 0, VERIFIED: 0 };
+  const autoRate = stats?.autoValidatedRate || 0;
+
   return (
     <div className="db-stats">
       <StatCard
         icon="🕳️"
-        value="142"
-        label="Ổ gà"
-        meta="↑ 12% tuần này"
+        value={String(data.PENDING + data.VALIDATED)}
+        label="Tổng sự cố"
+        meta="Dữ liệu từ hệ thống"
         metaClass="db-stat-card__meta--green"
         iconClass="db-stat-card__icon--pink"
       />
 
       <StatCard
         icon="🚨"
-        value="38"
-        label="Tai nạn"
-        meta="↓ 5% tuần này"
+        value={String(data.PENDING)}
+        label="Đang chờ duyệt"
+        meta="Cần xử lý gấp"
         metaClass="db-stat-card__meta--red"
         iconClass="db-stat-card__icon--orange"
       />
 
       <StatCard
-        icon="🌊"
-        value="21"
-        label="Ngập lụt"
-        meta="↑ 30% tháng này"
+        icon="✅"
+        value={String(data.RESOLVED)}
+        label="Đã hoàn thành"
+        meta="Đã khắc phục xong"
         metaClass="db-stat-card__meta--green"
-        iconClass="db-stat-card__icon--blue"
+        iconClass="db-stat-card__icon--green"
       />
 
       <StatCard
-        icon="✅"
-        value="89%"
-        label="Đã xử lý"
-        meta="↑ 3% hôm qua"
+        icon="🤖"
+        value={`${autoRate}%`}
+        label="Tỷ lệ AI duyệt"
+        meta="Độ chính xác cao"
         metaClass="db-stat-card__meta--green"
-        iconClass="db-stat-card__icon--green"
+        iconClass="db-stat-card__icon--blue"
       />
     </div>
   );

@@ -12,6 +12,8 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { SkipThrottle } from '@nestjs/throttler';
 import { skipAllThrottles } from '../common/throttle-skip';
+import { SkipThrottle } from '@nestjs/throttler';
+import { skipAllThrottles } from '../common/throttle-skip';
 import { AdminService } from './admin.service';
 
 @ApiTags('admin')
@@ -21,8 +23,10 @@ import { AdminService } from './admin.service';
 @Roles(Role.ADMIN)
 export class AdminController {
 
+
   constructor(private readonly adminService: AdminService) {}
 
+  @SkipThrottle(skipAllThrottles)
   @SkipThrottle(skipAllThrottles)
   @Get('reports/pending')
   @ApiOperation({
