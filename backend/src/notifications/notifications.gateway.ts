@@ -1,5 +1,5 @@
-import { WebSocketGateway, WebSocketServer } from '@nestjs/websockets';
-import { Server } from 'socket.io';
+import { WebSocketGateway, WebSocketServer, OnGatewayConnection } from '@nestjs/websockets';
+import { Server, Socket } from 'socket.io';
 
 function socketCorsOrigins(): string | string[] {
   const raw = process.env.CORS_ORIGIN?.trim();
@@ -21,9 +21,16 @@ function socketCorsOrigins(): string | string[] {
   cors: { origin: socketCorsOrigins(), credentials: true },
   namespace: '/realtime',
 })
-export class NotificationsGateway {
+export class NotificationsGateway implements OnGatewayConnection {
   @WebSocketServer()
   server: Server;
+
+  handleConnection(client: Socket) {
+    const userId = client.handshake.query.userId
+    if (userId) {
+      client.join(`user:${userId}`)
+    }
+  }
 
   /** Báo cáo mới (sau create + bước AI) — client bản đồ refetch `/reports/active`. */
   emitReportNew(payload: Record<string, unknown>) {
@@ -33,5 +40,11 @@ export class NotificationsGateway {
   /** Gọi từ Reports / AI sau khi cập nhật trustScore hoặc trạng thái báo cáo. */
   emitReportUpdate(payload: Record<string, unknown>) {
     this.server.emit('report:update', payload);
+  }
+
+  emitAccountBanned(userId: number) {
+    this.server.to(`user:${userId}`).emit('account:banned', {
+      message: 'Tài khoản của bạn đã bị khóa bởi quản trị viên. Vui lòng liên hệ admin để được hỗ trợ.'
+    })
   }
 }

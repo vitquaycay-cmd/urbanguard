@@ -1,5 +1,8 @@
-import { Routes, Route, Navigate } from "react-router-dom";
-import { CurrentUserProvider } from "@/hooks/useCurrentUser";
+import { useState } from "react";
+import { Routes, Route, Navigate, BrowserRouter } from "react-router-dom";
+import { CurrentUserProvider, useCurrentUser } from "@/hooks/useCurrentUser";
+import BannedModal from "@/components/BannedModal";
+import { useBannedSocket } from "@/hooks/useBannedSocket";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import AppShell from "@/components/layout/AppShell";
 import LoginPage from "@/pages/LoginPage";
@@ -14,9 +17,14 @@ import SettingsPage from "@/pages/SettingsPage";
 import ForumPage from "@/pages/ForumPage";
 import ReportManagementPage from "@/pages/ReportManagementPage";
 
-export default function App() {
+function AppContent() {
+  const { user } = useCurrentUser();
+  const [isBanned, setIsBanned] = useState(false);
+
+  useBannedSocket(user?.id, () => setIsBanned(true));
+
   return (
-    <CurrentUserProvider>
+    <>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
@@ -121,6 +129,17 @@ export default function App() {
         <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
-    </CurrentUserProvider>
+      <BannedModal open={isBanned} />
+    </>
+  );
+}
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <CurrentUserProvider>
+        <AppContent />
+      </CurrentUserProvider>
+    </BrowserRouter>
   );
 }

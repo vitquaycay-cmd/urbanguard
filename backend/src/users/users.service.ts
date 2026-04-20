@@ -2,10 +2,14 @@ import { PrismaService } from "../prisma/prisma.service";
 import { QueryUsersDto } from "./dto/query-users.dto";
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { Prisma, Role } from "@prisma/client";
+import { NotificationsGateway } from "../notifications/notifications.gateway";
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notificationsGateway: NotificationsGateway,
+  ) {}
 
   private buildUserWhere(
     query: QueryUsersDto,
@@ -44,41 +48,38 @@ export class UsersService {
     const { page = 1, limit = 10 } = query;
     const skip = (page - 1) * limit;
 
-    const whereBase = this.buildUserWhere(query, { includeBannedFilter: false });
+    const whereBase = this.buildUserWhere(query, {
+      includeBannedFilter: false,
+    });
     const whereList = this.buildUserWhere(query, { includeBannedFilter: true });
 
-    const [
-      data,
-      total,
-      totalUsers,
-      activeUsers,
-      bannedUsers,
-    ] = await Promise.all([
-      this.prisma.user.findMany({
-        where: whereList,
-        skip,
-        take: limit,
-        orderBy: { createdAt: "desc" },
-        select: {
-          id: true,
-          email: true,
-          username: true,
-          fullname: true,
-          role: true,
-          reputationScore: true,
-          createdAt: true,
-          isBanned: true,
-        },
-      }),
-      this.prisma.user.count({ where: whereList }),
-      this.prisma.user.count({ where: whereBase }),
-      this.prisma.user.count({
-        where: { ...whereBase, isBanned: false },
-      }),
-      this.prisma.user.count({
-        where: { ...whereBase, isBanned: true },
-      }),
-    ]);
+    const [data, total, totalUsers, activeUsers, bannedUsers] =
+      await Promise.all([
+        this.prisma.user.findMany({
+          where: whereList,
+          skip,
+          take: limit,
+          orderBy: { createdAt: "desc" },
+          select: {
+            id: true,
+            email: true,
+            username: true,
+            fullname: true,
+            role: true,
+            reputationScore: true,
+            createdAt: true,
+            isBanned: true,
+          },
+        }),
+        this.prisma.user.count({ where: whereList }),
+        this.prisma.user.count({ where: whereBase }),
+        this.prisma.user.count({
+          where: { ...whereBase, isBanned: false },
+        }),
+        this.prisma.user.count({
+          where: { ...whereBase, isBanned: true },
+        }),
+      ]);
 
     return {
       data,
@@ -134,14 +135,20 @@ export class UsersService {
     return { ...user, totalReports };
   }
 
-  async banUser(id: number, isBanned: boolean){
-    const user=await this.prisma.user.findUnique({where: {id}})
-    if (!user) throw new NotFoundException('Không tìm thấy người dùng')
+  async banUser(id: number, isBanned: boolean) {
+    const user = await this.prisma.user.findUnique({ where: { id } });
+    if (!user) throw new NotFoundException("Không tìm thấy người dùng");
 
     await this.prisma.user.update({
-      where: {id}, data:{isBanned}
-    })
+      where: { id },
+      data: { isBanned },
+    });
 
-    return {message: isBanned ? 'Đã khóa tài khoản' : 'Đã mở khóa tài khoản'}
+    if (isBanned) {
+      await this.prisma.refreshToken.deleteMany({ where: { userId: id } });
+      this.notificationsGateway.emitAccountBanned(id);
+    }
+
+    return { message: isBanned ? "Đã khóa tài khoản" : "Đã mở khóa tài khoản" };
   }
 }
