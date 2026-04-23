@@ -1,4 +1,4 @@
-import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard,
   Map,
@@ -6,93 +6,117 @@ import {
   MessageSquare,
   Bell,
   User,
-  Users,
   Settings,
-  LogOut,
   Shield,
-  ClipboardList,
 } from 'lucide-react'
-import { useCurrentUser } from '@/hooks/useCurrentUser'
-import {
-  logoutRequest,
-  getStoredRefreshToken,
-  removeStoredTokens,
-} from '@/services/auth.api'
 
-interface SidebarProps {
-  onLogout?: () => void
+type NavItem = {
+  icon: any
+  label: string
+  href: string
+  external?: boolean
+  badge?: {
+    text: string
+    color: 'green' | 'orange' | 'red'
+  }
 }
 
-export default function Sidebar({ onLogout }: SidebarProps) {
+export default function Sidebar() {
   const { pathname } = useLocation()
-  const navigate = useNavigate()
-  const { user } = useCurrentUser()
 
-  const initial = (user?.fullname || user?.email || 'U')[0].toUpperCase()
-  const displayName =
-    user?.fullname || user?.username || user?.email || 'Người dùng'
-  const roleLabel =
-    user?.role === 'ADMIN' ? 'Quản trị viên' : 'Thành viên'
+  const initial = 'N'
+  const displayName = 'Nguyễn Văn A'
+  const roleLabel = 'Thành viên'
 
-  async function handleLogout() {
-    try {
-      const refreshToken = getStoredRefreshToken()
-      if (refreshToken) await logoutRequest(refreshToken)
-    } catch {
-      /* ignore */
-    }
-    removeStoredTokens()
-    onLogout?.()
-    navigate('/login')
-  }
-
-  const mainNavItems = [
-    { icon: LayoutDashboard, label: 'Dashboard', href: '/dashboard' },
+  const mainNavItems: NavItem[] = [
+    {
+      icon: LayoutDashboard,
+      label: 'Dashboard',
+      href: 'http://localhost:3002/dashboard',
+      external: true,
+    },
     {
       icon: Map,
       label: 'Map',
-      href: '/map',
+      href: 'http://localhost:3002/map',
+      external: true,
       badge: { text: 'LIVE', color: 'green' },
     },
     {
       icon: FileText,
       label: 'Reports',
-      href: '/report',
+      href: 'http://localhost:3002/report',
+      external: true,
       badge: { text: '5', color: 'orange' },
     },
     {
       icon: MessageSquare,
       label: 'Forum',
-      href: 'http://localhost:5174',
-      external: true,
+      href: '/',
       badge: { text: '12', color: 'green' },
     },
+    
     {
       icon: Bell,
       label: 'Notifications',
-      href: '/notifications',
+      href: 'http://localhost:3002/notifications',
+      external: true,
       badge: { text: '3', color: 'red' },
     },
   ]
 
-  const personalNavItems = [
-    { icon: User, label: 'Profile', href: '/profile' },
-    { icon: Settings, label: 'Settings', href: '/settings' },
+  const personalNavItems: NavItem[] = [
+    {
+      icon: User,
+      label: 'Profile',
+      href: 'http://localhost:3002/profile',
+      external: true,
+    },
+    {
+      icon: Settings,
+      label: 'Settings',
+      href: 'http://localhost:3002/settings',
+      external: true,
+    },
   ]
 
-  const accountNavLinkClass = ({ isActive }: { isActive: boolean }) =>
+  const navClass = (isActive: boolean) =>
     `mx-2 flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all cursor-pointer ${
       isActive
         ? 'bg-green-50 text-green-700 font-semibold border-l-2 border-green-600 rounded-l-none rounded-r-xl'
         : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
     }`
 
+  const renderBadge = (
+    badge?: { text: string; color: 'green' | 'orange' | 'red' }
+  ) => {
+    if (!badge) return null
+
+    const badgeClass =
+      badge.color === 'green'
+        ? 'bg-green-100 text-green-700'
+        : badge.color === 'orange'
+          ? 'bg-orange-100 text-orange-600'
+          : 'bg-red-100 text-red-600'
+
+    return (
+      <span className={`text-[10px] font-bold px-2 rounded-full ${badgeClass}`}>
+        {badge.text}
+      </span>
+    )
+  }
+
+  const isItemActive = (item: NavItem) => {
+    if (item.label === 'Forum') return pathname === '/'
+    if (item.label === 'Video') return pathname === '/videos'
+    return false
+  }
+
   return (
     <div
       className="fixed left-0 top-0 h-screen w-60 flex flex-col bg-white border-r border-gray-200 shadow-lg"
       style={{ boxShadow: '2px 0 8px rgba(0,0,0,0.04)' }}
     >
-      {/* Brand Section */}
       <div className="p-6 border-b border-gray-200">
         <div className="flex items-center gap-3 mb-3">
           <div className="w-9 h-9 bg-green-600 rounded-xl flex items-center justify-center">
@@ -107,17 +131,16 @@ export default function Sidebar({ onLogout }: SidebarProps) {
         </div>
       </div>
 
-      {/* Navigation */}
       <div className="flex-1 overflow-y-auto py-4">
-        {/* Main Group */}
         <div className="mb-6">
           <p className="px-4 text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-3">
             Main
           </p>
+
           <nav className="space-y-1">
             {mainNavItems.map((item) => {
               const Icon = item.icon
-              const isActive = pathname === item.href
+              const isActive = isItemActive(item)
 
               if (item.external) {
                 return (
@@ -128,12 +151,7 @@ export default function Sidebar({ onLogout }: SidebarProps) {
                   >
                     <Icon className="w-4 h-4 flex-shrink-0" />
                     <span className="flex-1">{item.label}</span>
-
-                    {item.badge && (
-                      <span className="text-[10px] font-bold px-2 rounded-full bg-green-100 text-green-700">
-                        {item.badge.text}
-                      </span>
-                    )}
+                    {renderBadge(item.badge)}
                   </a>
                 )
               }
@@ -142,73 +160,41 @@ export default function Sidebar({ onLogout }: SidebarProps) {
                 <Link
                   key={item.label}
                   to={item.href}
-                  className={`mx-2 flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all cursor-pointer ${
-                    isActive
-                      ? 'bg-green-50 text-green-700 font-semibold border-l-2 border-green-600 rounded-l-none rounded-r-xl'
-                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                  }`}
+                  className={navClass(isActive)}
                 >
                   <Icon className="w-4 h-4 flex-shrink-0" />
                   <span className="flex-1">{item.label}</span>
-
-                  {item.badge && (
-                    <span className="text-[10px] font-bold px-2 rounded-full bg-green-100 text-green-700">
-                      {item.badge.text}
-                    </span>
-                  )}
+                  {renderBadge(item.badge)}
                 </Link>
               )
             })}
           </nav>
         </div>
 
-        {/* Personal Group */}
         <div>
           <p className="px-4 text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-3">
             Personal
           </p>
+
           <nav className="space-y-1">
             {personalNavItems.map((item) => {
               const Icon = item.icon
-              const isActive = pathname === item.href
+
               return (
-                <Link
+                <a
                   key={item.label}
-                  to={item.href}
-                  className={`mx-2 flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all cursor-pointer ${
-                    isActive
-                      ? 'bg-green-50 text-green-700 font-semibold border-l-2 border-green-600 rounded-l-none rounded-r-xl'
-                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                  }`}
+                  href={item.href}
+                  className="mx-2 flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all cursor-pointer text-gray-600 hover:bg-gray-50 hover:text-gray-900"
                 >
                   <Icon className="w-4 h-4 flex-shrink-0" />
                   <span>{item.label}</span>
-                </Link>
+                </a>
               )
             })}
-            {user?.role === 'ADMIN' && (
-              <>
-                <NavLink
-                  to="/report-management"
-                  className={accountNavLinkClass}
-                >
-                  <ClipboardList className="h-[18px] w-[18px] flex-shrink-0" />
-                  <span>Quản lý báo cáo</span>
-                </NavLink>
-                <NavLink
-                  to="/account-management"
-                  className={accountNavLinkClass}
-                >
-                  <Users className="h-[18px] w-[18px] flex-shrink-0" />
-                  <span>Tài khoản</span>
-                </NavLink>
-              </>
-            )}
           </nav>
         </div>
       </div>
 
-      {/* User Profile Section */}
       <div className="border-t border-gray-200 p-4">
         <div className="mb-3 flex items-center gap-3">
           <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-green-600">
@@ -221,13 +207,12 @@ export default function Sidebar({ onLogout }: SidebarProps) {
             <p className="truncate text-xs text-gray-400">{roleLabel}</p>
           </div>
         </div>
+
         <button
           type="button"
-          onClick={handleLogout}
           className="flex w-full flex-shrink-0 items-center justify-center gap-2 rounded-xl p-1 text-sm text-gray-400 transition-colors hover:bg-red-50 hover:text-red-500"
           aria-label="Đăng xuất"
         >
-          <LogOut size={18} />
           <span>Đăng xuất</span>
         </button>
       </div>
