@@ -20,10 +20,11 @@ export type ReportManagementRow = {
 type Props = {
   reports: ReportManagementRow[]
   processingId: number | null
-  resolveImageUrl: (imageUrl: string | null) => string | undefined
+  resolveImageUrl: (imageUrl: string | null) => string | null
   getIncidentKind: (report: ReportManagementRow) => IncidentKind
   onApprove: (id: number) => void
   onReject: (id: number) => void
+  onResolve: (id: number) => void
   onDelete: (id: number) => void
 }
 
@@ -66,8 +67,14 @@ function statusBadge(status: string) {
       )
     case 'VALIDATED':
       return (
-        <span className="inline-flex rounded-full bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-700">
-          Đã duyệt
+        <span className="inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">
+          Đang hiển thị
+        </span>
+      )
+    case 'RESOLVED':
+      return (
+        <span className="inline-flex rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-semibold text-indigo-700">
+          Đã khắc phục
         </span>
       )
     case 'REJECTED':
@@ -96,6 +103,7 @@ export default function ReportManagementTable({
   getIncidentKind,
   onApprove,
   onReject,
+  onResolve,
   onDelete,
 }: Props) {
   return (
@@ -180,7 +188,7 @@ export default function ReportManagementTable({
                             type="button"
                             disabled={busy}
                             onClick={() => onApprove(report.id)}
-                            className="inline-flex items-center gap-1 rounded-lg bg-green-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-green-700 disabled:opacity-50"
+                            className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
                           >
                             <CheckCircle className="size-3.5" aria-hidden />
                             Duyệt
@@ -195,6 +203,17 @@ export default function ReportManagementTable({
                             Từ chối
                           </button>
                         </>
+                      )}
+                      {report.status === 'VALIDATED' && (
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => onResolve(report.id)}
+                          className="inline-flex items-center gap-1 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
+                        >
+                          <CheckCircle className="size-3.5" aria-hidden />
+                          Đã khắc phục
+                        </button>
                       )}
                       <button
                         type="button"

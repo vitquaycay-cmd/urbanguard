@@ -4,6 +4,7 @@ type Props = {
   stats: {
     pending: number
     validated: number
+    resolved: number
     rejected: number
   }
 }
@@ -19,19 +20,25 @@ export default function ReportManagementHeader({ stats }: Props) {
           </h2>
         </div>
         <div className="mt-2 flex gap-3">
-          <div className="rounded-xl border border-yellow-100 bg-yellow-50 px-3 py-2 text-center">
+          <div className="rounded-xl border border-yellow-100 bg-yellow-50 px-3 py-2 text-center min-w-[80px]">
             <div className="text-xl font-bold text-yellow-800">
               {stats.pending}
             </div>
             <div className="text-xs text-gray-400">Chờ duyệt</div>
           </div>
-          <div className="rounded-xl border border-green-100 bg-green-50 px-3 py-2 text-center">
+          <div className="rounded-xl border border-green-100 bg-green-50 px-3 py-2 text-center min-w-[80px]">
             <div className="text-xl font-bold text-green-800">
               {stats.validated}
             </div>
-            <div className="text-xs text-gray-400">Đã duyệt</div>
+            <div className="text-xs text-gray-400">Đang hiện</div>
           </div>
-          <div className="rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-center">
+          <div className="rounded-xl border border-indigo-100 bg-indigo-50 px-3 py-2 text-center min-w-[80px]">
+            <div className="text-xl font-bold text-indigo-800">
+              {stats.resolved}
+            </div>
+            <div className="text-xs text-gray-400">Đã xong</div>
+          </div>
+          <div className="rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-center min-w-[80px]">
             <div className="text-xl font-bold text-red-800">
               {stats.rejected}
             </div>

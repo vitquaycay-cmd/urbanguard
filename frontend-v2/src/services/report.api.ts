@@ -116,5 +116,8 @@ export async function voteReportRequest(
     throw new Error(parseErrorMessage(res, data));
   }
 
-  return data as { newTrustScore: number };
+  return data as {
+    vote: { type: "UPVOTE" | "DOWNVOTE" | null };
+    newTrustScore: number;
+  };
 }

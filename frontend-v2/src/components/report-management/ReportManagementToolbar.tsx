@@ -1,6 +1,6 @@
 import { Search } from 'lucide-react'
 
-export type StatusFilterValue = 'all' | 'PENDING' | 'VALIDATED' | 'REJECTED'
+export type StatusFilterValue = 'all' | 'PENDING' | 'VALIDATED' | 'RESOLVED' | 'REJECTED'
 export type TypeFilterValue = 'all' | 'pothole' | 'accident' | 'flood'
 
 type Props = {
@@ -48,7 +48,8 @@ export default function ReportManagementToolbar({
       >
         <option value="all">Tất cả trạng thái</option>
         <option value="PENDING">Chờ duyệt</option>
-        <option value="VALIDATED">Đã duyệt</option>
+        <option value="VALIDATED">Đang hiển thị</option>
+        <option value="RESOLVED">Đã khắc phục</option>
         <option value="REJECTED">Từ chối</option>
       </select>
       <select

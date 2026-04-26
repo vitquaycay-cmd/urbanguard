@@ -3,6 +3,7 @@ import { useState } from "react";
 import RegisterCard from "@/components/login/RegisterCard";
 import RegisterForm from "@/components/login/RegisterForm";
 import { registerRequest } from "@/services/auth.api";
+import "@/styles/auth.css"; // 🔗 KẾT NỐI: Style gốc của người dùng
 
 export default function RegisterPage() {
   const navigate = useNavigate();
@@ -68,16 +69,20 @@ export default function RegisterPage() {
   };
 
   return (
-    <RegisterCard isPasswordFocused={isPasswordFocused}>
-      <RegisterForm
-        formData={formData}
-        onChange={handleChange}
-        onSubmit={handleSubmit}
-        onPasswordFocus={() => setIsPasswordFocused(true)}
-        onPasswordBlur={() => setIsPasswordFocused(false)}
-        error={error}
-        loading={loading}
-      />
-    </RegisterCard>
+    <div className="auth-page">
+      <div className="auth-grid" />
+
+      <RegisterCard isPasswordFocused={isPasswordFocused}>
+        <RegisterForm
+          formData={formData}
+          onChange={handleChange}
+          onSubmit={handleSubmit}
+          onPasswordFocus={() => setIsPasswordFocused(true)}
+          onPasswordBlur={() => setIsPasswordFocused(false)}
+          error={error}
+          loading={loading}
+        />
+      </RegisterCard>
+    </div>
   );
 }

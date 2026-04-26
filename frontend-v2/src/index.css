@@ -23,6 +23,16 @@
            hover:bg-rose-500/20 hover:border-rose-500/40;
   }
 
+  .ug-btn-vote--active {
+    background-color: var(--primary-color, #16a34a);
+    color: white;
+    border-color: transparent;
+  }
+
+  .ug-btn-vote--down.ug-btn-vote--active {
+    background-color: #dc2626; /* Màu đỏ cho Báo giả active */
+  }
+
   .ug-btn-vote--loading {
     @apply cursor-wait opacity-80;
   }

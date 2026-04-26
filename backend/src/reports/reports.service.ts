@@ -403,9 +403,8 @@ export class ReportsService {
         select: reportSelectFull,
       });
 
-      // [Zero-Touch Persistence] Nếu chuyển sang REJECTED, dọn dẹp file ảnh
+      // Tự động dọn dẹp file khi chuyển sang REJECTED
       if (nextDbStatus === ReportStatus.REJECTED && updated.imageUrl) {
-        this.logger.log(`[Zero-Touch] Phát hiện Báo cáo #${reportId} chuyển sang REJECTED. Đang dọn dẹp...`);
         this.deletePhysicalFile(updated.imageUrl);
       }
 

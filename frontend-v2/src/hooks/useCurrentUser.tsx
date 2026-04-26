@@ -13,6 +13,7 @@ export type CurrentUser = MeUser;
 type CurrentUserContextValue = {
   user: CurrentUser | null;
   loading: boolean;
+  refreshUser: () => Promise<void>;
 };
 
 const CurrentUserContext = createContext<
@@ -24,15 +25,23 @@ export function CurrentUserProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<CurrentUser | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const refreshUser = async () => {
+    try {
+      const u = await getMeRequest();
+      setUser(u);
+    } catch {
+      setUser(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    getMeRequest()
-      .then(setUser)
-      .catch(() => setUser(null))
-      .finally(() => setLoading(false));
+    refreshUser();
   }, []);
 
   return (
-    <CurrentUserContext.Provider value={{ user, loading }}>
+    <CurrentUserContext.Provider value={{ user, loading, refreshUser }}>
       {children}
     </CurrentUserContext.Provider>
   );

@@ -7,9 +7,12 @@ import {
   setStoredAccessToken,
   setStoredRefreshToken,
 } from "@/services/auth.api";
+import { useCurrentUser } from "@/hooks/useCurrentUser"; // 🔗 KẾT NỐI: Hook để refresh trạng thái auth
+import "@/styles/auth.css"; // 🔗 KẾT NỐI: Style gốc của người dùng
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const { refreshUser } = useCurrentUser(); // 🔗 KẾT NỐI: Lấy hàm refreshUser
 
   const [formData, setFormData] = useState({
     email: "",
@@ -40,6 +43,10 @@ export default function LoginPage() {
       const res = await loginRequest(formData.email, formData.password);
       setStoredAccessToken(res.access_token);
       setStoredRefreshToken(res.refresh_token);
+      
+      // 🔗 KẾT NỐI: Refresh user ngay sau khi login thành công để ProtectedRoute nhận diện được role
+      await refreshUser();
+      
       navigate("/map");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Đăng nhập thất bại");
@@ -49,16 +56,20 @@ export default function LoginPage() {
   };
 
   return (
-    <LoginCard isPasswordFocused={isPasswordFocused}>
-      <LoginForm
-        formData={formData}
-        onChange={handleChange}
-        onSubmit={handleSubmit}
-        onPasswordFocus={() => setIsPasswordFocused(true)}
-        onPasswordBlur={() => setIsPasswordFocused(false)}
-        error={error}
-        loading={loading}
-      />
-    </LoginCard>
+    <div className="auth-page">
+      <div className="auth-grid" />
+      
+      <LoginCard isPasswordFocused={isPasswordFocused}>
+        <LoginForm
+          formData={formData}
+          onChange={handleChange}
+          onSubmit={handleSubmit}
+          onPasswordFocus={() => setIsPasswordFocused(true)}
+          onPasswordBlur={() => setIsPasswordFocused(false)}
+          error={error}
+          loading={loading}
+        />
+      </LoginCard>
+    </div>
   );
 }

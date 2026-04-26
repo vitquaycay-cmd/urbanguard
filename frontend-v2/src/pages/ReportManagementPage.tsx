@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useCallback } from 'react'
 import ReportManagementHeader from '@/components/report-management/ReportManagementHeader'
 import ReportManagementToolbar, {
   type StatusFilterValue,
@@ -8,101 +8,121 @@ import ReportManagementTable, {
   type IncidentKind,
   type ReportManagementRow,
 } from '@/components/report-management/ReportManagementTable'
+import { fetchAdminReports, updateReportStatus, deleteReport } from '@/services/admin.api'
+import { resolveReportImageUrl } from '@/lib/mapActiveReports'
 
 function getIncidentKind(report: ReportManagementRow): IncidentKind {
-  const t = report.type
-  if (t === 'Ổ gà') return 'pothole'
-  if (t === 'Tai nạn') return 'accident'
-  if (t === 'Ngập lụt') return 'flood'
+  const t = report.type?.toLowerCase() || ''
+  if (t === 'ổ gà' || t === 'pothole') return 'pothole'
+  if (t === 'tai nạn' || t === 'accident') return 'accident'
+  if (t === 'ngập lụt' || t === 'flood') return 'flood'
   return 'other'
 }
 
-function resolveReportImageUrl(_imageUrl: string | null): string | undefined {
-  return undefined
-}
-
 export default function ReportManagementPage() {
-  const [reports, setReports] = useState<ReportManagementRow[]>([
-    {
-      id: 1842,
-      title: 'Ổ gà lớn tại Đinh Tiên Hoàng',
-      type: 'Ổ gà',
-      user: { fullname: 'Nguyễn Văn A' },
-      createdAt: '2026-03-22',
-      status: 'PENDING',
-      trustScore: 0.85,
-    },
-    {
-      id: 1801,
-      title: 'Va chạm tại Lê Văn Sỹ Q.3',
-      type: 'Tai nạn',
-      user: { fullname: 'Trần Thị B' },
-      createdAt: '2026-03-18',
-      status: 'PENDING',
-      trustScore: 0.72,
-    },
-    {
-      id: 1788,
-      title: 'Ngập lụt Nguyễn Văn Linh Q.7',
-      type: 'Ngập lụt',
-      user: { fullname: 'Lê Văn C' },
-      createdAt: '2026-03-15',
-      status: 'VALIDATED',
-      trustScore: 0.91,
-    },
-    {
-      id: 1755,
-      title: 'Kẹt xe Trường Chinh Tân Bình',
-      type: 'Kẹt xe',
-      user: { fullname: 'Phạm Thị D' },
-      createdAt: '2026-03-10',
-      status: 'REJECTED',
-      trustScore: 0.45,
-    },
-  ])
+  const [reports, setReports] = useState<ReportManagementRow[]>([])
+  const [loading, setLoading] = useState(true)
+  const [processingId, setProcessingId] = useState<number | null>(null)
+  
+  const [search, setSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState<StatusFilterValue>('all')
+  const [typeFilter, setTypeFilter] = useState<TypeFilterValue>('all')
+
+  const loadData = useCallback(async () => {
+    try {
+      setLoading(true)
+      const res = await fetchAdminReports({
+        status: statusFilter,
+        search: search
+      })
+      // Map API response to UI row format
+      const mapped = (res.data || []).map((r: any) => ({
+        id: r.id,
+        title: r.title,
+        type: r.aiLabels?.[0] || 'Khác',
+        user: { fullname: r.user?.fullname, username: r.user?.username, email: r.user?.email },
+        createdAt: r.createdAt,
+        status: r.status,
+        trustScore: r.trustScore,
+        imageUrl: r.imageUrl
+      }))
+      setReports(mapped)
+    } catch (err) {
+      console.error('Lỗi tải báo cáo:', err)
+    } finally {
+      setLoading(false)
+    }
+  }, [statusFilter, search])
+
+  useEffect(() => {
+    loadData()
+  }, [loadData])
 
   const stats = useMemo(() => {
     return {
       pending: reports.filter((r) => r.status === 'PENDING').length,
       validated: reports.filter((r) => r.status === 'VALIDATED').length,
+      resolved: reports.filter((r) => r.status === 'RESOLVED').length,
       rejected: reports.filter((r) => r.status === 'REJECTED').length,
     }
   }, [reports])
 
-  const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] =
-    useState<StatusFilterValue>('all')
-  const [typeFilter, setTypeFilter] = useState<TypeFilterValue>('all')
-
-  function handleApprove(id: number) {
-    setReports((prev) =>
-      prev.map((r) => (r.id === id ? { ...r, status: 'VALIDATED' } : r)),
-    )
+  async function handleApprove(id: number) {
+    setProcessingId(id)
+    try {
+      await updateReportStatus(id, 'VALIDATED')
+      await loadData()
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Duyệt thất bại')
+    } finally {
+      setProcessingId(null)
+    }
   }
 
-  function handleReject(id: number) {
-    setReports((prev) =>
-      prev.map((r) => (r.id === id ? { ...r, status: 'REJECTED' } : r)),
-    )
+  async function handleReject(id: number) {
+    setProcessingId(id)
+    try {
+      await updateReportStatus(id, 'REJECTED')
+      await loadData()
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Từ chối thất bại')
+    } finally {
+      setProcessingId(null)
+    }
   }
 
-  function handleDelete(id: number) {
-    setReports((prev) => prev.filter((r) => r.id !== id))
+  async function handleResolve(id: number) {
+    setProcessingId(id)
+    try {
+      await updateReportStatus(id, 'RESOLVED')
+      await loadData()
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Cập nhật thất bại')
+    } finally {
+      setProcessingId(null)
+    }
+  }
+
+  async function handleDelete(id: number) {
+    if (!confirm(`Bạn có chắc muốn xóa báo cáo #${id}?`)) return
+    setProcessingId(id)
+    try {
+      await deleteReport(id)
+      await loadData()
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Xóa thất bại')
+    } finally {
+      setProcessingId(null)
+    }
   }
 
   const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase()
     return reports.filter((r) => {
-      if (statusFilter !== 'all' && r.status !== statusFilter) return false
       const kind = getIncidentKind(r)
       if (typeFilter !== 'all' && kind !== typeFilter) return false
-      if (!q) return true
-      const idMatch = String(r.id).includes(q.replace(/^#/, ''))
-      const title = r.title.toLowerCase()
-      const sender = `${r.user.fullname ?? ''} ${r.user.username ?? ''} ${r.user.email ?? ''}`.toLowerCase()
-      return idMatch || title.includes(q) || sender.includes(q)
+      return true
     })
-  }, [reports, search, statusFilter, typeFilter])
+  }, [reports, typeFilter])
 
   return (
     <div>
@@ -115,15 +135,20 @@ export default function ReportManagementPage() {
         typeFilter={typeFilter}
         onTypeFilterChange={setTypeFilter}
       />
-      <ReportManagementTable
-        reports={filtered}
-        processingId={null}
-        resolveImageUrl={resolveReportImageUrl}
-        getIncidentKind={getIncidentKind}
-        onApprove={handleApprove}
-        onReject={handleReject}
-        onDelete={handleDelete}
-      />
+      {loading && reports.length === 0 ? (
+        <div className="py-20 text-center text-gray-500">Đang tải dữ liệu...</div>
+      ) : (
+        <ReportManagementTable
+          reports={filtered}
+          processingId={processingId}
+          resolveImageUrl={resolveReportImageUrl}
+          getIncidentKind={getIncidentKind}
+          onApprove={handleApprove}
+          onReject={handleReject}
+          onResolve={handleResolve}
+          onDelete={handleDelete}
+        />
+      )}
     </div>
   )
 }
