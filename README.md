@@ -117,8 +117,8 @@ Chạy dev (đổi port nếu trùng API):
 npx next dev --turbopack -p 3001
 ```
 
-- Trang chủ: `http://localhost:3001/`
-- Bản đồ: `http://localhost:3001/map` — marker **VALIDATED**, routing, cảnh báo né sự cố, realtime refetch khi có **`report:new`**.
+- Trang chủ: `http://localhost:3000/`
+- Bản đồ: `http://localhost:3000/map` — marker **VALIDATED**, routing, cảnh báo né sự cố, realtime refetch khi có **`report:new`**.
 
 ---
 

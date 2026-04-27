@@ -65,6 +65,6 @@ await fetch(`${base}/api/reports`, {
 ## Lỗi thường gặp
 
 - **"Chưa cấu hình NEXT_PUBLIC_API_URL"** — thiếu `.env.local` và không rơi vào dev fallback (production build).
-- **CORS** — backend `CORS_ORIGIN` phải chứa origin frontend (vd. `http://localhost:3001`).
+- **CORS** — backend `CORS_ORIGIN` phải chứa origin frontend (vd. `http://localhost:3000`).
 
 Chi tiết luồng: [`../frontend-system.md`](../frontend-system.md) mục 5.

@@ -250,6 +250,22 @@ export default function ReportManagementPage() {
     [bumpReload],
   )
 
+  const handleResolve = useCallback(
+    async (id: number) => {
+      setProcessingId(id)
+      setError(null)
+      try {
+        await updateReportStatusRequest(id, 'RESOLVED')
+        bumpReload()
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Cập nhật thất bại')
+      } finally {
+        setProcessingId(null)
+      }
+    },
+    [bumpReload],
+  )
+
   const handleDelete = useCallback(
     async (id: number) => {
       setProcessingId(id)
@@ -303,6 +319,7 @@ export default function ReportManagementPage() {
             getIncidentKind={getIncidentKind}
             onApprove={handleApprove}
             onReject={handleReject}
+            onResolve={handleResolve}
             onDelete={handleDelete}
           />
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm text-gray-600">
