@@ -216,7 +216,72 @@ export default function ReportManagementPage() {
       const sender = `${r.user.fullname ?? ''} ${r.user.username ?? ''} ${r.user.email ?? ''}`.toLowerCase()
       return idMatch || title.includes(q) || sender.includes(q)
     })
-  }, [reports, search, statusFilter, typeFilter])
+  }, [reports, search, typeFilter])
+
+  const handleApprove = useCallback(
+    async (id: number) => {
+      setProcessingId(id)
+      setError(null)
+      try {
+        await updateReportStatusRequest(id, 'VALIDATED')
+        bumpReload()
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Duyệt thất bại')
+      } finally {
+        setProcessingId(null)
+      }
+    },
+    [bumpReload],
+  )
+  const handleResolve = useCallback(
+  async (id: number) => {
+    setProcessingId(id)
+    setError(null)
+    try {
+      await updateReportStatusRequest(id, 'RESOLVED')
+      bumpReload()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Xử lý thất bại')
+    } finally {
+      setProcessingId(null)
+    }
+  },
+  [bumpReload],
+)
+
+  const handleReject = useCallback(
+    async (id: number) => {
+      setProcessingId(id)
+      setError(null)
+      try {
+        await updateReportStatusRequest(id, 'REJECTED')
+        bumpReload()
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Từ chối thất bại')
+      } finally {
+        setProcessingId(null)
+      }
+    },
+    [bumpReload],
+  )
+
+  const handleDelete = useCallback(
+    async (id: number) => {
+      setProcessingId(id)
+      setError(null)
+      try {
+        await deleteReportRequest(id)
+        bumpReload()
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Xóa thất bại')
+      } finally {
+        setProcessingId(null)
+      }
+    },
+    [bumpReload],
+  )
+
+  const showFullSpinner = loading && reports.length === 0
 
   return (
     <div>
@@ -242,15 +307,48 @@ export default function ReportManagementPage() {
         onSortByChange={setSortBy}
         onSortOrderChange={setSortOrder}
       />
-      <ReportManagementTable
-        reports={filtered}
-        processingId={null}
-        resolveImageUrl={resolveReportImageUrl}
-        getIncidentKind={getIncidentKind}
-        onApprove={handleApprove}
-        onReject={handleReject}
-        onDelete={handleDelete}
-      />
+      {showFullSpinner ? (
+        <p className="py-8 text-center text-sm text-gray-500">Đang tải…</p>
+      ) : (
+        <>
+          <ReportManagementTable
+            reports={filtered}
+            processingId={processingId}
+            resolveImageUrl={resolveReportImageUrl}
+            getIncidentKind={getIncidentKind}
+            onApprove={handleApprove}
+            onReject={handleReject}
+            onDelete={handleDelete}
+            onResolve={handleResolve}
+          />
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm text-gray-600">
+            <span>
+              Trang {meta.page} / {meta.totalPages} — {meta.total} báo cáo
+              {loading && reports.length > 0 ? ' · Đang cập nhật…' : ''}
+            </span>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                disabled={page <= 1 || loading}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                className="rounded-lg border border-gray-200 px-3 py-1.5 font-medium text-gray-800 hover:bg-gray-50 disabled:opacity-40"
+              >
+                Trước
+              </button>
+              <button
+                type="button"
+                disabled={page >= meta.totalPages || loading}
+                onClick={() =>
+                  setPage((p) => Math.min(meta.totalPages, p + 1))
+                }
+                className="rounded-lg border border-gray-200 px-3 py-1.5 font-medium text-gray-800 hover:bg-gray-50 disabled:opacity-40"
+              >
+                Sau
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   )
 }
