@@ -17,6 +17,7 @@ type User = {
 export default function Topbar({ onCreatePost }: TopbarProps) {
   const [loginOpen, setLoginOpen] = useState(false)
   const [user, setUser] = useState<User | null>(null)
+  const [userMenuOpen, setUserMenuOpen] = useState(false) // 🔥 thêm
 
   useEffect(() => {
     const savedUser = localStorage.getItem('forum_user')
@@ -37,6 +38,13 @@ export default function Topbar({ onCreatePost }: TopbarProps) {
     user?.email?.charAt(0).toUpperCase() ||
     'A'
 
+  function handleLogout() {
+    localStorage.removeItem('forum_token')
+    localStorage.removeItem('forum_user')
+    setUser(null)
+    setUserMenuOpen(false) // 🔥 đóng menu
+  }
+
   return (
     <>
       <div className="sticky top-0 z-20 flex h-20 items-center justify-between border-b border-gray-200 bg-white px-8">
@@ -52,6 +60,7 @@ export default function Topbar({ onCreatePost }: TopbarProps) {
         </div>
 
         <div className="flex items-center gap-4">
+          {/* SEARCH */}
           <div className="flex h-11 w-[350px] items-center gap-3 rounded-2xl border border-green-100 bg-white px-4 text-gray-400">
             <Search className="h-4 w-4" />
             <input
@@ -61,38 +70,67 @@ export default function Topbar({ onCreatePost }: TopbarProps) {
             />
           </div>
 
-          <button className="relative flex h-11 w-11 items-center justify-center rounded-2xl border border-gray-200 bg-white text-gray-500 transition hover:bg-gray-50">
+          {/* ICON */}
+          <button className="relative flex h-11 w-11 items-center justify-center rounded-2xl border border-gray-200 bg-white text-gray-500 hover:bg-gray-50">
             <Bell className="h-5 w-5" />
             <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-red-500" />
           </button>
 
-          <button className="relative flex h-11 w-11 items-center justify-center rounded-2xl border border-gray-200 bg-white text-gray-500 transition hover:bg-gray-50">
+          <button className="relative flex h-11 w-11 items-center justify-center rounded-2xl border border-gray-200 bg-white text-gray-500 hover:bg-gray-50">
             <MessageSquare className="h-5 w-5" />
             <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-red-500" />
           </button>
 
+          {/* USER */}
           {user ? (
-            <button
-              type="button"
-              title={user.fullName || user.name || user.email}
-              className="flex h-11 w-11 items-center justify-center rounded-2xl bg-green-600 text-sm font-bold text-white"
-            >
-              {firstLetter}
-            </button>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setUserMenuOpen((prev) => !prev)}
+                className="flex h-11 w-11 items-center justify-center rounded-2xl bg-green-600 text-sm font-bold text-white"
+              >
+                {firstLetter}
+              </button>
+
+              {userMenuOpen && (
+                <div className="absolute right-0 top-14 z-50 w-56 rounded-2xl border border-gray-200 bg-white p-3 shadow-xl">
+                  <p className="truncate text-sm font-semibold text-gray-900">
+                    {user.fullName || user.name || 'Người dùng'}
+                  </p>
+
+                  <p className="mt-1 truncate text-xs text-gray-500">
+                    {user.email}
+                  </p>
+
+                  <p className="mt-1 text-xs text-green-600">
+                    {user.role || 'Thành viên'}
+                  </p>
+
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="mt-3 w-full rounded-xl bg-red-50 px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-100"
+                  >
+                    Đăng xuất
+                  </button>
+                </div>
+              )}
+            </div>
           ) : (
             <button
               type="button"
               onClick={() => setLoginOpen(true)}
-              className="rounded-2xl bg-green-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-green-700"
+              className="rounded-2xl bg-green-600 px-5 py-3 text-sm font-semibold text-white hover:bg-green-700"
             >
               Đăng nhập
             </button>
           )}
 
+          {/* CREATE POST */}
           <button
             type="button"
             onClick={onCreatePost}
-            className="rounded-2xl bg-green-500 px-6 py-3 text-sm font-semibold text-white shadow-md transition hover:bg-green-600"
+            className="rounded-2xl bg-green-500 px-6 py-3 text-sm font-semibold text-white shadow-md hover:bg-green-600"
           >
             + Tạo bài viết
           </button>
