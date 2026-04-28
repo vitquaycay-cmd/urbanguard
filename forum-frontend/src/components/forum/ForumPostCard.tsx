@@ -1,41 +1,58 @@
-export default function ForumPostCard() {
+type ForumPostCardProps = {
+  authorName: string
+  authorInitial: string
+  roleLabel?: string
+  timeText?: string
+  locationText?: string
+  categoryText?: string
+  title: string
+  content: string
+}
+
+export default function ForumPostCard({
+  authorName,
+  authorInitial,
+  roleLabel = 'MOD',
+  timeText = '12 phút trước',
+  locationText = 'Nguyễn Huệ, Q.1, TP.HCM',
+  categoryText = 'Ổ gà',
+  title,
+  content,
+}: ForumPostCardProps) {
   return (
     <div className="rounded-[32px] border border-[#dfe9e2] bg-white p-7 shadow-sm">
       <div className="mb-5 flex items-start justify-between gap-4">
         <div className="flex items-start gap-4">
           <div className="flex h-14 w-14 items-center justify-center rounded-full bg-red-500 text-xl font-bold text-white">
-            T
+            {authorInitial}
           </div>
 
           <div>
             <div className="flex items-center gap-3">
-              <h3 className="text-[17px] font-bold text-gray-900">Trần Minh Đức</h3>
+              <h3 className="text-[17px] font-bold text-gray-900">{authorName}</h3>
               <span className="rounded-full bg-purple-500 px-3 py-1 text-xs font-bold text-white">
-                MOD
+                {roleLabel}
               </span>
             </div>
 
             <div className="mt-1 flex flex-wrap items-center gap-3 text-sm text-gray-400">
-              <span>12 phút trước</span>
+              <span>{timeText}</span>
               <span>•</span>
-              <span>📍 Nguyễn Huệ, Q.1, TP.HCM</span>
+              <span>📍 {locationText}</span>
             </div>
           </div>
         </div>
 
         <div className="rounded-full bg-red-50 px-4 py-2 text-sm font-semibold text-red-500">
-          🕳️ Ổ gà
+          🕳️ {categoryText}
         </div>
       </div>
 
       <h2 className="mb-3 text-[22px] font-bold leading-9 text-gray-900">
-        ⚠️ Ổ gà lớn trên đường Nguyễn Huệ – Nguy hiểm cho người đi xe máy
+        {title}
       </h2>
 
-      <p className="mb-5 text-[16px] leading-8 text-gray-500">
-        Phát hiện ổ gà rộng khoảng 50cm, sâu 15cm ngay giữa làn xe máy đoạn đối diện
-        Bitexco. Đã có 2 người bị ngã tối qua. Cần xử lý khẩn cấp trước giờ cao điểm.
-      </p>
+      <p className="mb-5 text-[16px] leading-8 text-gray-500">{content}</p>
 
       <div className="mb-5 flex h-[420px] items-end justify-center rounded-[28px] bg-[#d9f4e4] pb-16 text-gray-400">
         <div className="text-center">
