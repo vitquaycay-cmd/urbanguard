@@ -1,20 +1,19 @@
 import { Module } from "@nestjs/common";
-import { JwtModule } from "@nestjs/jwt";
-import { AuthController } from "./auth.controller";
 import { AuthService } from "./auth.service";
-import { JwtAuthGuard } from "./jwt-auth.guard";
+import { AuthController } from "./auth.controller";
+import { PrismaModule } from "../prisma/prisma.module";
+import { JwtModule } from "@nestjs/jwt";
 
 @Module({
   imports: [
+    PrismaModule,
     JwtModule.register({
-      secret: process.env.JWT_SECRET || "forum_secret_123456",
-      signOptions: {
-        expiresIn: "7d",
-      },
+      secret: "secret",
+      signOptions: { expiresIn: "1d" },
     }),
   ],
-  controllers: [AuthController],
-  providers: [AuthService, JwtAuthGuard],
-  exports: [JwtModule, JwtAuthGuard],
+  controllers: [AuthController], // 🔥 BẮT BUỘC PHẢI CÓ
+  providers: [AuthService],
+  exports: [JwtModule], // 
 })
 export class AuthModule {}
