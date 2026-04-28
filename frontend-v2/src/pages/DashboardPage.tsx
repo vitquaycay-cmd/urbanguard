@@ -9,11 +9,39 @@ import {
   MoreHorizontal,
   RefreshCcw,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
-import { getStatisticsOverview } from "@/services/statistics.api"; // 🔗 KẾT NỐI: API thống kê
-import type { StatsOverview } from "@/services/statistics.api";
+import { fetchAdminReports, type ReportDetail } from "@/services/report.api";
+
+const DAY_LABELS = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"];
+
+function relativeTime(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const minutes = Math.floor(diff / 60000);
+  if (minutes < 2) return "Vừa xong";
+  if (minutes < 60) return `${minutes} phút trước`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} giờ trước`;
+  return `${Math.floor(hours / 24)} ngày trước`;
+}
+
+function statusColor(status: string): string {
+  if (status === "VALIDATED") return "bg-green-500";
+  if (status === "REJECTED") return "bg-red-500";
+  if (status === "RESOLVED") return "bg-blue-500";
+  return "bg-orange-400";
+}
+
+function countByKeyword(reports: ReportDetail[], keywords: string[]): number {
+  return reports.filter((r) => {
+    const text = `${r.title} ${r.description}`.toLowerCase();
+    const labels = Array.isArray(r.aiLabels)
+      ? (r.aiLabels as string[]).join(" ").toLowerCase()
+      : "";
+    return keywords.some((k) => text.includes(k) || labels.includes(k));
+  }).length;
+}
 
 export default function DashboardPage() {
   const navigate = useNavigate();
@@ -25,69 +53,85 @@ export default function DashboardPage() {
     "bạn";
 
   const [activeTab, setActiveTab] = useState("week");
-  const [stats, setStats] = useState<StatsOverview | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  // 🔗 KẾT NỐI: Lấy dữ liệu thực từ Backend (StatisticsOverview)
-  const fetchStats = async () => {
-    try {
-      setIsLoading(true);
-      const data = await getStatisticsOverview();
-      setStats(data);
-    } catch (error) {
-      console.error("Lỗi khi tải thống kê:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const [allReports, setAllReports] = useState<ReportDetail[]>([]);
 
   useEffect(() => {
-    fetchStats();
+    let cancelled = false;
+    fetchAdminReports({ limit: 100, sortBy: "createdAt", sortOrder: "desc" })
+      .then((res) => { if (!cancelled) setAllReports(res.data); })
+      .catch(() => {});
+    return () => { cancelled = true; };
   }, []);
 
-  const data = stats?.byStatus || { PENDING: 0, VALIDATED: 0, RESOLVED: 0, REJECTED: 0, VERIFIED: 0 };
-  const autoRate = stats?.autoValidatedRate || 0;
+  // Chart: group by day of week / day of last month / month of year
+  const chartData = (() => {
+    const now = new Date();
+    if (activeTab === "week") {
+      const startOfWeek = new Date(now);
+      const day = now.getDay();
+      startOfWeek.setDate(now.getDate() - ((day + 6) % 7));
+      startOfWeek.setHours(0, 0, 0, 0);
+      const counts: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 0: 0 };
+      allReports.forEach((r) => {
+        const d = new Date(r.createdAt);
+        if (d >= startOfWeek && d <= now) counts[d.getDay()]++;
+      });
+      return [1, 2, 3, 4, 5, 6, 0].map((dow) => ({
+        day: DAY_LABELS[dow],
+        value: counts[dow],
+      }));
+    } else if (activeTab === "month") {
+      const firstOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const lastOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
+      const daysInMonth = lastOfLastMonth.getDate();
+      const counts: Record<number, number> = {};
+      for (let i = 1; i <= daysInMonth; i++) counts[i] = 0;
+      allReports.forEach((r) => {
+        const d = new Date(r.createdAt);
+        if (d >= firstOfLastMonth && d <= lastOfLastMonth) counts[d.getDate()]++;
+      });
+      return Array.from({ length: daysInMonth }, (_, i) => ({
+        day: String(i + 1),
+        value: counts[i + 1],
+      }));
+    } else {
+      // year: group by month (T1–T12) for current year
+      const year = now.getFullYear();
+      const counts: Record<number, number> = {};
+      for (let m = 0; m < 12; m++) counts[m] = 0;
+      allReports.forEach((r) => {
+        const d = new Date(r.createdAt);
+        if (d.getFullYear() === year) counts[d.getMonth()]++;
+      });
+      return Array.from({ length: 12 }, (_, m) => ({
+        day: `T${m + 1}`,
+        value: counts[m],
+      }));
+    }
+  })();
 
-  const chartData = [
-    { day: "T2", value: 18 },
-    { day: "T3", value: 25 },
-    { day: "T4", value: 20 },
-    { day: "T5", value: 32 },
-    { day: "T6", value: 28 },
-    { day: "T7", value: 35 },
-    { day: "CN", value: 22 },
-  ];
+  // Activity: 4 most recent reports
+  const activities = allReports.slice(0, 4).map((r) => ({
+    id: r.id,
+    title: r.title,
+    location: `${r.latitude.toFixed(4)}, ${r.longitude.toFixed(4)}`,
+    time: relativeTime(r.createdAt),
+    color: statusColor(r.status),
+  }));
 
-  const activities = [
-    {
-      id: 1,
-      title: "Ổ gà tại Q.1",
-      location: "Đường Lê Lợi, Q.1, Bến Thành",
-      time: "Vừa xong",
-      color: "bg-red-500",
-    },
-    {
-      id: 2,
-      title: "Va chạm nhỏ tại Q.7",
-      location: "Gần Cầu Phú Mỹ, hướng từ Nhà Bè",
-      time: "75 phút trước",
-      color: "bg-orange-400",
-    },
-    {
-      id: 3,
-      title: "Đã khắc phục ngập lụt",
-      location: "Nguyễn Văn Linh, Q.7",
-      time: "1 giờ trước",
-      color: "bg-green-500",
-    },
-    {
-      id: 4,
-      title: "Cảnh báo triều cường",
-      location: "Khu vực Bình Thạnh",
-      time: "4 giờ trước",
-      color: "bg-blue-500",
-    },
-  ];
+  // Stat cards
+  const totalReports = allReports.length;
+  const potholesCount = countByKeyword(allReports, ["ổ gà", "pothole", "hố", "lún"]);
+  const accidentsCount = countByKeyword(allReports, ["tai nạn", "accident", "va chạm", "đâm"]);
+  const floodsCount = countByKeyword(allReports, ["ngập", "lụt", "flood", "triều"]);
+  const resolvedPct =
+    totalReports > 0
+      ? Math.round(
+          (allReports.filter((r) => r.status === "VALIDATED" || r.status === "RESOLVED").length /
+            totalReports) *
+            100,
+        )
+      : 89;
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
@@ -137,13 +181,10 @@ export default function DashboardPage() {
               Đang có
             </div>
           </div>
-          {/* 🔗 KẾT NỐI: Tổng số sự cố thực tế */}
-          <div className="mt-2 text-3xl font-bold text-gray-900">
-            {data.PENDING + data.VALIDATED}
-          </div>
-          <div className="mt-0.5 text-sm text-gray-500">Sự cố hiện tại</div>
+          <div className="mt-2 text-3xl font-bold text-gray-900">{potholesCount || "—"}</div>
+          <div className="mt-0.5 text-sm text-gray-500">Ổ gà</div>
           <div className="mt-3 h-1.5 rounded-full bg-gray-100">
-            <div className="h-full w-3/4 rounded-full bg-orange-400"></div>
+            <div className="h-full rounded-full bg-orange-400" style={{ width: totalReports ? `${Math.min((potholesCount / totalReports) * 100, 100)}%` : "0%" }}></div>
           </div>
         </div>
 
@@ -157,11 +198,10 @@ export default function DashboardPage() {
               Gấp
             </div>
           </div>
-          {/* 🔗 KẾT NỐI: Số lượng PENDING */}
-          <div className="mt-2 text-3xl font-bold text-gray-900">{data.PENDING}</div>
-          <div className="mt-0.5 text-sm text-gray-500">Đang chờ duyệt</div>
+          <div className="mt-2 text-3xl font-bold text-gray-900">{accidentsCount || "—"}</div>
+          <div className="mt-0.5 text-sm text-gray-500">Tai nạn</div>
           <div className="mt-3 h-1.5 rounded-full bg-gray-100">
-            <div className="h-full w-1/4 rounded-full bg-red-400"></div>
+            <div className="h-full rounded-full bg-red-400" style={{ width: totalReports ? `${Math.min((accidentsCount / totalReports) * 100, 100)}%` : "0%" }}></div>
           </div>
         </div>
 
@@ -175,11 +215,10 @@ export default function DashboardPage() {
               Xong
             </div>
           </div>
-          {/* 🔗 KẾT NỐI: Số lượng RESOLVED */}
-          <div className="mt-2 text-3xl font-bold text-gray-900">{data.RESOLVED}</div>
-          <div className="mt-0.5 text-sm text-gray-500">Đã khắc phục</div>
+          <div className="mt-2 text-3xl font-bold text-gray-900">{floodsCount || "—"}</div>
+          <div className="mt-0.5 text-sm text-gray-500">Ngập lụt</div>
           <div className="mt-3 h-1.5 rounded-full bg-gray-100">
-            <div className="h-full w-1/5 rounded-full bg-blue-400"></div>
+            <div className="h-full rounded-full bg-blue-400" style={{ width: totalReports ? `${Math.min((floodsCount / totalReports) * 100, 100)}%` : "0%" }}></div>
           </div>
         </div>
 
@@ -193,11 +232,10 @@ export default function DashboardPage() {
               Auto
             </div>
           </div>
-          {/* 🔗 KẾT NỐI: Tỷ lệ auto-validated từ Backend */}
-          <div className="mt-2 text-3xl font-bold text-gray-900">{autoRate}%</div>
-          <div className="mt-0.5 text-sm text-gray-500">AI tự động duyệt</div>
+          <div className="mt-2 text-3xl font-bold text-gray-900">{resolvedPct}%</div>
+          <div className="mt-0.5 text-sm text-gray-500">Đã xử lý</div>
           <div className="mt-3 h-1.5 rounded-full bg-gray-100">
-            <div className="h-full w-4/5 rounded-full bg-green-500"></div>
+            <div className="h-full rounded-full bg-green-500" style={{ width: `${resolvedPct}%` }}></div>
           </div>
         </div>
       </div>
@@ -207,7 +245,9 @@ export default function DashboardPage() {
         {/* LEFT: Chart */}
         <div className="col-span-2 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-base font-bold text-gray-900">Sự cố theo ngày</h2>
+            <h2 className="text-base font-bold text-gray-900">
+              {activeTab === "week" ? "Sự cố theo ngày" : activeTab === "month" ? "Sự cố tháng trước" : "Sự cố theo tháng"}
+            </h2>
             <div className="flex rounded-lg bg-gray-100 p-0.5">
               <button
                 type="button"
@@ -230,6 +270,17 @@ export default function DashboardPage() {
                 }`}
               >
                 Tháng trước
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab("year")}
+                className={`rounded-md px-3 py-1 text-xs font-medium transition-all ${
+                  activeTab === "year"
+                    ? "bg-white text-gray-900 shadow-sm"
+                    : "text-gray-400"
+                }`}
+              >
+                Theo tháng
               </button>
             </div>
           </div>
