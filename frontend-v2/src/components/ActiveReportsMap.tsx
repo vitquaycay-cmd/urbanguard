@@ -54,9 +54,154 @@ function FitBounds({ reports }: { reports: ActiveReport[] }) {
   return null;
 }
 
-function SearchOverlay() {
+function MapFlyTo({
+  target,
+}: {
+  target: { lat: number; lng: number; zoom: number } | null;
+}) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (target) {
+      map.flyTo([target.lat, target.lng], target.zoom, { duration: 1.2 });
+    }
+  }, [map, target]);
+
+  return null;
+}
+
+type SearchResult = {
+  type: "place" | "report";
+  label: string;
+  sublabel?: string;
+  lat: number;
+  lng: number;
+  reportId?: number;
+};
+
+async function geocodeNominatim(
+  query: string,
+  signal?: AbortSignal,
+): Promise<SearchResult[]> {
+  const url = `https://nominatim.openstreetmap.org/search?format=json&limit=5&q=${encodeURIComponent(query)}`;
+  const res = await fetch(url, {
+    signal,
+    headers: { "Accept-Language": "vi" },
+  });
+  if (!res.ok) return [];
+  const data = (await res.json()) as Array<{
+    display_name: string;
+    lat: string;
+    lon: string;
+  }>;
+  return data.map((item) => ({
+    type: "place" as const,
+    label: item.display_name.split(",")[0],
+    sublabel: item.display_name.split(",").slice(1, 3).join(",").trim(),
+    lat: parseFloat(item.lat),
+    lng: parseFloat(item.lon),
+  }));
+}
+
+function searchReports(
+  query: string,
+  reports: ActiveReport[],
+): SearchResult[] {
+  const q = query.toLowerCase();
+  return reports
+    .filter((r) => {
+      const text = `${r.title} ${r.description}`.toLowerCase();
+      const labels = Array.isArray(r.aiLabels)
+        ? r.aiLabels.join(" ").toLowerCase()
+        : "";
+      return text.includes(q) || labels.includes(q);
+    })
+    .slice(0, 5)
+    .map((r) => ({
+      type: "report" as const,
+      label: r.title || "Sự cố #" + r.id,
+      sublabel: r.description?.slice(0, 60),
+      lat: r.latitude,
+      lng: r.longitude,
+      reportId: r.id,
+    }));
+}
+
+function SearchOverlay({
+  reports,
+  onSelect,
+}: {
+  reports: ActiveReport[];
+  onSelect: (lat: number, lng: number, zoom?: number) => void;
+}) {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<SearchResult[]>([]);
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const abortRef = useRef<AbortController | null>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const q = query.trim();
+    if (q.length < 2) {
+      setResults([]);
+      setOpen(false);
+      return;
+    }
+
+    const localResults = searchReports(q, reports);
+
+    abortRef.current?.abort();
+    const ac = new AbortController();
+    abortRef.current = ac;
+    setLoading(true);
+
+    geocodeNominatim(q, ac.signal)
+      .then((places) => {
+        if (!ac.signal.aborted) {
+          setResults([...localResults, ...places]);
+          setOpen(true);
+        }
+      })
+      .catch(() => {
+        if (!ac.signal.aborted) {
+          setResults(localResults);
+          setOpen(localResults.length > 0);
+        }
+      })
+      .finally(() => {
+        if (!ac.signal.aborted) setLoading(false);
+      });
+
+    return () => ac.abort();
+  }, [query, reports]);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (
+        wrapperRef.current &&
+        !wrapperRef.current.contains(e.target as Node)
+      ) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleSelect = (r: SearchResult) => {
+    setQuery(r.label);
+    setOpen(false);
+    onSelect(r.lat, r.lng, r.type === "report" ? 16 : 14);
+  };
+
+  const reportResults = results.filter((r) => r.type === "report");
+  const placeResults = results.filter((r) => r.type === "place");
+  const hasResults = results.length > 0;
+  const showEmpty = open && !loading && query.trim().length >= 2 && !hasResults;
+
   return (
-    <div className="ug-search-overlay">
+    <div className="ug-search-overlay" ref={wrapperRef}>
       <div className="ug-search-card">
         <span className="ug-search-icon" aria-hidden>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
@@ -68,13 +213,114 @@ function SearchOverlay() {
           </svg>
         </span>
 
-        <div className="ug-search-copy">
-          <div className="ug-search-brand">UrbanGuard Search</div>
-          <div className="ug-search-sub">
-            Tìm địa điểm, tuyến đường hoặc khu vực sự cố
+        <input
+          className="ug-search-input"
+          type="text"
+          placeholder="Tìm địa điểm hoặc sự cố..."
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onFocus={() => results.length > 0 && setOpen(true)}
+        />
+
+        {query && (
+          <button
+            className="ug-search-clear"
+            onClick={() => {
+              setQuery("");
+              setResults([]);
+              setOpen(false);
+            }}
+            aria-label="Xóa"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} width={12} height={12}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        )}
+      </div>
+
+      {open && hasResults && (
+        <ul className="ug-search-results">
+          {reportResults.length > 0 && (
+            <>
+              <li className="ug-search-section-label">Sự cố</li>
+              {reportResults.map((r) => (
+                <li key={`report-${r.reportId}`}>
+                  <button
+                    className="ug-search-result-btn"
+                    onClick={() => handleSelect(r)}
+                  >
+                    <span className="ug-search-result-icon ug-search-result-icon--report">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                      </svg>
+                    </span>
+                    <span className="ug-search-result-text">
+                      <span className="ug-search-result-label">{r.label}</span>
+                      {r.sublabel && (
+                        <span className="ug-search-result-sub">{r.sublabel}</span>
+                      )}
+                    </span>
+                    <span className="ug-search-result-badge ug-search-result-badge--report">
+                      Sự cố
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </>
+          )}
+
+          {reportResults.length > 0 && placeResults.length > 0 && (
+            <li className="ug-search-divider" aria-hidden />
+          )}
+
+          {placeResults.length > 0 && (
+            <>
+              <li className="ug-search-section-label">Địa điểm</li>
+              {placeResults.map((r, i) => (
+                <li key={`place-${i}`}>
+                  <button
+                    className="ug-search-result-btn"
+                    onClick={() => handleSelect(r)}
+                  >
+                    <span className="ug-search-result-icon ug-search-result-icon--place">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a2 2 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                      </svg>
+                    </span>
+                    <span className="ug-search-result-text">
+                      <span className="ug-search-result-label">{r.label}</span>
+                      {r.sublabel && (
+                        <span className="ug-search-result-sub">{r.sublabel}</span>
+                      )}
+                    </span>
+                    <span className="ug-search-result-badge ug-search-result-badge--place">
+                      Địa điểm
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </>
+          )}
+        </ul>
+      )}
+
+      {open && loading && (
+        <div className="ug-search-loading">
+          <span className="ug-search-loading-dot" />
+          <span className="ug-search-loading-dot" />
+          <span className="ug-search-loading-dot" />
+        </div>
+      )}
+
+      {showEmpty && (
+        <div className="ug-search-results">
+          <div className="ug-search-empty">
+            Không tìm thấy kết quả cho "{query}"
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
@@ -102,6 +348,11 @@ export default function ActiveReportsMap({
   const [loading, setLoading] = useState(true);
   const [routeWarning, setRouteWarning] = useState("");
   const [routeCoords, setRouteCoords] = useState<LatLngLiteral[] | null>(null);
+  const [flyTarget, setFlyTarget] = useState<{
+    lat: number;
+    lng: number;
+    zoom: number;
+  } | null>(null);
   const [entranceReportIds, setEntranceReportIds] = useState<Set<number>>(
     () => new Set(),
   );
@@ -242,6 +493,7 @@ export default function ActiveReportsMap({
 
         <ZoomControl position="bottomleft" />
         <FitBounds reports={validatedReports} />
+        <MapFlyTo target={flyTarget} />
 
         <IncidentRouteControl
           incidents={reportsForRouting}
@@ -265,7 +517,12 @@ export default function ActiveReportsMap({
         />
       </MapContainer>
 
-      <SearchOverlay />
+      <SearchOverlay
+        reports={validatedReports}
+        onSelect={(lat, lng, zoom) =>
+          setFlyTarget({ lat, lng, zoom: zoom ?? 14 })
+        }
+      />
 
       <div className="ug-banner-wrap ug-banner-wrap--top">
         <MessageBanner text={routeWarning} type="warning" />

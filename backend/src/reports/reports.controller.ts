@@ -66,7 +66,7 @@ export class ReportsController {
   @SkipThrottle(skipAllThrottles)
   @Get()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN)
+  // @Roles(Role.ADMIN)
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Danh sách báo cáo (admin) — filter + phân trang + sort',
