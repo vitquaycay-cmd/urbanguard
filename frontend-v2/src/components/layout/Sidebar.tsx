@@ -13,6 +13,7 @@ import {
   ClipboardList,
 } from 'lucide-react'
 import { useCurrentUser } from '@/hooks/useCurrentUser'
+import { useUnreadCount } from '@/hooks/useUnreadCount'
 import {
   logoutRequest,
   getStoredRefreshToken,
@@ -27,6 +28,7 @@ export default function Sidebar({ onLogout }: SidebarProps) {
   const { pathname } = useLocation()
   const navigate = useNavigate()
   const { user } = useCurrentUser()
+  const unreadCount = useUnreadCount(user?.id)
 
   const initial = (user?.fullname || user?.email || 'U')[0].toUpperCase()
   const displayName =
@@ -58,7 +60,6 @@ export default function Sidebar({ onLogout }: SidebarProps) {
       icon: FileText,
       label: 'Reports',
       href: '/report',
-      badge: { text: '5', color: 'orange' },
     },
     {
       icon: MessageSquare,
@@ -70,7 +71,6 @@ export default function Sidebar({ onLogout }: SidebarProps) {
       icon: Bell,
       label: 'Notifications',
       href: '/notifications',
-      badge: { text: '3', color: 'red' },
     },
   ]
 
@@ -126,18 +126,24 @@ export default function Sidebar({ onLogout }: SidebarProps) {
                 >
                   <Icon className="w-4 h-4 flex-shrink-0" />
                   <span className="flex-1">{item.label}</span>
-                  {item.badge && (
-                    <span
-                      className={`text-[10px] font-bold px-2 rounded-full ${
-                        item.badge.color === 'green'
-                          ? 'bg-green-100 text-green-700'
-                          : item.badge.color === 'orange'
-                            ? 'bg-orange-100 text-orange-600'
-                            : 'bg-red-100 text-red-600'
-                      }`}
-                    >
-                      {item.badge.text}
+                  {item.href === '/notifications' && unreadCount > 0 ? (
+                    <span className="text-[10px] font-bold px-2 rounded-full bg-red-100 text-red-600">
+                      {unreadCount > 99 ? '99+' : unreadCount}
                     </span>
+                  ) : (
+                    item.badge && (
+                      <span
+                        className={`text-[10px] font-bold px-2 rounded-full ${
+                          item.badge.color === 'green'
+                            ? 'bg-green-100 text-green-700'
+                            : item.badge.color === 'orange'
+                              ? 'bg-orange-100 text-orange-600'
+                              : 'bg-red-100 text-red-600'
+                        }`}
+                      >
+                        {item.badge.text}
+                      </span>
+                    )
                   )}
                 </Link>
               )

@@ -5,7 +5,7 @@
 
 /** Base URL từ biến môi trường Vite */
 export const API_BASE =
-  import.meta.env.VITE_API_URL || "http://localhost:3001";
+  import.meta.env.VITE_API_URL || "http://localhost:3000";
 
 /** Key lưu access token trong localStorage */
 export const AUTH_TOKEN_KEY = "urbanguard_access_token";
@@ -117,6 +117,87 @@ export async function getMeRequest(signal?: AbortSignal): Promise<MeUser> {
   }
 
   return (await res.json()) as MeUser;
+}
+
+/**
+ * GET /api/notifications/unread-count — cần Bearer access token
+ */
+export async function getUnreadNotificationsCount(): Promise<number> {
+  const token = getStoredAccessToken();
+  if (!token) return 0;
+  try {
+    const res = await fetch(`${API_BASE}/api/notifications/unread-count`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return 0;
+    const data = (await res.json()) as { count?: number };
+    return data.count ?? 0;
+  } catch {
+    return 0;
+  }
+}
+
+/** GET /api/notifications — danh sách thông báo (JWT) */
+export async function getNotificationsRequest(params?: {
+  type?: string;
+  unreadOnly?: boolean;
+}): Promise<unknown> {
+  const token = getStoredAccessToken();
+  if (!token) return [];
+  const query = new URLSearchParams();
+  if (params?.type) query.set("type", params.type);
+  if (params?.unreadOnly) query.set("unreadOnly", "true");
+  const qs = query.toString();
+  const res = await fetch(
+    `${API_BASE}/api/notifications${qs ? `?${qs}` : ""}`,
+    {
+      headers: { Authorization: `Bearer ${token}` },
+    },
+  );
+  if (!res.ok) return [];
+  return res.json();
+}
+
+/** PATCH /api/notifications/read-all */
+export async function markAllReadRequest(): Promise<void> {
+  const token = getStoredAccessToken();
+  if (!token) return;
+  try {
+    await fetch(`${API_BASE}/api/notifications/read-all`, {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  } catch {
+    /* ignore */
+  }
+}
+
+/** DELETE /api/notifications — xóa tất cả của user */
+export async function deleteAllNotificationsRequest(): Promise<void> {
+  const token = getStoredAccessToken();
+  if (!token) return;
+  try {
+    await fetch(`${API_BASE}/api/notifications`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  } catch {
+    /* ignore */
+  }
+}
+
+/** PATCH /api/notifications/:id/read */
+export async function markNotificationReadRequest(id: number): Promise<void> {
+  const token = getStoredAccessToken();
+  if (!token) return;
+  try {
+    await fetch(`${API_BASE}/api/notifications/${id}/read`, {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  } catch {
+    /* ignore */
+  }
 }
 
 /**
