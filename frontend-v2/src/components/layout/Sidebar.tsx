@@ -13,7 +13,7 @@ import {
   ClipboardList,
 } from 'lucide-react'
 import { useCurrentUser } from '@/hooks/useCurrentUser'
-import { useUnreadCount } from '@/hooks/useUnreadCount'
+// import { useUnreadCount } from '@/hooks/useUnreadCount'
 import {
   logoutRequest,
   getStoredRefreshToken,
@@ -28,7 +28,7 @@ export default function Sidebar({ onLogout }: SidebarProps) {
   const { pathname } = useLocation()
   const navigate = useNavigate()
   const { user } = useCurrentUser()
-  const unreadCount = useUnreadCount(user?.id)
+  // const unreadCount = useUnreadCount(user?.id)
 
   const initial = (user?.fullname || user?.email || 'U')[0].toUpperCase()
   const displayName =
