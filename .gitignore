@@ -93,10 +93,10 @@ frontend1/playwright-report/
 # ========================
 # CLAUDE / CURSOR / GITHUB
 # ========================
+.agents/
 .claude/
 CLAUDE.md
 .cursor/
-.github/
 
 # ========================
 # FRONTEND1 TEST CONFIG
