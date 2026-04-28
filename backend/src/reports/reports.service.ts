@@ -179,7 +179,7 @@ export class ReportsService {
   }
     async remove(id: number) {
       const report = await this.prisma.report.findUnique({
-        where: { id },
+        where: { id: id },
         select: { id: true, imageUrl: true },
       });
   
@@ -188,17 +188,7 @@ export class ReportsService {
       }
   
       if (report.imageUrl) {
-        const filename = report.imageUrl.replace(/^\/uploads\//, '');
-        const filePath = join(process.cwd(), 'uploads', filename);
-        try {
-          if (existsSync(filePath)) {
-            unlinkSync(filePath);
-          }
-        } catch (err) {
-          this.logger.warn(
-            `Không thể xóa file ${filePath}: ${(err as Error).message}`,
-          );
-        }
+        this.deletePhysicalFile(report.imageUrl);
       }
   
       // Vote.report có onDelete: Cascade — không cần deleteMany
@@ -206,6 +196,24 @@ export class ReportsService {
       await this.prisma.report.delete({ where: { id } });
   
       return { message: `Báo cáo #${id} đã bị xóa`, deletedId: id };
+    }
+
+    /**
+     * Helper dọn dẹp file vật lý
+     */
+    private deletePhysicalFile(imageUrl: string) {
+      const filename = imageUrl.replace(/^\/uploads\//, '');
+      const filePath = join(process.cwd(), 'uploads', filename);
+      try {
+        if (existsSync(filePath)) {
+          unlinkSync(filePath);
+          this.logger.log(`🗑️ [File Cleanup] Đã xoá file thành công: ${filename}`);
+        }
+      } catch (err) {
+        this.logger.warn(
+          `⚠️ [File Cleanup] Không thể xóa file ${filePath}: ${(err as Error).message}`,
+        );
+      }
     }
   
 
@@ -398,6 +406,11 @@ export class ReportsService {
         },
         select: reportSelectFull,
       });
+
+      // Tự động dọn dẹp file khi chuyển sang REJECTED
+      if (nextDbStatus === ReportStatus.REJECTED && updated.imageUrl) {
+        this.deletePhysicalFile(updated.imageUrl);
+      }
 
       if (action === AdminReportStatus.VALIDATED) {
         await tx.user.update({

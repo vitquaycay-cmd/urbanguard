@@ -17,6 +17,8 @@ export type ActiveReport = {
   status: string;
   /** Nhãn AI (JSON array từ API), có thể null nếu không có. */
   aiLabels?: string[] | null;
+  /** Trạng thái bình chọn của user hiện tại (UPVOTE/DOWNVOTE) */
+  userVote?: string | null;
 };
 
 function normalizeAiLabels(raw: unknown): string[] | null {
@@ -41,8 +43,13 @@ export async function fetchActiveReports(
   if (!API_BASE) {
     throw new Error("Chưa cấu hình NEXT_PUBLIC_API_URL");
   }
+  const token = localStorage.getItem("urbanguard_access_token");
+  const headers: HeadersInit = {};
+  if (token) headers.Authorization = `Bearer ${token}`;
+
   const res = await fetch(`${API_BASE}/api/reports/active`, {
     cache: "no-store",
+    headers,
     signal,
   });
   if (!res.ok) {
@@ -66,9 +73,11 @@ export async function fetchActiveReports(
       createdAt: String(o.createdAt ?? ""),
       status: String(o.status ?? ""),
       aiLabels: normalizeAiLabels(o.aiLabels),
+      userVote: o.userVote ? String(o.userVote) : null,
     };
   });
 }
+// KẾT NỐI API: Phần này dùng để lấy dữ liệu báo cáo từ Backend, hỗ trợ JWT để biết User đã Vote hay chưa.
 
 /** URL ảnh báo cáo đầy đủ cho `<img src>` (popup). */
 export function resolveReportImageUrl(path: string | null): string | null {

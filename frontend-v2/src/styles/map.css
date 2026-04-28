@@ -444,3 +444,57 @@
     bottom: 84px;
   }
 }
+
+.ug-popup__actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid #eef2f7;
+}
+
+.ug-btn-vote {
+  height: 38px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+  color: #64748b;
+}
+
+.ug-btn-vote:hover:not(:disabled) {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  color: #334155;
+  transform: translateY(-1px);
+}
+
+.ug-btn-vote:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.ug-btn-vote--up.active {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+  color: #16a34a;
+}
+
+.ug-btn-vote--down.active {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #dc2626;
+}
+
+.ug-btn-vote:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+/* KẾT NỐI UI: Phần CSS này định dạng cho các nút Bình chọn (Vote) trong Popup bản đồ. */

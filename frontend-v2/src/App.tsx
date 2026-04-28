@@ -3,6 +3,11 @@ import { Routes, Route, Navigate, BrowserRouter } from "react-router-dom";
 import { CurrentUserProvider, useCurrentUser } from "@/hooks/useCurrentUser";
 import BannedModal from "@/components/BannedModal";
 import { useBannedSocket } from "@/hooks/useBannedSocket";
+import { useState } from "react";
+import { Routes, Route, Navigate, BrowserRouter } from "react-router-dom";
+import { CurrentUserProvider, useCurrentUser } from "@/hooks/useCurrentUser";
+import BannedModal from "@/components/BannedModal";
+import { useBannedSocket } from "@/hooks/useBannedSocket";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import AppShell from "@/components/layout/AppShell";
 import LoginPage from "@/pages/LoginPage";
@@ -23,7 +28,14 @@ function AppContent() {
 
   useBannedSocket(user?.id, () => setIsBanned(true));
 
+function AppContent() {
+  const { user } = useCurrentUser();
+  const [isBanned, setIsBanned] = useState(false);
+
+  useBannedSocket(user?.id, () => setIsBanned(true));
+
   return (
+    <>
     <>
       <Routes>
         <Route path="/login" element={<LoginPage />} />

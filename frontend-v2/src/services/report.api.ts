@@ -74,7 +74,7 @@ export type DeleteReportResponse = {
   deletedId: number;
 };
 
-export type UpdateReportStatusBody = "VALIDATED" | "REJECTED";
+export type UpdateReportStatusBody = "VALIDATED" | "REJECTED" | "RESOLVED";
 
 // ── Helper parse lỗi ──────────────────────────────────────────
 
@@ -250,6 +250,29 @@ export async function updateReportStatusRequest(
   return data as ReportDetail & { adminAction?: string };
 }
 
+/**
+ * POST /api/reports/:id/vote — Bình chọn sự cố (UPVOTE/DOWNVOTE)
+ * Giúp tăng/giảm trustScore của báo cáo
+ */
+export async function voteReportRequest(
+  id: number,
+  type: "UPVOTE" | "DOWNVOTE",
+  signal?: AbortSignal,
+): Promise<{ success: boolean; trustScore: number; userVote: string | null }> {
+  const res = await fetch(`${apiRoot()}/api/reports/${id}/vote`, {
+    method: "POST",
+    headers: {
+      ...authHeaders(),
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ type }),
+    signal,
+  });
+  const data = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(parseErrorMessage(res, data));
+  return data;
+}
+
 /** Ảnh `/uploads/...` → URL tuyệt đối phục vụ `<img src>` */
 export function resolveReportImageUrl(imageUrl: string | null): string | undefined {
   if (!imageUrl?.trim()) return undefined;
@@ -261,3 +284,4 @@ export function resolveReportImageUrl(imageUrl: string | null): string | undefin
   }
   return `${apiRoot()}/${imageUrl}`;
 }
+// KẾT NỐI API: Phần này dùng để gọi API bình chọn (VOTE) cho báo cáo sự cố.

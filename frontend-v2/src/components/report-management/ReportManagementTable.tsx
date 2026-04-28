@@ -24,6 +24,7 @@ type Props = {
   getIncidentKind: (report: ReportManagementRow) => IncidentKind
   onApprove: (id: number) => void
   onReject: (id: number) => void
+  onResolve: (id: number) => void
   onDelete: (id: number) => void
 }
 
@@ -70,6 +71,12 @@ function statusBadge(status: string) {
           Đã duyệt
         </span>
       )
+    case 'RESOLVED':
+      return (
+        <span className="inline-flex rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-700">
+          Đã khắc phục
+        </span>
+      )
     case 'REJECTED':
       return (
         <span className="inline-flex rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">
@@ -96,6 +103,7 @@ export default function ReportManagementTable({
   getIncidentKind,
   onApprove,
   onReject,
+  onResolve,
   onDelete,
 }: Props) {
   return (
@@ -133,6 +141,7 @@ export default function ReportManagementTable({
               const kind = getIncidentKind(report)
               const busy = processingId === report.id
               const pending = report.status === 'PENDING'
+              const validated = report.status === 'VALIDATED'
               return (
                 <tr
                   key={report.id}
@@ -195,6 +204,17 @@ export default function ReportManagementTable({
                             Từ chối
                           </button>
                         </>
+                      )}
+                      {validated && (
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => onResolve(report.id)}
+                          className="inline-flex items-center gap-1 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+                        >
+                          <CheckCircle className="size-3.5" aria-hidden />
+                          Đã khắc phục
+                        </button>
                       )}
                       <button
                         type="button"

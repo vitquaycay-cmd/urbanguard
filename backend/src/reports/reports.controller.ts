@@ -73,7 +73,7 @@ export class ReportsController {
   })
   @ApiResponse({
     status: 200,
-    description: 'Danh sách báo cáo với metadata phân trang',
+    description: 'Danh sách báo cáo with metadata phân trang',
   })
   @ApiResponse({ status: 403, description: 'Không phải ADMIN' })
   findAll(@Query() query: QueryReportsDto) {
@@ -315,5 +315,4 @@ export class ReportsController {
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.reportsService.remove(id);
   }
-
 }

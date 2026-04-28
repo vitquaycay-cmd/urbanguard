@@ -6,10 +6,12 @@ import { NotificationsModule } from '../notifications/notifications.module';
 import { ReportsController } from './reports.controller';
 import { ReportsService } from './reports.service';
 
+
 @Module({
   imports: [AuthModule, AiModule, NotificationsModule],
   controllers: [ReportsController],
   providers: [ReportsService, RolesGuard],
   exports: [ReportsService],
+  
 })
 export class ReportsModule {}
