@@ -60,7 +60,5 @@ export function DangerZoneCircle({
   const center = toCenterTuple(position);
   const merged: PathOptions = { ...DEFAULT_PATH_OPTIONS, ...pathOptions };
 
-  return (
-    <Circle center={center} radius={radius} pathOptions={merged} />
-  );
+  return <Circle center={center} radius={radius} pathOptions={merged} />;
 }

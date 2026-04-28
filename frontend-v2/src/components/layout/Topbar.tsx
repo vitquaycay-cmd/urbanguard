@@ -1,45 +1,45 @@
-import { useState, useRef, useEffect } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { Search, RotateCw, Bell, User, LogOut } from 'lucide-react'
-import { useCurrentUser } from '@/hooks/useCurrentUser'
+import { useState, useRef, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { Search, RotateCw, Bell, User, LogOut } from "lucide-react";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 import {
   logoutRequest,
   getStoredRefreshToken,
   removeStoredTokens,
-} from '@/services/auth.api'
+} from "@/services/auth.api";
 
 interface TopbarProps {
-  title: string
-  subtitle?: string
+  title: string;
+  subtitle?: string;
 }
 
 export default function Topbar({ title, subtitle }: TopbarProps) {
-  const { user } = useCurrentUser()
-  const initial = (user?.fullname || user?.email || 'U')[0].toUpperCase()
+  const { user } = useCurrentUser();
+  const initial = (user?.fullname || user?.email || "U")[0].toUpperCase();
 
-  const [showMenu, setShowMenu] = useState(false)
-  const menuRef = useRef<HTMLDivElement>(null)
-  const navigate = useNavigate()
+  const [showMenu, setShowMenu] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setShowMenu(false)
+        setShowMenu(false);
       }
     }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [])
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   async function handleLogout() {
     try {
-      const refreshToken = getStoredRefreshToken()
-      if (refreshToken) await logoutRequest(refreshToken)
+      const refreshToken = getStoredRefreshToken();
+      if (refreshToken) await logoutRequest(refreshToken);
     } catch {
       /* ignore API errors; vẫn xóa token local */
     }
-    removeStoredTokens()
-    navigate('/login')
+    removeStoredTokens();
+    navigate("/login");
   }
 
   return (
@@ -104,8 +104,8 @@ export default function Topbar({ title, subtitle }: TopbarProps) {
               <button
                 type="button"
                 onClick={() => {
-                  navigate('/profile')
-                  setShowMenu(false)
+                  navigate("/profile");
+                  setShowMenu(false);
                 }}
                 className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-gray-700 transition-colors hover:bg-gray-50"
               >
@@ -125,5 +125,5 @@ export default function Topbar({ title, subtitle }: TopbarProps) {
         </div>
       </div>
     </div>
-  )
+  );
 }

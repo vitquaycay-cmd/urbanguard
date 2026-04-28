@@ -63,7 +63,9 @@ export default function ReportPage() {
         <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
           <div className="flex items-center gap-2">
             <Phone className="h-5 w-5 text-green-600" strokeWidth={2} />
-            <span className="text-sm font-bold text-gray-900">Tổng đài hỗ trợ 24/7</span>
+            <span className="text-sm font-bold text-gray-900">
+              Tổng đài hỗ trợ 24/7
+            </span>
           </div>
           <p className="mt-1 text-xl font-bold text-green-600">1900 6789</p>
         </div>

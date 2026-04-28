@@ -15,9 +15,9 @@ type CurrentUserContextValue = {
   loading: boolean;
 };
 
-const CurrentUserContext = createContext<
-  CurrentUserContextValue | undefined
->(undefined);
+const CurrentUserContext = createContext<CurrentUserContextValue | undefined>(
+  undefined,
+);
 
 /** Gọi GET /api/auth/me một lần; bọc quanh AppShell (hoặc route có layout). */
 export function CurrentUserProvider({ children }: { children: ReactNode }) {

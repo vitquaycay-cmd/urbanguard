@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Routes, Route, Navigate, BrowserRouter } from "react-router-dom";
 import { CurrentUserProvider, useCurrentUser } from "@/hooks/useCurrentUser";
@@ -34,7 +33,10 @@ function AppContent() {
           path="/dashboard"
           element={
             <ProtectedRoute>
-              <AppShell title="Dashboard" subtitle="Tổng quan hệ thống UrbanGuard">
+              <AppShell
+                title="Dashboard"
+                subtitle="Tổng quan hệ thống UrbanGuard"
+              >
                 <DashboardPage />
               </AppShell>
             </ProtectedRoute>
@@ -44,7 +46,10 @@ function AppContent() {
           path="/map"
           element={
             <ProtectedRoute>
-              <AppShell title="Bản đồ trực tiếp" subtitle="Theo dõi sự cố giao thông theo thời gian thực">
+              <AppShell
+                title="Bản đồ trực tiếp"
+                subtitle="Theo dõi sự cố giao thông theo thời gian thực"
+              >
                 <MapPage />
               </AppShell>
             </ProtectedRoute>
@@ -54,7 +59,10 @@ function AppContent() {
           path="/report"
           element={
             <ProtectedRoute>
-              <AppShell title="Gửi báo cáo" subtitle="Tạo báo cáo sự cố giao thông và hạ tầng đô thị">
+              <AppShell
+                title="Gửi báo cáo"
+                subtitle="Tạo báo cáo sự cố giao thông và hạ tầng đô thị"
+              >
                 <ReportPage />
               </AppShell>
             </ProtectedRoute>
@@ -64,7 +72,10 @@ function AppContent() {
           path="/notifications"
           element={
             <ProtectedRoute>
-              <AppShell title="Thông báo" subtitle="Cập nhật hoạt động, cảnh báo và tương tác mới nhất">
+              <AppShell
+                title="Thông báo"
+                subtitle="Cập nhật hoạt động, cảnh báo và tương tác mới nhất"
+              >
                 <NotificationsPage />
               </AppShell>
             </ProtectedRoute>
@@ -74,7 +85,10 @@ function AppContent() {
           path="/profile"
           element={
             <ProtectedRoute>
-              <AppShell title="Hồ sơ" subtitle="Thông tin cá nhân và lịch sử báo cáo">
+              <AppShell
+                title="Hồ sơ"
+                subtitle="Thông tin cá nhân và lịch sử báo cáo"
+              >
                 <ProfilePage />
               </AppShell>
             </ProtectedRoute>
@@ -110,7 +124,10 @@ function AppContent() {
           path="/settings"
           element={
             <ProtectedRoute>
-              <AppShell title="Cài đặt" subtitle="Tuỳ chỉnh trải nghiệm và quyền riêng tư">
+              <AppShell
+                title="Cài đặt"
+                subtitle="Tuỳ chỉnh trải nghiệm và quyền riêng tư"
+              >
                 <SettingsPage />
               </AppShell>
             </ProtectedRoute>
@@ -120,7 +137,10 @@ function AppContent() {
           path="/forum"
           element={
             <ProtectedRoute>
-              <AppShell title="Diễn đàn" subtitle="Chia sẻ sự cố, thảo luận và hỗ trợ cộng đồng">
+              <AppShell
+                title="Diễn đàn"
+                subtitle="Chia sẻ sự cố, thảo luận và hỗ trợ cộng đồng"
+              >
                 <ForumPage />
               </AppShell>
             </ProtectedRoute>

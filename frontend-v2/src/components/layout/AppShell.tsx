@@ -1,12 +1,12 @@
-import { type ReactNode } from 'react'
-import Sidebar from './Sidebar'
-import Topbar from './Topbar'
+import { type ReactNode } from "react";
+import Sidebar from "./Sidebar";
+import Topbar from "./Topbar";
 
 interface AppShellProps {
-  title: string
-  subtitle?: string
-  children: ReactNode
-  onLogout?: () => void
+  title: string;
+  subtitle?: string;
+  children: ReactNode;
+  onLogout?: () => void;
 }
 
 export default function AppShell({
@@ -24,10 +24,10 @@ export default function AppShell({
       {/* Main Content */}
       <main
         className="ml-60 mt-15 flex-1 overflow-y-auto p-6"
-        style={{ minHeight: 'calc(100vh - 60px)' }}
+        style={{ minHeight: "calc(100vh - 60px)" }}
       >
         {children}
       </main>
     </div>
-  )
+  );
 }

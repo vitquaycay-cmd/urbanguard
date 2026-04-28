@@ -1,22 +1,23 @@
-import { ClipboardList } from 'lucide-react'
+import { ClipboardList } from "lucide-react";
 
 type Props = {
   stats: {
-    pending: number
-    validated: number
-    rejected: number
-  }
-}
+    pending: number;
+    validated: number;
+    rejected: number;
+  };
+};
 
 export default function ReportManagementHeader({ stats }: Props) {
   return (
     <div className="mb-6 flex items-center justify-between">
       <div>
         <div className="flex items-center gap-2">
-          <ClipboardList className="size-5 shrink-0 text-green-600" aria-hidden />
-          <h2 className="text-2xl font-bold text-gray-900">
-            Quản lý báo cáo
-          </h2>
+          <ClipboardList
+            className="size-5 shrink-0 text-green-600"
+            aria-hidden
+          />
+          <h2 className="text-2xl font-bold text-gray-900">Quản lý báo cáo</h2>
         </div>
         <div className="mt-2 flex gap-3">
           <div className="rounded-xl border border-yellow-100 bg-yellow-50 px-3 py-2 text-center">
@@ -40,5 +41,5 @@ export default function ReportManagementHeader({ stats }: Props) {
         </div>
       </div>
     </div>
-  )
+  );
 }

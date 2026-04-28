@@ -167,7 +167,11 @@ export async function fetchAdminReports(
   });
   const data = await res.json().catch(() => null);
   if (!res.ok) throw new Error(parseErrorMessage(res, data));
-  if (!data || typeof data !== "object" || !Array.isArray((data as PaginatedReports).data)) {
+  if (
+    !data ||
+    typeof data !== "object" ||
+    !Array.isArray((data as PaginatedReports).data)
+  ) {
     throw new Error("Phản hồi danh sách báo cáo không hợp lệ");
   }
   return data as PaginatedReports;
@@ -189,7 +193,11 @@ export async function fetchPendingReportsQueue(params: {
   });
   const data = await res.json().catch(() => null);
   if (!res.ok) throw new Error(parseErrorMessage(res, data));
-  if (!data || typeof data !== "object" || !Array.isArray((data as PaginatedReports).data)) {
+  if (
+    !data ||
+    typeof data !== "object" ||
+    !Array.isArray((data as PaginatedReports).data)
+  ) {
     throw new Error("Phản hồi hàng chờ PENDING không hợp lệ");
   }
   return data as PaginatedReports;
@@ -274,7 +282,9 @@ export async function voteReportRequest(
 }
 
 /** Ảnh `/uploads/...` → URL tuyệt đối phục vụ `<img src>` */
-export function resolveReportImageUrl(imageUrl: string | null): string | undefined {
+export function resolveReportImageUrl(
+  imageUrl: string | null,
+): string | undefined {
   if (!imageUrl?.trim()) return undefined;
   if (imageUrl.startsWith("http://") || imageUrl.startsWith("https://")) {
     return imageUrl;

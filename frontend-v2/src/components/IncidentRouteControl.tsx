@@ -54,19 +54,30 @@ function safeRemoveRoutingControl(
     const router = ctrl._router as Record<string, unknown> | null;
     if (router && Array.isArray(router._requests)) {
       router._requests.forEach((xhr: XMLHttpRequest) => {
-        try { xhr.abort(); } catch { /* ignore */ }
+        try {
+          xhr.abort();
+        } catch {
+          /* ignore */
+        }
       });
     }
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 
   // Patch internal _line._map to prevent _clearLines from crashing
   // when the async OSRM callback fires after control is removed
   try {
-    const line = (ctrl as unknown as Record<string, unknown>)._line as Record<string, unknown> | null;
+    const line = (ctrl as unknown as Record<string, unknown>)._line as Record<
+      string,
+      unknown
+    > | null;
     if (line && line._map === null) {
       // Already null — nothing to do, but the patch below prevents the crash
     }
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 
   if (!mapInstance) return;
 
@@ -101,9 +112,12 @@ export default function IncidentRouteControl({
   const incidentsRef = useRef(incidents);
   incidentsRef.current = incidents;
 
-  const onMsg = useCallback((s: string) => {
-    onAvoidanceMessage(s);
-  }, [onAvoidanceMessage]);
+  const onMsg = useCallback(
+    (s: string) => {
+      onAvoidanceMessage(s);
+    },
+    [onAvoidanceMessage],
+  );
 
   const onGeom = useCallback(
     (coords: LatLngLiteral[] | null) => {
@@ -130,10 +144,7 @@ export default function IncidentRouteControl({
         const LR = L as unknown as {
           Routing: {
             control: (opts: Record<string, unknown>) => RoutingControlExt;
-            osrmv1: (opts: {
-              serviceUrl: string;
-              profile?: string;
-            }) => unknown;
+            osrmv1: (opts: { serviceUrl: string; profile?: string }) => unknown;
           };
         };
 
@@ -214,7 +225,11 @@ export default function IncidentRouteControl({
           }
 
           const zones = dangerZonesFromReports(eligible);
-          const nearby = getNearbyDangers(zones, poly, DANGER_NEAR_ROUTE_ROI_METERS);
+          const nearby = getNearbyDangers(
+            zones,
+            poly,
+            DANGER_NEAR_ROUTE_ROI_METERS,
+          );
           const hits = dangerZonesHitByRoute(poly, nearby);
 
           if (hits.length === 0) {
@@ -272,7 +287,10 @@ export default function IncidentRouteControl({
               c.setWaypoints([...head, via, last]);
             }
           } catch {
-            injectionIndexRef.current = Math.max(0, injectionIndexRef.current - 1);
+            injectionIndexRef.current = Math.max(
+              0,
+              injectionIndexRef.current - 1,
+            );
           }
           queueMicrotask(() => {
             suppressWaypointResetRef.current = false;
@@ -287,13 +305,20 @@ export default function IncidentRouteControl({
       if (ctrl) {
         // Abort pending XHR before removing to prevent _clearLines crash
         try {
-          const router = (ctrl as unknown as Record<string, unknown>)._router as Record<string, unknown> | null;
+          const router = (ctrl as unknown as Record<string, unknown>)
+            ._router as Record<string, unknown> | null;
           if (router && Array.isArray(router._requests)) {
             router._requests.forEach((xhr: XMLHttpRequest) => {
-              try { xhr.abort(); } catch { /* ignore */ }
+              try {
+                xhr.abort();
+              } catch {
+                /* ignore */
+              }
             });
           }
-        } catch { /* ignore */ }
+        } catch {
+          /* ignore */
+        }
 
         safeRemoveRoutingControl(mapRef, ctrl);
       }

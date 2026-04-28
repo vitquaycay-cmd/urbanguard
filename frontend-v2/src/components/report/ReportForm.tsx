@@ -194,13 +194,21 @@ export default function ReportForm({ latitude, longitude }: ReportFormProps) {
               className="hidden"
               onChange={handleFileChange}
             />
-            <Camera className="mx-auto mb-3 text-gray-400" size={32} strokeWidth={1.5} />
+            <Camera
+              className="mx-auto mb-3 text-gray-400"
+              size={32}
+              strokeWidth={1.5}
+            />
             <p className="text-sm font-medium text-gray-700">
               Kéo thả hoặc nhấp để tải ảnh lên
             </p>
-            <p className="mt-1 text-xs text-gray-400">Tối đa 3 ảnh (JPG, PNG)</p>
+            <p className="mt-1 text-xs text-gray-400">
+              Tối đa 3 ảnh (JPG, PNG)
+            </p>
             {selectedNames && (
-              <p className="mt-3 break-all text-xs font-medium text-gray-600">{selectedNames}</p>
+              <p className="mt-3 break-all text-xs font-medium text-gray-600">
+                {selectedNames}
+              </p>
             )}
           </div>
           {previews.length > 0 && (

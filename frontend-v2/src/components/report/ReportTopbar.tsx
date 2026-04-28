@@ -9,7 +9,9 @@ export default function ReportTopbar() {
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
-        <div className="whitespace-nowrap text-sm font-bold text-green-600">● Live</div>
+        <div className="whitespace-nowrap text-sm font-bold text-green-600">
+          ● Live
+        </div>
         <input
           type="text"
           className="h-10 w-[220px] max-w-full rounded-xl border border-emerald-200/80 bg-white px-3.5 text-sm outline-none focus:border-green-500"

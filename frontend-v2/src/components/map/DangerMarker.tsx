@@ -53,12 +53,15 @@ function DangerMarkerInner({
     if (!trustOk) {
       return false;
     }
-    return isMarkerNearRoute(
-      { lat, lng },
-      routePolyline,
-      nearRouteMaxMeters,
-    );
-  }, [nearRouteOverride, report.trustScore, lat, lng, routePolyline, nearRouteMaxMeters]);
+    return isMarkerNearRoute({ lat, lng }, routePolyline, nearRouteMaxMeters);
+  }, [
+    nearRouteOverride,
+    report.trustScore,
+    lat,
+    lng,
+    routePolyline,
+    nearRouteMaxMeters,
+  ]);
 
   const icon = useMemo(() => {
     const html = buildDangerMarkerHtml({

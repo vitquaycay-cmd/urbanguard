@@ -48,9 +48,7 @@ export default function ProfileSummaryCard({
         </div>
 
         <div className="min-w-0 flex-1">
-          {error && (
-            <p className="text-sm text-red-600">{error}</p>
-          )}
+          {error && <p className="text-sm text-red-600">{error}</p>}
           <h2 className="text-2xl font-bold text-gray-900">
             {loading ? (
               <span className="inline-block h-8 w-48 animate-pulse rounded bg-gray-200" />

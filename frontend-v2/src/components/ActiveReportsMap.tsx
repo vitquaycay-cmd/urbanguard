@@ -2,10 +2,7 @@ import IncidentRouteControl from "@/components/IncidentRouteControl";
 import { DangerMarkersGroup } from "@/components/map/DangerMarkersGroup";
 import { DangerZoneCircle } from "@/components/map/DangerZoneCircle";
 import { dangerZoneRadiusMeters } from "@/lib/dangerMarkerTheme";
-import {
-  fetchActiveReports,
-  MAP_API_BASE,
-} from "@/lib/mapActiveReports";
+import { fetchActiveReports, MAP_API_BASE } from "@/lib/mapActiveReports";
 import type { ActiveReport } from "@/lib/mapActiveReports"; // 🔗 KẾT NỐI: Sử dụng import type
 import type { LatLngLiteral } from "@/lib/routingAvoidance";
 import { getValidatedReportsForRouting } from "@/services/routingService";
@@ -17,7 +14,13 @@ import "leaflet.markercluster/dist/MarkerCluster.Default.css";
 import { Link } from "react-router-dom";
 import { io, type Socket } from "socket.io-client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { MapContainer, TileLayer, useMap, ZoomControl, CircleMarker } from "react-leaflet";
+import {
+  MapContainer,
+  TileLayer,
+  useMap,
+  ZoomControl,
+  CircleMarker,
+} from "react-leaflet";
 
 // 🔗 KẾT NỐI: Workaround cho lỗi type React 19 & React-Leaflet v5
 const MapContainerComp = MapContainer as any;
@@ -109,10 +112,7 @@ async function geocodeNominatim(
   }));
 }
 
-function searchReports(
-  query: string,
-  reports: ActiveReport[],
-): SearchResult[] {
+function searchReports(query: string, reports: ActiveReport[]): SearchResult[] {
   const q = query.toLowerCase();
   return reports
     .filter((r) => {
@@ -210,7 +210,12 @@ function SearchOverlay({
     <div className="ug-search-overlay" ref={wrapperRef}>
       <div className="ug-search-card">
         <span className="ug-search-icon" aria-hidden>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
             <path
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -238,8 +243,19 @@ function SearchOverlay({
             }}
             aria-label="Xóa"
           >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} width={12} height={12}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2.5}
+              width={12}
+              height={12}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M6 18L18 6M6 6l12 12"
+              />
             </svg>
           </button>
         )}
@@ -257,14 +273,25 @@ function SearchOverlay({
                     onClick={() => handleSelect(r)}
                   >
                     <span className="ug-search-result-icon ug-search-result-icon--report">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth={2}
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z"
+                        />
                       </svg>
                     </span>
                     <span className="ug-search-result-text">
                       <span className="ug-search-result-label">{r.label}</span>
                       {r.sublabel && (
-                        <span className="ug-search-result-sub">{r.sublabel}</span>
+                        <span className="ug-search-result-sub">
+                          {r.sublabel}
+                        </span>
                       )}
                     </span>
                     <span className="ug-search-result-badge ug-search-result-badge--report">
@@ -290,15 +317,30 @@ function SearchOverlay({
                     onClick={() => handleSelect(r)}
                   >
                     <span className="ug-search-result-icon ug-search-result-icon--place">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a2 2 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth={2}
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M17.657 16.657L13.414 20.9a2 2 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+                        />
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+                        />
                       </svg>
                     </span>
                     <span className="ug-search-result-text">
                       <span className="ug-search-result-label">{r.label}</span>
                       {r.sublabel && (
-                        <span className="ug-search-result-sub">{r.sublabel}</span>
+                        <span className="ug-search-result-sub">
+                          {r.sublabel}
+                        </span>
                       )}
                     </span>
                     <span className="ug-search-result-badge ug-search-result-badge--place">
@@ -350,7 +392,9 @@ export default function ActiveReportsMap({
   enableMarkerClustering,
 }: ActiveReportsMapProps = {}) {
   const [reports, setReports] = useState<ActiveReport[]>([]);
-  const [heatmapPoints, setHeatmapPoints] = useState<[number, number, number][]>([]); // 🔗 KẾT NỐI: Data heatmap
+  const [heatmapPoints, setHeatmapPoints] = useState<
+    [number, number, number][]
+  >([]); // 🔗 KẾT NỐI: Data heatmap
   const [showHeatmap, setShowHeatmap] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -392,7 +436,7 @@ export default function ActiveReportsMap({
     }
   }, []);
 
-  // 🔗 KẾT NỐI: Tải dữ liệu heatmap từ Backend 
+  // 🔗 KẾT NỐI: Tải dữ liệu heatmap từ Backend
   const loadHeatmap = useCallback(async () => {
     try {
       const data = await getHeatmapData();
@@ -509,8 +553,8 @@ export default function ActiveReportsMap({
 
       {/* 🔗 KẾT NỐI: Nút chuyển đổi chế độ Bản đồ nhiệt */}
       <div className="ug-map-controls-overlay">
-        <button 
-          className={`ug-btn-toggle ${showHeatmap ? 'ug-btn-toggle--active' : ''}`}
+        <button
+          className={`ug-btn-toggle ${showHeatmap ? "ug-btn-toggle--active" : ""}`}
           onClick={() => setShowHeatmap(!showHeatmap)}
         >
           {showHeatmap ? "🔥 Heatmap: ON" : "📍 Markers: ON"}
@@ -540,19 +584,21 @@ export default function ActiveReportsMap({
         />
 
         {/* 🔗 KẾT NỐI: Rendering Heatmap Layer */}
-        {showHeatmap && heatmapPoints.map((p, idx) => (
-          <CircleMarkerComp
-            key={`heat-${idx}`}
-            center={[p[0], p[1]]}
-            radius={25 + p[2] * 15}
-            pathOptions={{
-              fillColor: p[2] > 0.6 ? '#ff0000' : p[2] > 0.3 ? '#ffae00' : '#ffff00',
-              fillOpacity: 0.15 + p[2] * 0.3,
-              stroke: false,
-              interactive: false
-            }}
-          />
-        ))}
+        {showHeatmap &&
+          heatmapPoints.map((p, idx) => (
+            <CircleMarkerComp
+              key={`heat-${idx}`}
+              center={[p[0], p[1]]}
+              radius={25 + p[2] * 15}
+              pathOptions={{
+                fillColor:
+                  p[2] > 0.6 ? "#ff0000" : p[2] > 0.3 ? "#ffae00" : "#ffff00",
+                fillOpacity: 0.15 + p[2] * 0.3,
+                stroke: false,
+                interactive: false,
+              }}
+            />
+          ))}
 
         {!showHeatmap && (
           <>

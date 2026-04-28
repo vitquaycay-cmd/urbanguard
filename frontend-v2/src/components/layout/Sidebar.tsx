@@ -1,4 +1,4 @@
-import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
+import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
   Map,
@@ -11,86 +11,85 @@ import {
   LogOut,
   Shield,
   ClipboardList,
-} from 'lucide-react'
-import { useCurrentUser } from '@/hooks/useCurrentUser'
+} from "lucide-react";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 // import { useUnreadCount } from '@/hooks/useUnreadCount'
 import {
   logoutRequest,
   getStoredRefreshToken,
   removeStoredTokens,
-} from '@/services/auth.api'
+} from "@/services/auth.api";
 
 interface SidebarProps {
-  onLogout?: () => void
+  onLogout?: () => void;
 }
 
 export default function Sidebar({ onLogout }: SidebarProps) {
-  const { pathname } = useLocation()
-  const navigate = useNavigate()
-  const { user } = useCurrentUser()
+  const { pathname } = useLocation();
+  const navigate = useNavigate();
+  const { user } = useCurrentUser();
   // const unreadCount = useUnreadCount(user?.id)
 
-  const initial = (user?.fullname || user?.email || 'U')[0].toUpperCase()
+  const initial = (user?.fullname || user?.email || "U")[0].toUpperCase();
   const displayName =
-    user?.fullname || user?.username || user?.email || 'Người dùng'
-  const roleLabel =
-    user?.role === 'ADMIN' ? 'Quản trị viên' : 'Thành viên'
+    user?.fullname || user?.username || user?.email || "Người dùng";
+  const roleLabel = user?.role === "ADMIN" ? "Quản trị viên" : "Thành viên";
 
   async function handleLogout() {
     try {
-      const refreshToken = getStoredRefreshToken()
-      if (refreshToken) await logoutRequest(refreshToken)
+      const refreshToken = getStoredRefreshToken();
+      if (refreshToken) await logoutRequest(refreshToken);
     } catch {
       /* ignore */
     }
-    removeStoredTokens()
-    onLogout?.()
-    navigate('/login')
+    removeStoredTokens();
+    onLogout?.();
+    navigate("/login");
   }
 
   const mainNavItems = [
-    { icon: LayoutDashboard, label: 'Dashboard', href: '/dashboard' },
+    { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
     {
       icon: Map,
-      label: 'Map',
-      href: '/map',
-      badge: { text: 'LIVE', color: 'green' },
+      label: "Map",
+      href: "/map",
+      badge: { text: "LIVE", color: "green" },
     },
     {
       icon: FileText,
-      label: 'Reports',
-      href: '/report',
+      label: "Reports",
+      href: "/report",
     },
     {
       icon: MessageSquare,
-      label: 'Forum',
-      href: 'http://localhost:5174',
+      label: "Forum",
+      href: "http://localhost:5174",
       external: true,
-      badge: { text: '12', color: 'green' },
+      badge: { text: "12", color: "green" },
     },
     {
       icon: Bell,
-      label: 'Notifications',
-      href: '/notifications',
+      label: "Notifications",
+      href: "/notifications",
     },
-  ]
+  ];
 
   const personalNavItems = [
-    { icon: User, label: 'Profile', href: '/profile' },
-    { icon: Settings, label: 'Settings', href: '/settings' },
-  ]
+    { icon: User, label: "Profile", href: "/profile" },
+    { icon: Settings, label: "Settings", href: "/settings" },
+  ];
 
   const accountNavLinkClass = ({ isActive }: { isActive: boolean }) =>
     `mx-2 flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all cursor-pointer ${
       isActive
-        ? 'bg-green-50 text-green-700 font-semibold border-l-2 border-green-600 rounded-l-none rounded-r-xl'
-        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-    }`
+        ? "bg-green-50 text-green-700 font-semibold border-l-2 border-green-600 rounded-l-none rounded-r-xl"
+        : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+    }`;
 
   return (
     <div
       className="fixed left-0 top-0 h-screen w-60 flex flex-col bg-white border-r border-gray-200 shadow-lg"
-      style={{ boxShadow: '2px 0 8px rgba(0,0,0,0.04)' }}
+      style={{ boxShadow: "2px 0 8px rgba(0,0,0,0.04)" }}
     >
       {/* Brand Section */}
       <div className="p-6 border-b border-gray-200">
@@ -116,8 +115,8 @@ export default function Sidebar({ onLogout }: SidebarProps) {
           </p>
           <nav className="space-y-1">
             {mainNavItems.map((item) => {
-              const Icon = item.icon
-              const isActive = pathname === item.href
+              const Icon = item.icon;
+              const isActive = pathname === item.href;
 
               if (item.external) {
                 return (
@@ -135,7 +134,7 @@ export default function Sidebar({ onLogout }: SidebarProps) {
                       </span>
                     )}
                   </a>
-                )
+                );
               }
 
               return (
@@ -144,8 +143,8 @@ export default function Sidebar({ onLogout }: SidebarProps) {
                   to={item.href}
                   className={`mx-2 flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all cursor-pointer ${
                     isActive
-                      ? 'bg-green-50 text-green-700 font-semibold border-l-2 border-green-600 rounded-l-none rounded-r-xl'
-                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                      ? "bg-green-50 text-green-700 font-semibold border-l-2 border-green-600 rounded-l-none rounded-r-xl"
+                      : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
                   }`}
                 >
                   <Icon className="w-4 h-4 flex-shrink-0" />
@@ -157,7 +156,7 @@ export default function Sidebar({ onLogout }: SidebarProps) {
                     </span>
                   )}
                 </Link>
-              )
+              );
             })}
           </nav>
         </div>
@@ -169,24 +168,24 @@ export default function Sidebar({ onLogout }: SidebarProps) {
           </p>
           <nav className="space-y-1">
             {personalNavItems.map((item) => {
-              const Icon = item.icon
-              const isActive = pathname === item.href
+              const Icon = item.icon;
+              const isActive = pathname === item.href;
               return (
                 <Link
                   key={item.label}
                   to={item.href}
                   className={`mx-2 flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all cursor-pointer ${
                     isActive
-                      ? 'bg-green-50 text-green-700 font-semibold border-l-2 border-green-600 rounded-l-none rounded-r-xl'
-                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                      ? "bg-green-50 text-green-700 font-semibold border-l-2 border-green-600 rounded-l-none rounded-r-xl"
+                      : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
                   }`}
                 >
                   <Icon className="w-4 h-4 flex-shrink-0" />
                   <span>{item.label}</span>
                 </Link>
-              )
+              );
             })}
-            {user?.role === 'ADMIN' && (
+            {user?.role === "ADMIN" && (
               <>
                 <NavLink
                   to="/report-management"
@@ -232,5 +231,5 @@ export default function Sidebar({ onLogout }: SidebarProps) {
         </button>
       </div>
     </div>
-  )
+  );
 }

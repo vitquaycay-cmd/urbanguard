@@ -51,12 +51,9 @@ export async function getUsersRequest(params?: {
   }
 
   const qs = query.toString();
-  const res = await fetch(
-    `${getApiBaseUrl()}/api/users${qs ? `?${qs}` : ""}`,
-    {
-      headers: authHeader(),
-    },
-  );
+  const res = await fetch(`${getApiBaseUrl()}/api/users${qs ? `?${qs}` : ""}`, {
+    headers: authHeader(),
+  });
   if (!res.ok) throw new Error("Không thể lấy danh sách users");
   return res.json() as Promise<UsersListResponse>;
 }

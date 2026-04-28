@@ -17,17 +17,37 @@ type LoginFormProps = {
 };
 
 const IconEmail = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="text-gray-400">
-    <rect x="2" y="4" width="20" height="16" rx="3"/>
-    <polyline points="2,4 12,13 22,4"/>
+  <svg
+    width="20"
+    height="20"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.8"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className="text-gray-400"
+  >
+    <rect x="2" y="4" width="20" height="16" rx="3" />
+    <polyline points="2,4 12,13 22,4" />
   </svg>
 );
 
 const IconLock = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="text-gray-400">
-    <rect x="5" y="11" width="14" height="10" rx="2"/>
-    <path d="M8 11V7a4 4 0 0 1 8 0v4"/>
-    <circle cx="12" cy="16" r="1" fill="currentColor"/>
+  <svg
+    width="20"
+    height="20"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.8"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className="text-gray-400"
+  >
+    <rect x="5" y="11" width="14" height="10" rx="2" />
+    <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+    <circle cx="12" cy="16" r="1" fill="currentColor" />
   </svg>
 );
 
@@ -45,7 +65,10 @@ export default function LoginForm({
   return (
     <form className="flex flex-col gap-4" onSubmit={onSubmit}>
       <div className="flex flex-col gap-2">
-        <label htmlFor="login-email" className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+        <label
+          htmlFor="login-email"
+          className="text-xs font-semibold uppercase tracking-wide text-gray-500"
+        >
           EMAIL
         </label>
         <div className="flex items-center gap-3 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 focus-within:border-transparent focus-within:ring-2 focus-within:ring-green-500">
@@ -66,7 +89,10 @@ export default function LoginForm({
       </div>
 
       <div className="flex flex-col gap-2">
-        <label htmlFor="login-password" className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+        <label
+          htmlFor="login-password"
+          className="text-xs font-semibold uppercase tracking-wide text-gray-500"
+        >
           MẬT KHẨU
         </label>
         <div className="flex items-center gap-3 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 focus-within:border-transparent focus-within:ring-2 focus-within:ring-green-500">
@@ -98,11 +124,7 @@ export default function LoginForm({
         </div>
       </div>
 
-      {error && (
-        <p className="m-0 text-sm text-red-600">
-          {error}
-        </p>
-      )}
+      {error && <p className="m-0 text-sm text-red-600">{error}</p>}
 
       <button
         type="submit"

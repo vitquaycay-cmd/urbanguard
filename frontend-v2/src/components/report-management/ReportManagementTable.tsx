@@ -1,99 +1,99 @@
-import { CheckCircle, Trash2, XCircle } from 'lucide-react'
+import { CheckCircle, Trash2, XCircle } from "lucide-react";
 
-export type IncidentKind = 'pothole' | 'accident' | 'flood' | 'other'
+export type IncidentKind = "pothole" | "accident" | "flood" | "other";
 
 export type ReportManagementRow = {
-  id: number
-  title: string
-  type: string
+  id: number;
+  title: string;
+  type: string;
   user: {
-    fullname?: string | null
-    username?: string | null
-    email?: string | null
-  }
-  createdAt: string
-  status: string
-  trustScore?: number
-  imageUrl?: string | null
-}
+    fullname?: string | null;
+    username?: string | null;
+    email?: string | null;
+  };
+  createdAt: string;
+  status: string;
+  trustScore?: number;
+  imageUrl?: string | null;
+};
 
 type Props = {
-  reports: ReportManagementRow[]
-  processingId: number | null
-  resolveImageUrl: (imageUrl: string | null) => string | undefined
-  getIncidentKind: (report: ReportManagementRow) => IncidentKind
-  onApprove: (id: number) => void
-  onReject: (id: number) => void
-  onResolve: (id: number) => void
-  onDelete: (id: number) => void
-}
+  reports: ReportManagementRow[];
+  processingId: number | null;
+  resolveImageUrl: (imageUrl: string | null) => string | undefined;
+  getIncidentKind: (report: ReportManagementRow) => IncidentKind;
+  onApprove: (id: number) => void;
+  onReject: (id: number) => void;
+  onResolve: (id: number) => void;
+  onDelete: (id: number) => void;
+};
 
 function typeBadge(kind: IncidentKind) {
   switch (kind) {
-    case 'pothole':
+    case "pothole":
       return (
         <span className="inline-flex rounded-full bg-orange-100 px-2 py-0.5 text-xs font-semibold text-orange-700">
           Ổ gà
         </span>
-      )
-    case 'accident':
+      );
+    case "accident":
       return (
         <span className="inline-flex rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">
           Tai nạn
         </span>
-      )
-    case 'flood':
+      );
+    case "flood":
       return (
         <span className="inline-flex rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-700">
           Ngập lụt
         </span>
-      )
+      );
     default:
       return (
         <span className="inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-xs font-semibold text-gray-700">
           Khác
         </span>
-      )
+      );
   }
 }
 
 function statusBadge(status: string) {
   switch (status) {
-    case 'PENDING':
+    case "PENDING":
       return (
         <span className="inline-flex rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-semibold text-yellow-700">
           Chờ duyệt
         </span>
-      )
-    case 'VALIDATED':
+      );
+    case "VALIDATED":
       return (
         <span className="inline-flex rounded-full bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-700">
           Đã duyệt
         </span>
-      )
-    case 'RESOLVED':
+      );
+    case "RESOLVED":
       return (
         <span className="inline-flex rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-700">
           Đã khắc phục
         </span>
-      )
-    case 'REJECTED':
+      );
+    case "REJECTED":
       return (
         <span className="inline-flex rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">
           Từ chối
         </span>
-      )
+      );
     default:
       return (
         <span className="inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-xs font-semibold text-gray-700">
           {status}
         </span>
-      )
+      );
   }
 }
 
-function senderName(user: ReportManagementRow['user']) {
-  return user.fullname?.trim() || user.username?.trim() || user.email
+function senderName(user: ReportManagementRow["user"]) {
+  return user.fullname?.trim() || user.username?.trim() || user.email;
 }
 
 export default function ReportManagementTable({
@@ -137,11 +137,11 @@ export default function ReportManagementTable({
           </thead>
           <tbody>
             {reports.map((report) => {
-              const img = resolveImageUrl(report.imageUrl ?? null)
-              const kind = getIncidentKind(report)
-              const busy = processingId === report.id
-              const pending = report.status === 'PENDING'
-              const validated = report.status === 'VALIDATED'
+              const img = resolveImageUrl(report.imageUrl ?? null);
+              const kind = getIncidentKind(report);
+              const busy = processingId === report.id;
+              const pending = report.status === "PENDING";
+              const validated = report.status === "VALIDATED";
               return (
                 <tr
                   key={report.id}
@@ -176,7 +176,7 @@ export default function ReportManagementTable({
                     {senderName(report.user)}
                   </td>
                   <td className="px-4 py-4 align-middle text-sm text-gray-600">
-                    {new Date(report.createdAt).toLocaleDateString('vi-VN')}
+                    {new Date(report.createdAt).toLocaleDateString("vi-VN")}
                   </td>
                   <td className="px-4 py-4 align-middle">
                     {statusBadge(report.status)}
@@ -228,7 +228,7 @@ export default function ReportManagementTable({
                     </div>
                   </td>
                 </tr>
-              )
+              );
             })}
           </tbody>
         </table>
@@ -239,5 +239,5 @@ export default function ReportManagementTable({
         </p>
       )}
     </div>
-  )
+  );
 }

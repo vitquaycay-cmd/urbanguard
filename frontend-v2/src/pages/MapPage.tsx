@@ -16,20 +16,34 @@ function MapRightPanel() {
         </h2>
         <div className="grid grid-cols-2 gap-3">
           <div className="flex min-h-[88px] flex-col justify-center rounded-[18px] border border-slate-200/80 bg-slate-50 px-3.5 py-3.5">
-            <div className="text-[28px] font-extrabold leading-none text-green-600">201</div>
-            <div className="mt-2 text-xs font-bold text-slate-500">Validated</div>
+            <div className="text-[28px] font-extrabold leading-none text-green-600">
+              201
+            </div>
+            <div className="mt-2 text-xs font-bold text-slate-500">
+              Validated
+            </div>
           </div>
           <div className="flex min-h-[88px] flex-col justify-center rounded-[18px] border border-slate-200/80 bg-slate-50 px-3.5 py-3.5">
-            <div className="text-[28px] font-extrabold leading-none text-red-500">142</div>
+            <div className="text-[28px] font-extrabold leading-none text-red-500">
+              142
+            </div>
             <div className="mt-2 text-xs font-bold text-slate-500">Pothole</div>
           </div>
           <div className="flex min-h-[88px] flex-col justify-center rounded-[18px] border border-slate-200/80 bg-slate-50 px-3.5 py-3.5">
-            <div className="text-[28px] font-extrabold leading-none text-orange-500">38</div>
-            <div className="mt-2 text-xs font-bold text-slate-500">Accident</div>
+            <div className="text-[28px] font-extrabold leading-none text-orange-500">
+              38
+            </div>
+            <div className="mt-2 text-xs font-bold text-slate-500">
+              Accident
+            </div>
           </div>
           <div className="flex min-h-[88px] flex-col justify-center rounded-[18px] border border-slate-200/80 bg-slate-50 px-3.5 py-3.5">
-            <div className="text-[28px] font-extrabold leading-none text-blue-500">21</div>
-            <div className="mt-2 text-xs font-bold text-slate-500">Flooding</div>
+            <div className="text-[28px] font-extrabold leading-none text-blue-500">
+              21
+            </div>
+            <div className="mt-2 text-xs font-bold text-slate-500">
+              Flooding
+            </div>
           </div>
         </div>
       </section>

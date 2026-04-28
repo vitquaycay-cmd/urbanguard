@@ -47,8 +47,7 @@ export const DANGER_NEAR_ROUTE_ROI_METERS = 1400;
 export const DETOUR_STRATEGY_METERS = [300, 450, 600] as const;
 
 /** Tổng số lần chèn tối đa = số mức × 2 phía. */
-export const MAX_DETOUR_INJECTIONS =
-  DETOUR_STRATEGY_METERS.length * 2;
+export const MAX_DETOUR_INJECTIONS = DETOUR_STRATEGY_METERS.length * 2;
 
 export const ROUTING_FALLBACK_MESSAGE_VI =
   "Không tìm được tuyến né tự động qua OSRM — tuyến hiện tại vẫn hiển thị và có thể đi qua khu vực có báo cáo. Hãy kéo waypoint trên bản đồ để chỉnh tay.";
@@ -113,7 +112,9 @@ export function dangerZonesFromReports(
   return reports.map((r) => {
     const labels =
       r.aiLabels && r.aiLabels.length > 0
-        ? r.aiLabels.filter((x): x is string => typeof x === "string" && x.trim() !== "")
+        ? r.aiLabels.filter(
+            (x): x is string => typeof x === "string" && x.trim() !== "",
+          )
         : [];
     return {
       id: r.id,
@@ -123,9 +124,7 @@ export function dangerZonesFromReports(
       hitRadiusMeters: hitR,
       aiLabels: labels.length > 0 ? labels : undefined,
       label:
-        labels.length > 0
-          ? labels.join(", ")
-          : r.title || `Sự cố #${r.id}`,
+        labels.length > 0 ? labels.join(", ") : r.title || `Sự cố #${r.id}`,
     };
   });
 }
@@ -155,8 +154,7 @@ export function formatIncidentAvoidanceBanner(hits: DangerZone[]): string {
       }
     }
   }
-  const list =
-    parts.length > 0 ? parts.join(", ") : "sự cố giao thông";
+  const list = parts.length > 0 ? parts.join(", ") : "sự cố giao thông";
   return `Đã phát hiện sự cố [${list}] trên lộ trình, đang điều hướng tránh né`;
 }
 
@@ -243,8 +241,18 @@ export function generateDetourPoints(
     forward,
   );
   return {
-    a: destinationFromDegrees(anchor.lat, anchor.lng, brgAlong + 90, detourMeters),
-    b: destinationFromDegrees(anchor.lat, anchor.lng, brgAlong - 90, detourMeters),
+    a: destinationFromDegrees(
+      anchor.lat,
+      anchor.lng,
+      brgAlong + 90,
+      detourMeters,
+    ),
+    b: destinationFromDegrees(
+      anchor.lat,
+      anchor.lng,
+      brgAlong - 90,
+      detourMeters,
+    ),
   };
 }
 
@@ -300,7 +308,9 @@ export function preferFartherSideForInjection(injectionIndex: number): boolean {
 /** Bước kế tiếp: chèn waypoint né hoặc đã hết chiến lược (fallback). */
 export function buildRouteWithFallback(
   injectionIndex: number,
-): { mode: "inject"; detourMeters: number; preferFarther: boolean } | { mode: "exhausted" } {
+):
+  | { mode: "inject"; detourMeters: number; preferFarther: boolean }
+  | { mode: "exhausted" } {
   if (injectionIndex >= MAX_DETOUR_INJECTIONS) {
     return { mode: "exhausted" };
   }

@@ -154,7 +154,10 @@
     0 4px 16px rgba(15, 23, 42, 0.06),
     0 1px 3px rgba(15, 23, 42, 0.04);
   backdrop-filter: blur(16px) saturate(1.4);
-  transition: background 0.25s, box-shadow 0.25s, border-color 0.25s;
+  transition:
+    background 0.25s,
+    box-shadow 0.25s,
+    border-color 0.25s;
 }
 
 .ug-search-card:focus-within {
@@ -384,12 +387,24 @@
   animation: ug-pulse 1.2s ease-in-out infinite;
 }
 
-.ug-search-loading-dot:nth-child(2) { animation-delay: 0.15s; }
-.ug-search-loading-dot:nth-child(3) { animation-delay: 0.3s; }
+.ug-search-loading-dot:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.ug-search-loading-dot:nth-child(3) {
+  animation-delay: 0.3s;
+}
 
 @keyframes ug-pulse {
-  0%, 80%, 100% { opacity: 0.25; transform: scale(0.8); }
-  40% { opacity: 1; transform: scale(1); }
+  0%,
+  80%,
+  100% {
+    opacity: 0.25;
+    transform: scale(0.8);
+  }
+  40% {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 .ug-search-empty {

@@ -44,31 +44,31 @@ export default function LoginCard({
         <div className="pointer-events-none absolute inset-0 overflow-hidden">
           <Car
             className="absolute left-[4%] top-[8%] h-40 w-40 animate-float-1 text-white/10"
-            style={{ animationDelay: '0s' }}
+            style={{ animationDelay: "0s" }}
             strokeWidth={1}
             aria-hidden
           />
           <TriangleAlert
             className="absolute right-[6%] top-[18%] h-28 w-28 animate-float-2 text-white/10"
-            style={{ animationDelay: '0.8s' }}
+            style={{ animationDelay: "0.8s" }}
             strokeWidth={1}
             aria-hidden
           />
           <Route
             className="absolute bottom-[22%] left-[12%] h-24 w-24 animate-float-3 text-white/10"
-            style={{ animationDelay: '1.5s' }}
+            style={{ animationDelay: "1.5s" }}
             strokeWidth={1}
             aria-hidden
           />
           <MapPin
             className="absolute bottom-[12%] right-[8%] h-36 w-36 animate-float-4 text-white/10"
-            style={{ animationDelay: '0.3s' }}
+            style={{ animationDelay: "0.3s" }}
             strokeWidth={1}
             aria-hidden
           />
           <span
             className="absolute left-[40%] top-[42%] flex animate-float-5"
-            style={{ animationDelay: '2s' }}
+            style={{ animationDelay: "2s" }}
           >
             <CircleDot
               className="h-16 w-16 animate-spin-slow text-white/10"
@@ -79,7 +79,11 @@ export default function LoginCard({
         </div>
 
         <div className="relative z-10 flex min-h-screen flex-col justify-center px-10 py-12 lg:px-14">
-          <Shield className="h-16 w-16 text-white" strokeWidth={1.25} aria-hidden />
+          <Shield
+            className="h-16 w-16 text-white"
+            strokeWidth={1.25}
+            aria-hidden
+          />
           <h2 className="mt-6 text-4xl font-bold tracking-tight text-white">
             UrbanGuard
           </h2>
@@ -89,11 +93,17 @@ export default function LoginCard({
             {features.map(({ icon: Icon, title, desc }) => (
               <li key={title} className="flex gap-4 text-white">
                 <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/15">
-                  <Icon className="h-5 w-5 text-white" strokeWidth={2} aria-hidden />
+                  <Icon
+                    className="h-5 w-5 text-white"
+                    strokeWidth={2}
+                    aria-hidden
+                  />
                 </span>
                 <span>
                   <span className="block font-semibold">{title}</span>
-                  <span className="mt-0.5 block text-sm text-white/80">{desc}</span>
+                  <span className="mt-0.5 block text-sm text-white/80">
+                    {desc}
+                  </span>
                 </span>
               </li>
             ))}

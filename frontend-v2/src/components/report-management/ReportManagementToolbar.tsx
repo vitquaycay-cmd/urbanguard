@@ -1,28 +1,28 @@
-import { Search } from 'lucide-react'
+import { Search } from "lucide-react";
 
-export type StatusFilterValue = 'all' | 'PENDING' | 'VALIDATED' | 'REJECTED'
-export type TypeFilterValue = 'all' | 'pothole' | 'accident' | 'flood'
+export type StatusFilterValue = "all" | "PENDING" | "VALIDATED" | "REJECTED";
+export type TypeFilterValue = "all" | "pothole" | "accident" | "flood";
 
-export type ReportSortByValue = 'createdAt' | 'trustScore' | 'status'
-export type ReportSortOrderValue = 'asc' | 'desc'
+export type ReportSortByValue = "createdAt" | "trustScore" | "status";
+export type ReportSortOrderValue = "asc" | "desc";
 
 type Props = {
-  search: string
-  onSearchChange: (v: string) => void
-  statusFilter: StatusFilterValue
-  onStatusFilterChange: (v: StatusFilterValue) => void
-  typeFilter: TypeFilterValue
-  onTypeFilterChange: (v: TypeFilterValue) => void
+  search: string;
+  onSearchChange: (v: string) => void;
+  statusFilter: StatusFilterValue;
+  onStatusFilterChange: (v: StatusFilterValue) => void;
+  typeFilter: TypeFilterValue;
+  onTypeFilterChange: (v: TypeFilterValue) => void;
   /** Ẩn khi đang dùng hàng chờ PENDING (FIFO cố định). */
-  showServerSort?: boolean
-  sortBy?: ReportSortByValue
-  sortOrder?: ReportSortOrderValue
-  onSortByChange?: (v: ReportSortByValue) => void
-  onSortOrderChange?: (v: ReportSortOrderValue) => void
-}
+  showServerSort?: boolean;
+  sortBy?: ReportSortByValue;
+  sortOrder?: ReportSortOrderValue;
+  onSortByChange?: (v: ReportSortByValue) => void;
+  onSortOrderChange?: (v: ReportSortOrderValue) => void;
+};
 
 const selectClass =
-  'rounded-xl border border-gray-200 px-3 py-2.5 text-sm text-gray-800 bg-white'
+  "rounded-xl border border-gray-200 px-3 py-2.5 text-sm text-gray-800 bg-white";
 
 export default function ReportManagementToolbar({
   search,
@@ -32,8 +32,8 @@ export default function ReportManagementToolbar({
   typeFilter,
   onTypeFilterChange,
   showServerSort = false,
-  sortBy = 'createdAt',
-  sortOrder = 'desc',
+  sortBy = "createdAt",
+  sortOrder = "desc",
   onSortByChange,
   onSortOrderChange,
 }: Props) {
@@ -104,5 +104,5 @@ export default function ReportManagementToolbar({
         </>
       )}
     </div>
-  )
+  );
 }

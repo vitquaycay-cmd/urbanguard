@@ -58,11 +58,7 @@ export function ReportDangerPopup({ report }: Props) {
       </div>
 
       {imgUrl ? (
-        <img
-          src={imgUrl}
-          alt={report.title}
-          className="ug-popup__image"
-        />
+        <img src={imgUrl} alt={report.title} className="ug-popup__image" />
       ) : (
         <div className="ug-popup__empty">Không có ảnh</div>
       )}
@@ -71,8 +67,8 @@ export function ReportDangerPopup({ report }: Props) {
 
       <div className="ug-popup__actions">
         <button
-          className={`ug-btn-vote ug-btn-vote--up ${userVote === 'UPVOTE' ? 'active' : ''}`}
-          onClick={() => handleVote('UPVOTE')}
+          className={`ug-btn-vote ug-btn-vote--up ${userVote === "UPVOTE" ? "active" : ""}`}
+          onClick={() => handleVote("UPVOTE")}
           disabled={loading}
           title="Xác thực sự cố này là thật"
         >
@@ -81,8 +77,8 @@ export function ReportDangerPopup({ report }: Props) {
         </button>
 
         <button
-          className={`ug-btn-vote ug-btn-vote--down ${userVote === 'DOWNVOTE' ? 'active' : ''}`}
-          onClick={() => handleVote('DOWNVOTE')}
+          className={`ug-btn-vote ug-btn-vote--down ${userVote === "DOWNVOTE" ? "active" : ""}`}
+          onClick={() => handleVote("DOWNVOTE")}
           disabled={loading}
           title="Báo cáo đây là thông tin giả"
         >

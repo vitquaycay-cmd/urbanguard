@@ -79,7 +79,15 @@ export default function DashboardPage() {
       const day = now.getDay();
       startOfWeek.setDate(now.getDate() - ((day + 6) % 7));
       startOfWeek.setHours(0, 0, 0, 0);
-      const counts: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 0: 0 };
+      const counts: Record<number, number> = {
+        1: 0,
+        2: 0,
+        3: 0,
+        4: 0,
+        5: 0,
+        6: 0,
+        0: 0,
+      };
       allReports.forEach((r) => {
         const d = new Date(r.createdAt);
         if (d >= startOfWeek && d <= now) counts[d.getDay()]++;
@@ -89,14 +97,19 @@ export default function DashboardPage() {
         value: counts[dow],
       }));
     } else if (activeTab === "month") {
-      const firstOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const firstOfLastMonth = new Date(
+        now.getFullYear(),
+        now.getMonth() - 1,
+        1,
+      );
       const lastOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
       const daysInMonth = lastOfLastMonth.getDate();
       const counts: Record<number, number> = {};
       for (let i = 1; i <= daysInMonth; i++) counts[i] = 0;
       allReports.forEach((r) => {
         const d = new Date(r.createdAt);
-        if (d >= firstOfLastMonth && d <= lastOfLastMonth) counts[d.getDate()]++;
+        if (d >= firstOfLastMonth && d <= lastOfLastMonth)
+          counts[d.getDate()]++;
       });
       return Array.from({ length: daysInMonth }, (_, i) => ({
         day: String(i + 1),
@@ -129,13 +142,30 @@ export default function DashboardPage() {
 
   // Stat cards
   const totalReports = allReports.length;
-  const potholesCount = countByKeyword(allReports, ["ổ gà", "pothole", "hố", "lún"]);
-  const accidentsCount = countByKeyword(allReports, ["tai nạn", "accident", "va chạm", "đâm"]);
-  const floodsCount = countByKeyword(allReports, ["ngập", "lụt", "flood", "triều"]);
+  const potholesCount = countByKeyword(allReports, [
+    "ổ gà",
+    "pothole",
+    "hố",
+    "lún",
+  ]);
+  const accidentsCount = countByKeyword(allReports, [
+    "tai nạn",
+    "accident",
+    "va chạm",
+    "đâm",
+  ]);
+  const floodsCount = countByKeyword(allReports, [
+    "ngập",
+    "lụt",
+    "flood",
+    "triều",
+  ]);
   const resolvedPct =
     totalReports > 0
       ? Math.round(
-          (allReports.filter((r) => r.status === "VALIDATED" || r.status === "RESOLVED").length /
+          (allReports.filter(
+            (r) => r.status === "VALIDATED" || r.status === "RESOLVED",
+          ).length /
             totalReports) *
             100,
         )
@@ -188,10 +218,19 @@ export default function DashboardPage() {
               Đang có
             </div>
           </div>
-          <div className="mt-2 text-3xl font-bold text-gray-900">{potholesCount || "—"}</div>
+          <div className="mt-2 text-3xl font-bold text-gray-900">
+            {potholesCount || "—"}
+          </div>
           <div className="mt-0.5 text-sm text-gray-500">Ổ gà</div>
           <div className="mt-3 h-1.5 rounded-full bg-gray-100">
-            <div className="h-full rounded-full bg-orange-400" style={{ width: totalReports ? `${Math.min((potholesCount / totalReports) * 100, 100)}%` : "0%" }}></div>
+            <div
+              className="h-full rounded-full bg-orange-400"
+              style={{
+                width: totalReports
+                  ? `${Math.min((potholesCount / totalReports) * 100, 100)}%`
+                  : "0%",
+              }}
+            ></div>
           </div>
         </div>
 
@@ -205,10 +244,19 @@ export default function DashboardPage() {
               Gấp
             </div>
           </div>
-          <div className="mt-2 text-3xl font-bold text-gray-900">{accidentsCount || "—"}</div>
+          <div className="mt-2 text-3xl font-bold text-gray-900">
+            {accidentsCount || "—"}
+          </div>
           <div className="mt-0.5 text-sm text-gray-500">Tai nạn</div>
           <div className="mt-3 h-1.5 rounded-full bg-gray-100">
-            <div className="h-full rounded-full bg-red-400" style={{ width: totalReports ? `${Math.min((accidentsCount / totalReports) * 100, 100)}%` : "0%" }}></div>
+            <div
+              className="h-full rounded-full bg-red-400"
+              style={{
+                width: totalReports
+                  ? `${Math.min((accidentsCount / totalReports) * 100, 100)}%`
+                  : "0%",
+              }}
+            ></div>
           </div>
         </div>
 
@@ -222,10 +270,19 @@ export default function DashboardPage() {
               Xong
             </div>
           </div>
-          <div className="mt-2 text-3xl font-bold text-gray-900">{floodsCount || "—"}</div>
+          <div className="mt-2 text-3xl font-bold text-gray-900">
+            {floodsCount || "—"}
+          </div>
           <div className="mt-0.5 text-sm text-gray-500">Ngập lụt</div>
           <div className="mt-3 h-1.5 rounded-full bg-gray-100">
-            <div className="h-full rounded-full bg-blue-400" style={{ width: totalReports ? `${Math.min((floodsCount / totalReports) * 100, 100)}%` : "0%" }}></div>
+            <div
+              className="h-full rounded-full bg-blue-400"
+              style={{
+                width: totalReports
+                  ? `${Math.min((floodsCount / totalReports) * 100, 100)}%`
+                  : "0%",
+              }}
+            ></div>
           </div>
         </div>
 
@@ -239,10 +296,15 @@ export default function DashboardPage() {
               Auto
             </div>
           </div>
-          <div className="mt-2 text-3xl font-bold text-gray-900">{resolvedPct}%</div>
+          <div className="mt-2 text-3xl font-bold text-gray-900">
+            {resolvedPct}%
+          </div>
           <div className="mt-0.5 text-sm text-gray-500">Đã xử lý</div>
           <div className="mt-3 h-1.5 rounded-full bg-gray-100">
-            <div className="h-full rounded-full bg-green-500" style={{ width: `${resolvedPct}%` }}></div>
+            <div
+              className="h-full rounded-full bg-green-500"
+              style={{ width: `${resolvedPct}%` }}
+            ></div>
           </div>
         </div>
       </div>
@@ -253,7 +315,11 @@ export default function DashboardPage() {
         <div className="col-span-2 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-base font-bold text-gray-900">
-              {activeTab === "week" ? "Sự cố theo ngày" : activeTab === "month" ? "Sự cố tháng trước" : "Sự cố theo tháng"}
+              {activeTab === "week"
+                ? "Sự cố theo ngày"
+                : activeTab === "month"
+                  ? "Sự cố tháng trước"
+                  : "Sự cố theo tháng"}
             </h2>
             <div className="flex rounded-lg bg-gray-100 p-0.5">
               <button
@@ -307,19 +373,32 @@ export default function DashboardPage() {
         {/* RIGHT: Recent Activity */}
         <div className="col-span-1 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-base font-bold text-gray-900">Hoạt động gần đây</h2>
-            <button type="button" className="text-gray-400 transition-colors hover:text-gray-600">
+            <h2 className="text-base font-bold text-gray-900">
+              Hoạt động gần đây
+            </h2>
+            <button
+              type="button"
+              className="text-gray-400 transition-colors hover:text-gray-600"
+            >
               <MoreHorizontal size={18} />
             </button>
           </div>
           <div className="divide-y divide-gray-50">
             {activities.map((activity) => (
               <div key={activity.id} className="flex gap-3 py-3">
-                <div className={`mt-2 h-2 w-2 flex-shrink-0 rounded-full ${activity.color}`}></div>
+                <div
+                  className={`mt-2 h-2 w-2 flex-shrink-0 rounded-full ${activity.color}`}
+                ></div>
                 <div>
-                  <p className="text-sm font-medium text-gray-900">{activity.title}</p>
-                  <p className="mt-0.5 text-xs text-gray-400">{activity.location}</p>
-                  <p className="mt-0.5 text-xs text-gray-400">{activity.time}</p>
+                  <p className="text-sm font-medium text-gray-900">
+                    {activity.title}
+                  </p>
+                  <p className="mt-0.5 text-xs text-gray-400">
+                    {activity.location}
+                  </p>
+                  <p className="mt-0.5 text-xs text-gray-400">
+                    {activity.time}
+                  </p>
                 </div>
               </div>
             ))}
@@ -341,14 +420,18 @@ export default function DashboardPage() {
             <p className="text-xs font-bold uppercase tracking-widest text-gray-400">
               Tổng quan
             </p>
-            <h3 className="mt-1 text-xl font-bold text-gray-900">Bản đồ nhiệt</h3>
+            <h3 className="mt-1 text-xl font-bold text-gray-900">
+              Bản đồ nhiệt
+            </h3>
             <p className="mt-1 text-sm text-gray-500">
               Mật độ sự cố cập nhật theo khu vực thời gian thực.
             </p>
             <div className="mt-4 flex items-center gap-2">
               <div className="h-2 w-2 rounded-full bg-green-500"></div>
               <div>
-                <p className="text-xs font-semibold text-gray-700">Khu vực nóng nhất</p>
+                <p className="text-xs font-semibold text-gray-700">
+                  Khu vực nóng nhất
+                </p>
                 <p className="text-xs text-gray-400">Quận 1, TP. Hồ Chí Minh</p>
               </div>
             </div>

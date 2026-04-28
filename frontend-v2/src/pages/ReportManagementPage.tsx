@@ -1,15 +1,15 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import ReportManagementHeader from '@/components/report-management/ReportManagementHeader'
+import { useCallback, useEffect, useMemo, useState } from "react";
+import ReportManagementHeader from "@/components/report-management/ReportManagementHeader";
 import ReportManagementToolbar, {
   type ReportSortByValue,
   type ReportSortOrderValue,
   type StatusFilterValue,
   type TypeFilterValue,
-} from '@/components/report-management/ReportManagementToolbar'
+} from "@/components/report-management/ReportManagementToolbar";
 import ReportManagementTable, {
   type IncidentKind,
   type ReportManagementRow,
-} from '@/components/report-management/ReportManagementTable'
+} from "@/components/report-management/ReportManagementTable";
 import {
   deleteReportRequest,
   fetchAdminReports,
@@ -17,36 +17,36 @@ import {
   resolveReportImageUrl,
   updateReportStatusRequest,
   type ReportDetail,
-} from '@/services/report.api'
+} from "@/services/report.api";
 
-const PAGE_SIZE = 20
+const PAGE_SIZE = 20;
 
 function normalizeAiLabels(raw: unknown): string[] | null {
   if (Array.isArray(raw)) {
-    const labels = raw.filter((x): x is string => typeof x === 'string')
-    return labels.length ? labels : null
+    const labels = raw.filter((x): x is string => typeof x === "string");
+    return labels.length ? labels : null;
   }
-  if (typeof raw === 'string') {
+  if (typeof raw === "string") {
     const labels = raw
       .split(/[,;]/)
       .map((s) => s.trim())
-      .filter(Boolean)
-    return labels.length ? labels : null
+      .filter(Boolean);
+    return labels.length ? labels : null;
   }
-  return null
+  return null;
 }
 
 function inferTypeLabel(labels: string[] | null): string {
-  if (!labels?.length) return 'Khác'
-  const j = labels.join(' ').toLowerCase()
-  if (/pothole|ổ|crack|hole/.test(j)) return 'Ổ gà'
-  if (/accident|tai nạn|collision|crash/.test(j)) return 'Tai nạn'
-  if (/flood|ngập|water|rain/.test(j)) return 'Ngập lụt'
-  return 'Khác'
+  if (!labels?.length) return "Khác";
+  const j = labels.join(" ").toLowerCase();
+  if (/pothole|ổ|crack|hole/.test(j)) return "Ổ gà";
+  if (/accident|tai nạn|collision|crash/.test(j)) return "Tai nạn";
+  if (/flood|ngập|water|rain/.test(j)) return "Ngập lụt";
+  return "Khác";
 }
 
 function mapApiReportToRow(r: ReportDetail): ReportManagementRow {
-  const labels = normalizeAiLabels(r.aiLabels)
+  const labels = normalizeAiLabels(r.aiLabels);
   return {
     id: r.id,
     title: r.title,
@@ -60,15 +60,15 @@ function mapApiReportToRow(r: ReportDetail): ReportManagementRow {
     status: r.status,
     trustScore: r.trustScore,
     imageUrl: r.imageUrl,
-  }
+  };
 }
 
 function getIncidentKind(report: ReportManagementRow): IncidentKind {
-  const t = report.type
-  if (t === 'Ổ gà') return 'pothole'
-  if (t === 'Tai nạn') return 'accident'
-  if (t === 'Ngập lụt') return 'flood'
-  return 'other'
+  const t = report.type;
+  if (t === "Ổ gà") return "pothole";
+  if (t === "Tai nạn") return "accident";
+  if (t === "Ngập lụt") return "flood";
+  return "other";
 }
 
 async function loadStatusTotals(signal: AbortSignal) {
@@ -77,120 +77,118 @@ async function loadStatusTotals(signal: AbortSignal) {
     fetchAdminReports({
       page: 1,
       limit: 1,
-      status: 'VALIDATED',
+      status: "VALIDATED",
       signal,
     }),
     fetchAdminReports({
       page: 1,
       limit: 1,
-      status: 'REJECTED',
+      status: "REJECTED",
       signal,
     }),
-  ])
+  ]);
   return {
     pending: pendingRes.meta.total,
     validated: validatedRes.meta.total,
     rejected: rejectedRes.meta.total,
-  }
+  };
 }
 
 export default function ReportManagementPage() {
-  const [reports, setReports] = useState<ReportManagementRow[]>([])
+  const [reports, setReports] = useState<ReportManagementRow[]>([]);
   const [meta, setMeta] = useState({
     page: 1,
     limit: PAGE_SIZE,
     total: 0,
     totalPages: 1,
-  })
+  });
   const [stats, setStats] = useState({
     pending: 0,
     validated: 0,
     rejected: 0,
-  })
-  const [loading, setLoading] = useState(true)
-  const [reloadToken, setReloadToken] = useState(0)
-  const [error, setError] = useState<string | null>(null)
-  const [processingId, setProcessingId] = useState<number | null>(null)
+  });
+  const [loading, setLoading] = useState(true);
+  const [reloadToken, setReloadToken] = useState(0);
+  const [error, setError] = useState<string | null>(null);
+  const [processingId, setProcessingId] = useState<number | null>(null);
 
-  const [search, setSearch] = useState('')
-  const [debouncedSearch, setDebouncedSearch] = useState('')
-  const [statusFilter, setStatusFilter] =
-    useState<StatusFilterValue>('all')
-  const [typeFilter, setTypeFilter] = useState<TypeFilterValue>('all')
-  const [page, setPage] = useState(1)
-  const [sortBy, setSortBy] = useState<ReportSortByValue>('createdAt')
-  const [sortOrder, setSortOrder] = useState<ReportSortOrderValue>('desc')
-
-  useEffect(() => {
-    const t = window.setTimeout(() => setDebouncedSearch(search.trim()), 400)
-    return () => window.clearTimeout(t)
-  }, [search])
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<StatusFilterValue>("all");
+  const [typeFilter, setTypeFilter] = useState<TypeFilterValue>("all");
+  const [page, setPage] = useState(1);
+  const [sortBy, setSortBy] = useState<ReportSortByValue>("createdAt");
+  const [sortOrder, setSortOrder] = useState<ReportSortOrderValue>("desc");
 
   useEffect(() => {
-    setPage(1)
-  }, [statusFilter, debouncedSearch, sortBy, sortOrder])
+    const t = window.setTimeout(() => setDebouncedSearch(search.trim()), 400);
+    return () => window.clearTimeout(t);
+  }, [search]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [statusFilter, debouncedSearch, sortBy, sortOrder]);
 
   const usePendingFifoQueue =
-    statusFilter === 'PENDING' && debouncedSearch.length === 0
+    statusFilter === "PENDING" && debouncedSearch.length === 0;
 
-  const showServerSort = !usePendingFifoQueue
+  const showServerSort = !usePendingFifoQueue;
 
   const refreshStats = useCallback(async () => {
     try {
-      const ac = new AbortController()
-      const next = await loadStatusTotals(ac.signal)
-      setStats(next)
+      const ac = new AbortController();
+      const next = await loadStatusTotals(ac.signal);
+      setStats(next);
     } catch {
       /* bỏ qua lỗi thống kê — bảng chính vẫn hiển thị */
     }
-  }, [])
+  }, []);
 
   const bumpReload = useCallback(() => {
-    setReloadToken((x) => x + 1)
-  }, [])
+    setReloadToken((x) => x + 1);
+  }, []);
 
   useEffect(() => {
-    const ac = new AbortController()
-    ;(async () => {
-      setLoading(true)
-      setError(null)
+    const ac = new AbortController();
+    (async () => {
+      setLoading(true);
+      setError(null);
       try {
-        let res: Awaited<ReturnType<typeof fetchAdminReports>>
+        let res: Awaited<ReturnType<typeof fetchAdminReports>>;
         if (usePendingFifoQueue) {
           res = await fetchPendingReportsQueue({
             page,
             limit: PAGE_SIZE,
             signal: ac.signal,
-          })
+          });
         } else {
           res = await fetchAdminReports({
             page,
             limit: PAGE_SIZE,
-            status:
-              statusFilter === 'all' ? undefined : statusFilter,
+            status: statusFilter === "all" ? undefined : statusFilter,
             search: debouncedSearch || undefined,
             sortBy,
             sortOrder,
             signal: ac.signal,
-          })
+          });
         }
-        if (ac.signal.aborted) return
-        setReports(res.data.map(mapApiReportToRow))
+        if (ac.signal.aborted) return;
+        setReports(res.data.map(mapApiReportToRow));
         setMeta({
           page: res.meta.page,
           limit: res.meta.limit,
           total: res.meta.total,
           totalPages: Math.max(1, res.meta.totalPages),
-        })
+        });
       } catch (e) {
-        if (ac.signal.aborted) return
-        setError(e instanceof Error ? e.message : 'Không tải được danh sách')
-        setReports([])
+        if (ac.signal.aborted) return;
+        setError(e instanceof Error ? e.message : "Không tải được danh sách");
+        setReports([]);
       } finally {
-        if (!ac.signal.aborted) setLoading(false)
+        if (!ac.signal.aborted) setLoading(false);
       }
-    })()
-    return () => ac.abort()
+    })();
+    return () => ac.abort();
   }, [
     page,
     statusFilter,
@@ -199,89 +197,90 @@ export default function ReportManagementPage() {
     sortOrder,
     usePendingFifoQueue,
     reloadToken,
-  ])
+  ]);
 
   useEffect(() => {
-    void refreshStats()
-  }, [refreshStats, reloadToken])
+    void refreshStats();
+  }, [refreshStats, reloadToken]);
 
   const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase()
+    const q = search.trim().toLowerCase();
     return reports.filter((r) => {
-      const kind = getIncidentKind(r)
-      if (typeFilter !== 'all' && kind !== typeFilter) return false
-      if (!q) return true
-      const idMatch = String(r.id).includes(q.replace(/^#/, ''))
-      const title = r.title.toLowerCase()
-      const sender = `${r.user.fullname ?? ''} ${r.user.username ?? ''} ${r.user.email ?? ''}`.toLowerCase()
-      return idMatch || title.includes(q) || sender.includes(q)
-    })
-  }, [reports, search, typeFilter])
+      const kind = getIncidentKind(r);
+      if (typeFilter !== "all" && kind !== typeFilter) return false;
+      if (!q) return true;
+      const idMatch = String(r.id).includes(q.replace(/^#/, ""));
+      const title = r.title.toLowerCase();
+      const sender =
+        `${r.user.fullname ?? ""} ${r.user.username ?? ""} ${r.user.email ?? ""}`.toLowerCase();
+      return idMatch || title.includes(q) || sender.includes(q);
+    });
+  }, [reports, search, typeFilter]);
 
   const handleApprove = useCallback(
     async (id: number) => {
-      setProcessingId(id)
-      setError(null)
+      setProcessingId(id);
+      setError(null);
       try {
-        await updateReportStatusRequest(id, 'VALIDATED')
-        bumpReload()
+        await updateReportStatusRequest(id, "VALIDATED");
+        bumpReload();
       } catch (e) {
-        setError(e instanceof Error ? e.message : 'Duyệt thất bại')
+        setError(e instanceof Error ? e.message : "Duyệt thất bại");
       } finally {
-        setProcessingId(null)
+        setProcessingId(null);
       }
     },
     [bumpReload],
-  )
+  );
   const handleResolve = useCallback(
-  async (id: number) => {
-    setProcessingId(id)
-    setError(null)
-    try {
-      await updateReportStatusRequest(id, 'RESOLVED')
-      bumpReload()
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Xử lý thất bại')
-    } finally {
-      setProcessingId(null)
-    }
-  },
-  [bumpReload],
-)
+    async (id: number) => {
+      setProcessingId(id);
+      setError(null);
+      try {
+        await updateReportStatusRequest(id, "RESOLVED");
+        bumpReload();
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Xử lý thất bại");
+      } finally {
+        setProcessingId(null);
+      }
+    },
+    [bumpReload],
+  );
 
   const handleReject = useCallback(
     async (id: number) => {
-      setProcessingId(id)
-      setError(null)
+      setProcessingId(id);
+      setError(null);
       try {
-        await updateReportStatusRequest(id, 'REJECTED')
-        bumpReload()
+        await updateReportStatusRequest(id, "REJECTED");
+        bumpReload();
       } catch (e) {
-        setError(e instanceof Error ? e.message : 'Từ chối thất bại')
+        setError(e instanceof Error ? e.message : "Từ chối thất bại");
       } finally {
-        setProcessingId(null)
+        setProcessingId(null);
       }
     },
     [bumpReload],
-  )
+  );
 
   const handleDelete = useCallback(
     async (id: number) => {
-      setProcessingId(id)
-      setError(null)
+      setProcessingId(id);
+      setError(null);
       try {
-        await deleteReportRequest(id)
-        bumpReload()
+        await deleteReportRequest(id);
+        bumpReload();
       } catch (e) {
-        setError(e instanceof Error ? e.message : 'Xóa thất bại')
+        setError(e instanceof Error ? e.message : "Xóa thất bại");
       } finally {
-        setProcessingId(null)
+        setProcessingId(null);
       }
     },
     [bumpReload],
-  )
+  );
 
-  const showFullSpinner = loading && reports.length === 0
+  const showFullSpinner = loading && reports.length === 0;
 
   return (
     <div>
@@ -324,7 +323,7 @@ export default function ReportManagementPage() {
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm text-gray-600">
             <span>
               Trang {meta.page} / {meta.totalPages} — {meta.total} báo cáo
-              {loading && reports.length > 0 ? ' · Đang cập nhật…' : ''}
+              {loading && reports.length > 0 ? " · Đang cập nhật…" : ""}
             </span>
             <div className="flex gap-2">
               <button
@@ -338,9 +337,7 @@ export default function ReportManagementPage() {
               <button
                 type="button"
                 disabled={page >= meta.totalPages || loading}
-                onClick={() =>
-                  setPage((p) => Math.min(meta.totalPages, p + 1))
-                }
+                onClick={() => setPage((p) => Math.min(meta.totalPages, p + 1))}
                 className="rounded-lg border border-gray-200 px-3 py-1.5 font-medium text-gray-800 hover:bg-gray-50 disabled:opacity-40"
               >
                 Sau
@@ -350,5 +347,5 @@ export default function ReportManagementPage() {
         </>
       )}
     </div>
-  )
+  );
 }
