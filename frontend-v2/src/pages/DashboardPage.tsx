@@ -9,7 +9,7 @@ import {
   MoreHorizontal,
   RefreshCcw,
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { fetchAdminReports, type ReportDetail } from "@/services/report.api";
@@ -54,14 +54,22 @@ export default function DashboardPage() {
 
   const [activeTab, setActiveTab] = useState("week");
   const [allReports, setAllReports] = useState<ReportDetail[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const fetchStats = useCallback(() => {
+    setIsLoading(true);
+    fetchAdminReports({ limit: 100, sortBy: "createdAt", sortOrder: "desc" })
+      .then((res) => setAllReports(res.data))
+      .catch(() => {})
+      .finally(() => setIsLoading(false));
+  }, []);
 
   useEffect(() => {
-    let cancelled = false;
-    fetchAdminReports({ limit: 100, sortBy: "createdAt", sortOrder: "desc" })
-      .then((res) => { if (!cancelled) setAllReports(res.data); })
-      .catch(() => {});
-    return () => { cancelled = true; };
-  }, []);
+    fetchStats();
+  }, [fetchStats]);
+
+  // Pending count
+  const pendingCount = allReports.filter((r) => r.status === "PENDING").length;
 
   // Chart: group by day of week / day of last month / month of year
   const chartData = (() => {
@@ -145,8 +153,7 @@ export default function DashboardPage() {
             <Hand size={20} className="text-yellow-400" />
           </div>
           <p className="mt-2 text-sm text-gray-500">
-            {/* 🔗 KẾT NỐI: Hiển thị số lượng sự cố đang chờ xử lý từ Backend */}
-            Hệ thống ghi nhận {data.PENDING} cảnh báo mới đang chờ duyệt.
+            Hệ thống ghi nhận {pendingCount} cảnh báo mới đang chờ duyệt.
           </p>
         </div>
         <div className="flex gap-2">
@@ -171,7 +178,7 @@ export default function DashboardPage() {
 
       {/* SECTION 2 — 4 Stat Cards */}
       <div className="mb-6 grid grid-cols-4 gap-4">
-        {/* Card 1: Tổng sự cố (Pending + Validated) */}
+        {/* Card 1: Ổ gà */}
         <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
           <div className="flex items-start justify-between">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-50">
@@ -188,7 +195,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Card 2: Chờ duyệt */}
+        {/* Card 2: Tai nạn */}
         <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
           <div className="flex items-start justify-between">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-50">
@@ -205,7 +212,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Card 3: Đã hoàn thành (Resolved) */}
+        {/* Card 3: Ngập lụt */}
         <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
           <div className="flex items-start justify-between">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50">
@@ -222,7 +229,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Card 4: Tỷ lệ AI */}
+        {/* Card 4: Tỷ lệ xử lý */}
         <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
           <div className="flex items-start justify-between">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-green-50">
@@ -379,7 +386,7 @@ export default function DashboardPage() {
               </button>
             </div>
             <div className="absolute left-0 top-0 flex h-full w-full items-center justify-center bg-transparent backdrop-blur-[1px]">
-              <button 
+              <button
                 onClick={() => navigate("/map")}
                 className="rounded-lg bg-green-600/90 px-4 py-2 text-xs font-bold text-white shadow-lg transition-all hover:scale-105 hover:bg-green-500"
               >

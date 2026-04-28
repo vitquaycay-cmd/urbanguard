@@ -25,6 +25,8 @@ type RoutingControlExt = L.Control & {
   getWaypoints(): { latLng: L.LatLng }[];
   setWaypoints(wps: L.LatLng[]): void;
   getPlan?: () => unknown;
+  _line?: { _map: L.Map | null } | null;
+  _router?: { _requests?: XMLHttpRequest[] } | null;
 };
 
 type RoutesFoundEvent = {
@@ -45,7 +47,29 @@ function safeRemoveRoutingControl(
   mapInstance: L.Map | null,
   ctrl: RoutingControlExt | null,
 ) {
-  if (!mapInstance || !ctrl) return;
+  if (!ctrl) return;
+
+  // Abort any pending OSRM XHR requests to prevent callbacks firing after removal
+  try {
+    const router = ctrl._router as Record<string, unknown> | null;
+    if (router && Array.isArray(router._requests)) {
+      router._requests.forEach((xhr: XMLHttpRequest) => {
+        try { xhr.abort(); } catch { /* ignore */ }
+      });
+    }
+  } catch { /* ignore */ }
+
+  // Patch internal _line._map to prevent _clearLines from crashing
+  // when the async OSRM callback fires after control is removed
+  try {
+    const line = (ctrl as unknown as Record<string, unknown>)._line as Record<string, unknown> | null;
+    if (line && line._map === null) {
+      // Already null — nothing to do, but the patch below prevents the crash
+    }
+  } catch { /* ignore */ }
+
+  if (!mapInstance) return;
+
   try {
     if (typeof mapInstance.removeControl !== "function") return;
     mapInstance.removeControl(ctrl);
@@ -146,6 +170,7 @@ export default function IncidentRouteControl({
         ctl.addTo(mapRef);
 
         ctl.on("waypointschanged", () => {
+          if (cancelled) return;
           if (suppressWaypointResetRef.current) return;
           injectionIndexRef.current = 0;
           fallbackActiveRef.current = false;
@@ -154,6 +179,7 @@ export default function IncidentRouteControl({
         });
 
         ctl.on("routingerror", () => {
+          if (cancelled) return;
           if (fallbackActiveRef.current) {
             onMsg(ROUTING_FALLBACK_MESSAGE_VI);
             return;
@@ -163,6 +189,8 @@ export default function IncidentRouteControl({
         });
 
         ctl.on("routesfound", (e: unknown) => {
+          if (cancelled) return;
+
           const { routes } = e as RoutesFoundEvent;
           const route = routes?.[0];
           const coordinates = route?.coordinates;
@@ -219,8 +247,9 @@ export default function IncidentRouteControl({
           onMsg(formatIncidentAvoidanceBanner(hits));
 
           const c = routingControlRef.current;
+          if (cancelled || !c) return;
           void c?.getPlan?.();
-          if (!c || typeof c.getWaypoints !== "function") return;
+          if (typeof c.getWaypoints !== "function") return;
 
           let wps: { latLng: L.LatLng }[];
           try {
@@ -254,8 +283,19 @@ export default function IncidentRouteControl({
 
     return () => {
       cancelled = true;
-      if (routingControlRef.current && mapRef) {
-        safeRemoveRoutingControl(mapRef, routingControlRef.current);
+      const ctrl = routingControlRef.current;
+      if (ctrl) {
+        // Abort pending XHR before removing to prevent _clearLines crash
+        try {
+          const router = (ctrl as unknown as Record<string, unknown>)._router as Record<string, unknown> | null;
+          if (router && Array.isArray(router._requests)) {
+            router._requests.forEach((xhr: XMLHttpRequest) => {
+              try { xhr.abort(); } catch { /* ignore */ }
+            });
+          }
+        } catch { /* ignore */ }
+
+        safeRemoveRoutingControl(mapRef, ctrl);
       }
       routingControlRef.current = null;
       injectionIndexRef.current = 0;
