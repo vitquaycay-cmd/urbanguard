@@ -32,22 +32,35 @@ model ForumCategory {
 }
 
 model ForumPost {
-  id            String        @id @default(cuid())
+  id            String           @id @default(cuid())
   userId        String
   categoryId    String
   title         String
-  content       String        @db.Text
+  content       String           @db.Text
   locationText  String?
   city          String?
   district      String?
-  severity      String        @default("medium")
-  status        String        @default("approved")
-  viewsCount    Int           @default(0)
-  likesCount    Int           @default(0)
-  commentsCount Int           @default(0)
-  isFeatured    Boolean       @default(false)
-  author        ForumUser     @relation(fields: [userId], references: [id])
-  category      ForumCategory @relation(fields: [categoryId], references: [id])
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  severity      String           @default("medium")
+  status        String           @default("approved")
+  viewsCount    Int              @default(0)
+  likesCount    Int              @default(0)
+  commentsCount Int              @default(0)
+  isFeatured    Boolean          @default(false)
+  author        ForumUser        @relation(fields: [userId], references: [id])
+  category      ForumCategory    @relation(fields: [categoryId], references: [id])
+  media         ForumPostMedia[]
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+}
+
+model ForumPostMedia {
+  id        String    @id @default(cuid())
+  postId    String
+  url       String
+  type      String
+  fileName  String
+  mimeType  String
+  size      Int
+  post      ForumPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  createdAt DateTime  @default(now())
 }

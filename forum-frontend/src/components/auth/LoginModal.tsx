@@ -1,102 +1,139 @@
-import { useState } from "react";
-import { Eye, EyeOff } from "lucide-react";
+import { useState } from 'react'
+import { Eye, EyeOff } from 'lucide-react'
+
+type User = {
+  id?: string
+  fullName?: string
+  fullname?: string
+  name?: string
+  email?: string
+  role?: string
+}
+
+type LoginSuccessPayload = {
+  user: User
+  token: string
+}
 
 type Props = {
-  open: boolean;
-  onClose: () => void;
-  onLoginSuccess: (user: any) => void;
-};
+  open: boolean
+  onClose: () => void
+  onLoginSuccess: (payload: LoginSuccessPayload) => void
+}
 
 export default function LoginModal({ open, onClose, onLoginSuccess }: Props) {
-  const [mode, setMode] = useState<"login" | "register">("login");
+  const [mode, setMode] = useState<'login' | 'register'>('login')
 
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [name, setName] = useState('')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
 
-  const [showPassword, setShowPassword] = useState(false);
+  const [showPassword, setShowPassword] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
 
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-
-  if (!open) return null;
+  if (!open) return null
 
   async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError("");
-    setLoading(true);
+    e.preventDefault()
+    setError('')
+    setLoading(true)
 
     try {
-      // 🔥 URL ĐÚNG (có /api + port 4000)
       const url =
-        mode === "login"
-          ? "http://localhost:4000/api/forum/auth/login"
-          : "http://localhost:4000/api/forum/auth/register";
+        mode === 'login'
+          ? 'http://localhost:4000/api/forum/auth/login'
+          : 'http://localhost:4000/api/forum/auth/register'
 
-      // 🔥 body phải là fullName (không phải name)
       const body =
-        mode === "login"
-          ? { email, password }
-          : { fullName: name, email, password };
+        mode === 'login'
+          ? { email: email.trim(), password }
+          : { fullName: name.trim(), email: email.trim(), password }
 
       const res = await fetch(url, {
-        method: "POST",
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify(body),
-      });
+      })
 
-      const data = await res.json();
+      const data = await res.json()
 
       if (!res.ok) {
-        throw new Error(data.message || "Có lỗi xảy ra");
+        throw new Error(data?.message || data?.error || 'Có lỗi xảy ra')
       }
 
-      // 👉 REGISTER
-      if (mode === "register") {
-        alert("Đăng ký thành công, hãy đăng nhập!");
-        setMode("login");
-        setName("");
-        setPassword("");
-        setShowPassword(false);
-        return;
+      if (mode === 'register') {
+        alert('Đăng ký thành công, hãy đăng nhập!')
+        setMode('login')
+        setName('')
+        setPassword('')
+        setShowPassword(false)
+        return
       }
 
-      // 👉 LOGIN
-      localStorage.setItem("forum_token", data.accessToken);
-      localStorage.setItem("forum_user", JSON.stringify(data.user));
+      const token =
+        data?.accessToken ||
+        data?.access_token ||
+        data?.token ||
+        data?.jwt ||
+        data?.data?.accessToken ||
+        data?.data?.access_token ||
+        data?.data?.token ||
+        data?.data?.jwt
 
-      onLoginSuccess(data.user);
-      onClose();
+      const user =
+        data?.user ||
+        data?.data?.user ||
+        data?.account ||
+        data?.data?.account
+
+      if (!token || !user) {
+        console.log('LOGIN RESPONSE:', data)
+        throw new Error('Server không trả về token hoặc user')
+      }
+
+      localStorage.setItem('forum_token', String(token))
+      localStorage.setItem('forum_user', JSON.stringify(user))
+
+      onLoginSuccess({
+        user,
+        token: String(token),
+      })
+
+      setEmail('')
+      setPassword('')
+      setShowPassword(false)
+      onClose()
     } catch (err: any) {
-      console.error(err);
-      setError("Không kết nối được server");
+      console.error(err)
+      setError(err?.message || 'Không kết nối được server')
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
   }
 
   function handleClose() {
-    setError("");
-    setMode("login");
-    setShowPassword(false);
-    onClose();
+    setError('')
+    setMode('login')
+    setShowPassword(false)
+    onClose()
   }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
       <div className="w-[400px] rounded-2xl bg-white p-6 shadow-xl">
         <h2 className="mb-4 text-xl font-bold">
-          {mode === "login" ? "Đăng nhập" : "Đăng ký"}
+          {mode === 'login' ? 'Đăng nhập' : 'Đăng ký'}
         </h2>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {mode === "register" && (
+          {mode === 'register' && (
             <input
               type="text"
               placeholder="Họ và tên"
-              className="w-full rounded-xl border px-4 py-3"
+              className="w-full rounded-xl border px-4 py-3 outline-none focus:border-green-500"
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
@@ -106,7 +143,7 @@ export default function LoginModal({ open, onClose, onLoginSuccess }: Props) {
           <input
             type="email"
             placeholder="Email"
-            className="w-full rounded-xl border px-4 py-3"
+            className="w-full rounded-xl border px-4 py-3 outline-none focus:border-green-500"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
@@ -114,9 +151,9 @@ export default function LoginModal({ open, onClose, onLoginSuccess }: Props) {
 
           <div className="relative">
             <input
-              type={showPassword ? "text" : "password"}
+              type={showPassword ? 'text' : 'password'}
               placeholder="Mật khẩu"
-              className="w-full rounded-xl border px-4 py-3 pr-12"
+              className="w-full rounded-xl border px-4 py-3 pr-12 outline-none focus:border-green-500"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
@@ -124,7 +161,7 @@ export default function LoginModal({ open, onClose, onLoginSuccess }: Props) {
 
             <button
               type="button"
-              onClick={() => setShowPassword(!showPassword)}
+              onClick={() => setShowPassword((prev) => !prev)}
               className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
             >
               {showPassword ? (
@@ -139,28 +176,28 @@ export default function LoginModal({ open, onClose, onLoginSuccess }: Props) {
 
           <button
             type="submit"
-            className="w-full rounded-xl bg-green-500 py-3 font-semibold text-white disabled:opacity-60"
+            className="w-full rounded-xl bg-green-500 py-3 font-semibold text-white hover:bg-green-600 disabled:cursor-not-allowed disabled:opacity-60"
             disabled={loading}
           >
             {loading
-              ? mode === "login"
-                ? "Đang đăng nhập..."
-                : "Đang đăng ký..."
-              : mode === "login"
-              ? "Đăng nhập"
-              : "Đăng ký"}
+              ? mode === 'login'
+                ? 'Đang đăng nhập...'
+                : 'Đang đăng ký...'
+              : mode === 'login'
+              ? 'Đăng nhập'
+              : 'Đăng ký'}
           </button>
         </form>
 
         <p className="mt-4 text-center text-sm">
-          {mode === "login" ? (
+          {mode === 'login' ? (
             <>
-              Chưa có tài khoản?{" "}
+              Chưa có tài khoản?{' '}
               <button
                 type="button"
                 onClick={() => {
-                  setError("");
-                  setMode("register");
+                  setError('')
+                  setMode('register')
                 }}
                 className="font-semibold text-green-600"
               >
@@ -169,12 +206,12 @@ export default function LoginModal({ open, onClose, onLoginSuccess }: Props) {
             </>
           ) : (
             <>
-              Đã có tài khoản?{" "}
+              Đã có tài khoản?{' '}
               <button
                 type="button"
                 onClick={() => {
-                  setError("");
-                  setMode("login");
+                  setError('')
+                  setMode('login')
                 }}
                 className="font-semibold text-green-600"
               >
@@ -184,10 +221,14 @@ export default function LoginModal({ open, onClose, onLoginSuccess }: Props) {
           )}
         </p>
 
-        <button onClick={handleClose} className="mt-4 w-full text-gray-500">
+        <button
+          type="button"
+          onClick={handleClose}
+          className="mt-4 w-full text-gray-500 hover:text-gray-700"
+        >
           Đóng
         </button>
       </div>
     </div>
-  );
+  )
 }

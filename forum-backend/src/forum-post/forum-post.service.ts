@@ -10,7 +10,11 @@ import { CreatePostDto } from "./dto/create-post.dto";
 export class ForumPostService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(userId: string, dto: CreatePostDto) {
+  async create(
+    userId: string,
+    dto: CreatePostDto,
+    files: Express.Multer.File[] = [],
+  ) {
     return this.prisma.forumPost.create({
       data: {
         title: dto.title,
@@ -19,6 +23,16 @@ export class ForumPostService {
         district: dto.district,
         userId,
         categoryId: dto.categoryId,
+
+        media: {
+          create: files.map((file) => ({
+            url: `/uploads/forum/${file.filename}`,
+            type: file.mimetype.startsWith("video/") ? "video" : "image",
+            fileName: file.originalname,
+            mimeType: file.mimetype,
+            size: file.size,
+          })),
+        },
       },
       include: {
         author: {
@@ -32,6 +46,7 @@ export class ForumPostService {
           },
         },
         category: true,
+        media: true,
       },
     });
   }
@@ -50,6 +65,7 @@ export class ForumPostService {
           },
         },
         category: true,
+        media: true,
       },
       orderBy: {
         createdAt: "desc",
@@ -72,6 +88,7 @@ export class ForumPostService {
           },
         },
         category: true,
+        media: true,
       },
     });
 

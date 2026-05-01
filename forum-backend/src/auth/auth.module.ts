@@ -8,12 +8,14 @@ import { JwtModule } from "@nestjs/jwt";
   imports: [
     PrismaModule,
     JwtModule.register({
-      secret: "secret",
-      signOptions: { expiresIn: "1d" },
+      secret: process.env.JWT_SECRET || "forum_secret_123456",
+      signOptions: {
+        expiresIn: "7d",
+      },
     }),
   ],
-  controllers: [AuthController], // 🔥 BẮT BUỘC PHẢI CÓ
+  controllers: [AuthController],
   providers: [AuthService],
-  exports: [JwtModule], // 
+  exports: [JwtModule],
 })
 export class AuthModule {}

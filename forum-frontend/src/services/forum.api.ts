@@ -10,6 +10,7 @@ export interface ForumPost {
   district?: string
   createdAt?: string
   updatedAt?: string
+
   user?: {
     id: string
     fullname?: string
@@ -17,10 +18,27 @@ export interface ForumPost {
     username?: string
     email?: string
   }
+
+  author?: {
+    id: string
+    fullname?: string
+    fullName?: string
+    username?: string
+    email?: string
+  }
+
   category?: {
     id: string
     name: string
   }
+}
+
+export type CreateForumPostPayload = {
+  title: string
+  content: string
+  city?: string
+  district?: string
+  categoryId: string
 }
 
 export async function getForumPosts() {
@@ -33,18 +51,24 @@ export async function getForumPostById(id: string) {
   return res.data
 }
 
-export async function createForumPost(payload: {
-  title: string
-  content: string
-  city?: string
-  district?: string
-  categoryId: string
-}) {
-  const res = await api.post('/forum/post', payload)
+export async function createForumPost(payload: CreateForumPostPayload) {
+  const token = localStorage.getItem('forum_token')
+
+  if (!token || token === 'undefined' || token === 'null') {
+    throw new Error('Bạn cần đăng nhập trước khi đăng bài.')
+  }
+
+  const res = await api.post<ForumPost>('/forum/post', payload)
   return res.data
 }
 
 export async function deleteForumPost(id: string) {
+  const token = localStorage.getItem('forum_token')
+
+  if (!token || token === 'undefined' || token === 'null') {
+    throw new Error('Bạn cần đăng nhập trước khi xoá bài.')
+  }
+
   const res = await api.delete(`/forum/post/${id}`)
   return res.data
 }

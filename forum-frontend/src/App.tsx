@@ -6,7 +6,7 @@ import ForumStats from './components/forum/ForumStats'
 import ForumFilters from './components/forum/ForumFilters'
 import ForumPostCard from './components/forum/ForumPostCard'
 import RightSidebar from './components/forum/RightSidebar'
-import CreatePostModal from './components/auth/LoginModal'
+import CreatePostModal from './components/forum/CreatePostModal'
 import { getForumPosts, type ForumPost } from './services/forum.api'
 
 type ForumHomeProps = {
@@ -69,18 +69,22 @@ function ForumHome({ openCreate, onCloseCreate }: ForumHomeProps) {
                 <ForumPostCard
                   key={post.id}
                   authorName={
-                    post.author?.fullName ||
-                    post.author?.email ||
+                    post.user?.fullName ||
+                    post.user?.fullname ||
+                    post.user?.username ||
+                    post.user?.email ||
                     'Người dùng'
                   }
                   authorInitial={
                     (
-                      post.author?.fullName ||
-                      post.author?.email ||
+                      post.user?.fullName ||
+                      post.user?.fullname ||
+                      post.user?.username ||
+                      post.user?.email ||
                       'U'
                     )[0].toUpperCase()
                   }
-                  roleLabel="MOD"
+                  roleLabel="USER"
                   timeText={post.createdAt || 'Vừa xong'}
                   locationText={
                     [post.district, post.city].filter(Boolean).join(', ') ||

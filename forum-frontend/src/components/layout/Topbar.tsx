@@ -9,40 +9,66 @@ type TopbarProps = {
 type User = {
   id?: string
   fullName?: string
+  fullname?: string
   name?: string
   email?: string
   role?: string
 }
 
+type LoginSuccessPayload = {
+  user: User
+  token: string
+}
+
 export default function Topbar({ onCreatePost }: TopbarProps) {
   const [loginOpen, setLoginOpen] = useState(false)
   const [user, setUser] = useState<User | null>(null)
-  const [userMenuOpen, setUserMenuOpen] = useState(false) // 🔥 thêm
+  const [userMenuOpen, setUserMenuOpen] = useState(false)
 
-  useEffect(() => {
+  function loadUserFromStorage() {
+    const token = localStorage.getItem('forum_token')
     const savedUser = localStorage.getItem('forum_user')
 
-    if (savedUser) {
-      try {
-        setUser(JSON.parse(savedUser))
-      } catch {
-        localStorage.removeItem('forum_user')
-        localStorage.removeItem('forum_token')
-      }
+    if (!token || !savedUser) {
+      setUser(null)
+      return
     }
+
+    try {
+      setUser(JSON.parse(savedUser))
+    } catch {
+      localStorage.removeItem('forum_token')
+      localStorage.removeItem('forum_user')
+      setUser(null)
+    }
+  }
+
+  useEffect(() => {
+    loadUserFromStorage()
   }, [])
 
-  const firstLetter =
-    user?.fullName?.charAt(0).toUpperCase() ||
-    user?.name?.charAt(0).toUpperCase() ||
-    user?.email?.charAt(0).toUpperCase() ||
-    'A'
+  const displayName =
+    user?.fullName || user?.fullname || user?.name || user?.email || 'Người dùng'
+
+  const firstLetter = displayName.charAt(0).toUpperCase()
 
   function handleLogout() {
     localStorage.removeItem('forum_token')
     localStorage.removeItem('forum_user')
     setUser(null)
-    setUserMenuOpen(false) // 🔥 đóng menu
+    setUserMenuOpen(false)
+  }
+
+  function handleLoginSuccess(payload: LoginSuccessPayload) {
+    localStorage.setItem('forum_token', payload.token)
+    localStorage.setItem('forum_user', JSON.stringify(payload.user))
+    setUser(payload.user)
+    setLoginOpen(false)
+  }
+
+  function handleCreatePostClick() {
+    setLoginOpen(false)
+    onCreatePost?.()
   }
 
   return (
@@ -60,7 +86,6 @@ export default function Topbar({ onCreatePost }: TopbarProps) {
         </div>
 
         <div className="flex items-center gap-4">
-          {/* SEARCH */}
           <div className="flex h-11 w-[350px] items-center gap-3 rounded-2xl border border-green-100 bg-white px-4 text-gray-400">
             <Search className="h-4 w-4" />
             <input
@@ -70,7 +95,6 @@ export default function Topbar({ onCreatePost }: TopbarProps) {
             />
           </div>
 
-          {/* ICON */}
           <button className="relative flex h-11 w-11 items-center justify-center rounded-2xl border border-gray-200 bg-white text-gray-500 hover:bg-gray-50">
             <Bell className="h-5 w-5" />
             <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-red-500" />
@@ -81,7 +105,6 @@ export default function Topbar({ onCreatePost }: TopbarProps) {
             <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-red-500" />
           </button>
 
-          {/* USER */}
           {user ? (
             <div className="relative">
               <button
@@ -95,7 +118,7 @@ export default function Topbar({ onCreatePost }: TopbarProps) {
               {userMenuOpen && (
                 <div className="absolute right-0 top-14 z-50 w-56 rounded-2xl border border-gray-200 bg-white p-3 shadow-xl">
                   <p className="truncate text-sm font-semibold text-gray-900">
-                    {user.fullName || user.name || 'Người dùng'}
+                    {displayName}
                   </p>
 
                   <p className="mt-1 truncate text-xs text-gray-500">
@@ -103,7 +126,7 @@ export default function Topbar({ onCreatePost }: TopbarProps) {
                   </p>
 
                   <p className="mt-1 text-xs text-green-600">
-                    {user.role || 'Thành viên'}
+                    {user.role || 'user'}
                   </p>
 
                   <button
@@ -126,10 +149,9 @@ export default function Topbar({ onCreatePost }: TopbarProps) {
             </button>
           )}
 
-          {/* CREATE POST */}
           <button
             type="button"
-            onClick={onCreatePost}
+            onClick={handleCreatePostClick}
             className="rounded-2xl bg-green-500 px-6 py-3 text-sm font-semibold text-white shadow-md hover:bg-green-600"
           >
             + Tạo bài viết
@@ -140,9 +162,7 @@ export default function Topbar({ onCreatePost }: TopbarProps) {
       <LoginModal
         open={loginOpen}
         onClose={() => setLoginOpen(false)}
-        onLoginSuccess={(userLogin) => {
-          setUser(userLogin)
-        }}
+        onLoginSuccess={handleLoginSuccess}
       />
     </>
   )
