@@ -17,6 +17,9 @@ export default function CreatePostModal({
   const [city, setCity] = useState('Buôn Ma Thuột')
   const [district, setDistrict] = useState('Ea Tam')
   const [categoryId, setCategoryId] = useState('cmo03qas20000lkdmoiujeh9u')
+
+  const [files, setFiles] = useState<File[]>([]) // 🔥 thêm
+
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -52,13 +55,16 @@ export default function CreatePostModal({
         city: city.trim(),
         district: district.trim(),
         categoryId,
+        files, // 🔥 gửi file lên
       })
 
+      // reset
       setTitle('')
       setContent('')
       setCity('Buôn Ma Thuột')
       setDistrict('Ea Tam')
       setCategoryId('cmo03qas20000lkdmoiujeh9u')
+      setFiles([])
 
       await onCreated()
       onClose()
@@ -133,9 +139,31 @@ export default function CreatePostModal({
             <option value="cmo03qas20000lkdmoiujeh9u">Sự cố chung</option>
           </select>
 
-          <div className="rounded-2xl border border-dashed border-gray-300 bg-gray-50 p-5 text-center text-sm text-gray-500">
-            Ảnh/video sẽ làm tiếp sau.
-          </div>
+          {/* 🔥 UPLOAD FILE */}
+          <input
+            type="file"
+            multiple
+            accept="image/*,video/*"
+            onChange={(e) => {
+              const selected = Array.from(e.target.files || [])
+              setFiles(selected)
+            }}
+            className="w-full rounded-2xl border border-gray-200 px-4 py-3"
+          />
+
+          {/* 🔥 HIỂN THỊ FILE */}
+          {files.length > 0 && (
+            <div className="rounded-2xl bg-gray-50 p-4 text-sm text-gray-600">
+              <p className="font-semibold">
+                Đã chọn {files.length} file:
+              </p>
+              <ul className="mt-2 list-disc pl-5">
+                {files.map((file, index) => (
+                  <li key={index}>{file.name}</li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           {error && (
             <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm font-medium text-red-600">
@@ -146,7 +174,7 @@ export default function CreatePostModal({
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-2xl bg-green-500 py-3 font-semibold text-white hover:bg-green-600 disabled:cursor-not-allowed disabled:opacity-60"
+            className="w-full rounded-2xl bg-green-500 py-3 font-semibold text-white hover:bg-green-600 disabled:opacity-60"
           >
             {loading ? 'Đang đăng bài...' : 'Đăng bài'}
           </button>

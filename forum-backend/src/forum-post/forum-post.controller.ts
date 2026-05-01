@@ -28,15 +28,21 @@ if (!existsSync(uploadDir)) {
 export class ForumPostController {
   constructor(private readonly postService: ForumPostService) {}
 
+  // ================= GET =================
+
   @Get()
-  findAll() {
-    return this.postService.findAll();
+  findAll(@Req() req: any) {
+    const userId = req?.user?.userId; // optional
+    return this.postService.findAll(userId);
   }
 
   @Get(":id")
-  findOne(@Param("id") id: string) {
-    return this.postService.findOne(id);
+  findOne(@Param("id") id: string, @Req() req: any) {
+    const userId = req?.user?.userId;
+    return this.postService.findOne(id, userId);
   }
+
+  // ================= CREATE =================
 
   @UseGuards(JwtAuthGuard)
   @Post()
@@ -74,9 +80,42 @@ export class ForumPostController {
     return this.postService.create(req.user.userId, dto, files || []);
   }
 
+  // ================= LIKE =================
+
+  @UseGuards(JwtAuthGuard)
+  @Post(":id/like")
+  toggleLike(@Param("id") id: string, @Req() req: any) {
+    return this.postService.toggleLike(id, req.user.userId);
+  }
+
+  // ================= COMMENT =================
+
+  @UseGuards(JwtAuthGuard)
+  @Post(":id/comment")
+  addComment(
+    @Param("id") id: string,
+    @Req() req: any,
+    @Body("content") content: string,
+  ) {
+    return this.postService.addComment(id, req.user.userId, content);
+  }
+
+  // ================= SHARE =================
+
+  @Post(":id/share")
+  share(@Param("id") id: string) {
+    return this.postService.sharePost(id);
+  }
+
+  // ================= DELETE =================
+
   @UseGuards(JwtAuthGuard)
   @Delete(":id")
   deletePost(@Param("id") id: string, @Req() req: any) {
-    return this.postService.deletePost(id, req.user.userId);
+    return this.postService.deletePost(
+      id,
+      req.user.userId,
+      req.user.role,
+    );
   }
 }

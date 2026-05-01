@@ -12,7 +12,6 @@ async function bootstrap() {
     credentials: true,
   })
 
-  // Cho phép frontend truy cập file ảnh/video đã upload
   app.use('/uploads', express.static(join(process.cwd(), 'uploads')))
 
   app.useGlobalPipes(
