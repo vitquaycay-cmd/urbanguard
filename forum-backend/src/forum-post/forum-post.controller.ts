@@ -28,11 +28,18 @@ if (!existsSync(uploadDir)) {
 export class ForumPostController {
   constructor(private readonly postService: ForumPostService) {}
 
+  // ================= STATS =================
+
+  @Get("stats")
+  getStats() {
+    return this.postService.getStats();
+  }
+
   // ================= GET =================
 
   @Get()
   findAll(@Req() req: any) {
-    const userId = req?.user?.userId; // optional
+    const userId = req?.user?.userId;
     return this.postService.findAll(userId);
   }
 
@@ -41,7 +48,6 @@ export class ForumPostController {
     const userId = req?.user?.userId;
     return this.postService.findOne(id, userId);
   }
-
   // ================= CREATE =================
 
   @UseGuards(JwtAuthGuard)

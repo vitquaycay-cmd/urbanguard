@@ -291,4 +291,19 @@ export class ForumPostService {
       message: "Xoá bài viết thành công",
     };
   }
+
+  async getStats() {
+    const [postsCount, usersCount, commentsCount] = await Promise.all([
+      this.prisma.forumPost.count(),
+      this.prisma.forumUser.count(),
+      this.prisma.forumComment.count(),
+    ]);
+
+    return {
+      postsCount,
+      usersCount,
+      commentsCount,
+      onlineCount: 0,
+    };
+  }
 }
