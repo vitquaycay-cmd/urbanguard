@@ -37,6 +37,14 @@ type Notification = {
   createdAt?: string
 }
 
+type SearchPost = {
+  id: string
+  title: string
+  author?: {
+    fullName?: string
+  }
+}
+
 type Conversation = {
   id: string
   user: {
@@ -70,6 +78,10 @@ export default function Topbar({ onCreatePost }: TopbarProps) {
   const [user, setUser] = useState<User | null>(null)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [onlineCount, setOnlineCount] = useState(0)
+
+  const [searchText, setSearchText] = useState('')
+  const [searchResults, setSearchResults] = useState<SearchPost[]>([])
+  const [searchOpen, setSearchOpen] = useState(false)
 
   const [notificationOpen, setNotificationOpen] = useState(false)
   const [notifications, setNotifications] = useState<Notification[]>([])
@@ -111,6 +123,24 @@ export default function Topbar({ onCreatePost }: TopbarProps) {
       setOnlineCount(res.data.onlineCount || 0)
     } catch (err) {
       console.error('Không tải được số online:', err)
+    }
+  }
+
+  async function searchPosts(keyword: string) {
+    if (!keyword.trim()) {
+      setSearchResults([])
+      setSearchOpen(false)
+      return
+    }
+
+    try {
+      const res = await api.get<SearchPost[]>(
+        `/forum/post/search?q=${encodeURIComponent(keyword)}`,
+      )
+      setSearchResults(res.data)
+      setSearchOpen(true)
+    } catch (err) {
+      console.error('Lỗi search:', err)
     }
   }
 
@@ -305,13 +335,49 @@ export default function Topbar({ onCreatePost }: TopbarProps) {
         </div>
 
         <div className="flex items-center gap-4">
-          <div className="flex h-11 w-[350px] items-center gap-3 rounded-2xl border border-green-100 bg-white px-4 text-gray-400">
-            <Search className="h-4 w-4" />
-            <input
-              type="text"
-              placeholder="Tìm sự cố, địa điểm, người dùng..."
-              className="w-full border-none bg-transparent text-sm outline-none placeholder:text-gray-400"
-            />
+          <div className="relative">
+            <div className="flex h-11 w-[350px] items-center gap-3 rounded-2xl border border-green-100 bg-white px-4 text-gray-400">
+              <Search className="h-4 w-4" />
+              <input
+                value={searchText}
+                onChange={(e) => {
+                  setSearchText(e.target.value)
+                  searchPosts(e.target.value)
+                }}
+                onFocus={() => {
+                  if (searchResults.length > 0) setSearchOpen(true)
+                }}
+                type="text"
+                placeholder="Tìm bài viết..."
+                className="w-full border-none bg-transparent text-sm outline-none placeholder:text-gray-400"
+              />
+            </div>
+
+            {searchOpen && (
+              <div className="absolute left-0 top-14 z-50 w-[350px] overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-xl">
+                {searchResults.length === 0 && (
+                  <p className="py-6 text-center text-sm text-gray-400">
+                    Không tìm thấy bài viết
+                  </p>
+                )}
+
+                {searchResults.map((post) => (
+                  <div
+                    key={post.id}
+                    onClick={() => {
+                      setSearchOpen(false)
+                      window.location.href = `/post/${post.id}`
+                    }}
+                    className="cursor-pointer border-b border-gray-100 p-3 hover:bg-green-50"
+                  >
+                    <p className="font-bold text-gray-900">{post.title}</p>
+                    <p className="mt-1 text-xs text-gray-500">
+                      {post.author?.fullName || 'Ẩn danh'}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="relative">
@@ -471,7 +537,8 @@ export default function Topbar({ onCreatePost }: TopbarProps) {
                         </p>
 
                         <p className="truncate text-sm text-gray-500">
-                          {conversation.lastMessage?.content || 'Chưa có tin nhắn'}
+                          {conversation.lastMessage?.content ||
+                            'Chưa có tin nhắn'}
                         </p>
                       </div>
                     </button>

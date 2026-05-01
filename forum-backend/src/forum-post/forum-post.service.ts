@@ -120,6 +120,66 @@ export class ForumPostService {
     };
   }
 
+  async searchPosts(keyword: string, userId?: string) {
+    const q = keyword?.trim();
+
+    if (!q) {
+      return [];
+    }
+
+    const posts = await this.prisma.forumPost.findMany({
+      where: {
+        OR: [
+          {
+            title: {
+              contains: q,
+            },
+          },
+          {
+            content: {
+              contains: q,
+            },
+          },
+          {
+            city: {
+              contains: q,
+            },
+          },
+          {
+            district: {
+              contains: q,
+            },
+          },
+          {
+            author: {
+              fullName: {
+                contains: q,
+              },
+            },
+          },
+          {
+            category: {
+              name: {
+                contains: q,
+              },
+            },
+          },
+        ],
+      },
+      include: this.includePost(userId),
+      orderBy: {
+        createdAt: "desc",
+      },
+      take: 10,
+    });
+
+    return posts.map((post: any) => ({
+      ...post,
+      likedByMe: Array.isArray(post.likes) && post.likes.length > 0,
+      likes: undefined,
+    }));
+  }
+
   async toggleLike(postId: string, userId: string) {
     const post = await this.prisma.forumPost.findUnique({
       where: { id: postId },

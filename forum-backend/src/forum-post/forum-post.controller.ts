@@ -5,6 +5,7 @@ import {
   Get,
   Param,
   Post,
+  Query,
   Req,
   UploadedFiles,
   UseGuards,
@@ -43,7 +44,7 @@ export class ForumPostController {
     return this.postService.findAll(userId);
   }
 
-    @Get("featured")
+  @Get("featured")
   getFeaturedPosts() {
     return this.postService.getFeaturedPosts();
   }
@@ -53,11 +54,18 @@ export class ForumPostController {
     return this.postService.getTopUsers();
   }
 
+  @Get("search")
+  searchPosts(@Query("q") q: string, @Req() req: any) {
+    const userId = req?.user?.userId;
+    return this.postService.searchPosts(q, userId);
+  }
+
   @Get(":id")
   findOne(@Param("id") id: string, @Req() req: any) {
     const userId = req?.user?.userId;
     return this.postService.findOne(id, userId);
   }
+
   // ================= CREATE =================
 
   @UseGuards(JwtAuthGuard)
@@ -128,10 +136,6 @@ export class ForumPostController {
   @UseGuards(JwtAuthGuard)
   @Delete(":id")
   deletePost(@Param("id") id: string, @Req() req: any) {
-    return this.postService.deletePost(
-      id,
-      req.user.userId,
-      req.user.role,
-    );
+    return this.postService.deletePost(id, req.user.userId, req.user.role);
   }
 }
