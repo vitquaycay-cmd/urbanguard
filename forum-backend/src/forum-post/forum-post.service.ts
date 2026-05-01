@@ -306,4 +306,53 @@ export class ForumPostService {
       onlineCount: 0,
     };
   }
+    async getFeaturedPosts() {
+    return this.prisma.forumPost.findMany({
+      take: 5,
+      orderBy: [
+        { likesCount: "desc" },
+        { commentsCount: "desc" },
+        { createdAt: "desc" },
+      ],
+      select: {
+        id: true,
+        title: true,
+        likesCount: true,
+        commentsCount: true,
+        createdAt: true,
+      },
+    });
+  }
+
+  async getTopUsers() {
+    const users = await this.prisma.forumUser.findMany({
+      take: 5,
+      orderBy: {
+        posts: {
+          _count: "desc",
+        },
+      },
+      select: {
+        id: true,
+        fullName: true,
+        avatarUrl: true,
+        city: true,
+        district: true,
+        posts: {
+          select: {
+            id: true,
+          },
+        },
+      },
+    });
+
+    return users.map((user) => ({
+      id: user.id,
+      fullName: user.fullName,
+      avatarUrl: user.avatarUrl,
+      city: user.city,
+      district: user.district,
+      postsCount: user.posts.length,
+    }));
+  }
 }

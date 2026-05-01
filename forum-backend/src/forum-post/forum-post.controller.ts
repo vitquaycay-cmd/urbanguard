@@ -43,6 +43,16 @@ export class ForumPostController {
     return this.postService.findAll(userId);
   }
 
+    @Get("featured")
+  getFeaturedPosts() {
+    return this.postService.getFeaturedPosts();
+  }
+
+  @Get("top-users")
+  getTopUsers() {
+    return this.postService.getTopUsers();
+  }
+
   @Get(":id")
   findOne(@Param("id") id: string, @Req() req: any) {
     const userId = req?.user?.userId;

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Bell, MessageSquare, Search } from 'lucide-react'
 import LoginModal from '../auth/LoginModal'
+import { api } from '../../services/api'
 
 type TopbarProps = {
   onCreatePost?: () => void
@@ -20,10 +21,18 @@ type LoginSuccessPayload = {
   token: string
 }
 
+type ForumStatsData = {
+  postsCount: number
+  usersCount: number
+  commentsCount: number
+  onlineCount: number
+}
+
 export default function Topbar({ onCreatePost }: TopbarProps) {
   const [loginOpen, setLoginOpen] = useState(false)
   const [user, setUser] = useState<User | null>(null)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
+  const [onlineCount, setOnlineCount] = useState(0)
 
   function loadUserFromStorage() {
     const token = localStorage.getItem('forum_token')
@@ -43,8 +52,24 @@ export default function Topbar({ onCreatePost }: TopbarProps) {
     }
   }
 
+  async function fetchOnlineCount() {
+    try {
+      const res = await api.get<ForumStatsData>('/forum/post/stats')
+      setOnlineCount(res.data.onlineCount || 0)
+    } catch (err) {
+      console.error('Không tải được số online:', err)
+    }
+  }
+
   useEffect(() => {
     loadUserFromStorage()
+    fetchOnlineCount()
+
+    const interval = window.setInterval(() => {
+      fetchOnlineCount()
+    }, 30000)
+
+    return () => window.clearInterval(interval)
   }, [])
 
   const displayName =
@@ -57,6 +82,7 @@ export default function Topbar({ onCreatePost }: TopbarProps) {
     localStorage.removeItem('forum_user')
     setUser(null)
     setUserMenuOpen(false)
+    fetchOnlineCount()
   }
 
   function handleLoginSuccess(payload: LoginSuccessPayload) {
@@ -64,6 +90,7 @@ export default function Topbar({ onCreatePost }: TopbarProps) {
     localStorage.setItem('forum_user', JSON.stringify(payload.user))
     setUser(payload.user)
     setLoginOpen(false)
+    fetchOnlineCount()
   }
 
   function handleCreatePostClick() {
@@ -81,7 +108,7 @@ export default function Topbar({ onCreatePost }: TopbarProps) {
 
           <div className="flex items-center gap-2 rounded-full bg-green-50 px-4 py-2 text-sm font-semibold text-green-600">
             <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-green-500" />
-            <span>142 online</span>
+            <span>{onlineCount} online</span>
           </div>
         </div>
 
