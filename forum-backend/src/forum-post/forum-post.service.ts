@@ -5,10 +5,14 @@ import {
 } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { CreatePostDto } from "./dto/create-post.dto";
+import { ForumNotificationService } from "../forum-notification/forum-notification.service";
 
 @Injectable()
 export class ForumPostService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notificationService: ForumNotificationService,
+  ) {}
 
   private includePost(userId?: string) {
     return {
@@ -119,6 +123,10 @@ export class ForumPostService {
   async toggleLike(postId: string, userId: string) {
     const post = await this.prisma.forumPost.findUnique({
       where: { id: postId },
+      select: {
+        id: true,
+        userId: true,
+      },
     });
 
     if (!post) {
@@ -181,6 +189,17 @@ export class ForumPostService {
       }),
     ]);
 
+    if (post.userId !== userId) {
+      await this.notificationService.create({
+        receiverId: post.userId,
+        actorId: userId,
+        type: "LIKE",
+        title: "Có người thích bài viết",
+        message: "đã thích bài viết của bạn",
+        postId: post.id,
+      });
+    }
+
     const updatedPost = await this.prisma.forumPost.findUnique({
       where: { id: postId },
       select: {
@@ -197,6 +216,10 @@ export class ForumPostService {
   async addComment(postId: string, userId: string, content: string) {
     const post = await this.prisma.forumPost.findUnique({
       where: { id: postId },
+      select: {
+        id: true,
+        userId: true,
+      },
     });
 
     if (!post) {
@@ -235,6 +258,18 @@ export class ForumPostService {
         },
       }),
     ]);
+
+    if (post.userId !== userId) {
+      await this.notificationService.create({
+        receiverId: post.userId,
+        actorId: userId,
+        type: "COMMENT",
+        title: "Có bình luận mới",
+        message: "đã bình luận bài viết của bạn",
+        postId: post.id,
+        commentId: comment.id,
+      });
+    }
 
     return comment;
   }
@@ -306,7 +341,8 @@ export class ForumPostService {
       onlineCount: 0,
     };
   }
-    async getFeaturedPosts() {
+
+  async getFeaturedPosts() {
     return this.prisma.forumPost.findMany({
       take: 5,
       orderBy: [

@@ -4,10 +4,14 @@ import {
   NotFoundException,
 } from '@nestjs/common'
 import { PrismaService } from '../prisma/prisma.service'
+import { ForumNotificationService } from '../forum-notification/forum-notification.service'
 
 @Injectable()
 export class ForumFollowService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private notificationService: ForumNotificationService,
+  ) {}
 
   async toggleFollow(currentUserId: string, targetUserId: string) {
     if (!currentUserId) {
@@ -56,6 +60,14 @@ export class ForumFollowService {
         followerId: currentUserId,
         followingId: targetUserId,
       },
+    })
+
+    await this.notificationService.create({
+      receiverId: targetUserId,
+      actorId: currentUserId,
+      type: 'FOLLOW',
+      title: 'Có người theo dõi bạn',
+      message: 'đã theo dõi bạn',
     })
 
     return {

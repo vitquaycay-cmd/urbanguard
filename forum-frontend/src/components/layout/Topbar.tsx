@@ -29,6 +29,14 @@ type ForumStatsData = {
   onlineCount: number
 }
 
+type Notification = {
+  id: string
+  title: string
+  message: string
+  isRead: boolean
+  createdAt?: string
+}
+
 type Conversation = {
   id: string
   user: {
@@ -62,6 +70,10 @@ export default function Topbar({ onCreatePost }: TopbarProps) {
   const [user, setUser] = useState<User | null>(null)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [onlineCount, setOnlineCount] = useState(0)
+
+  const [notificationOpen, setNotificationOpen] = useState(false)
+  const [notifications, setNotifications] = useState<Notification[]>([])
+  const [unreadCount, setUnreadCount] = useState(0)
 
   const [chatOpen, setChatOpen] = useState(false)
   const [conversations, setConversations] = useState<Conversation[]>([])
@@ -102,6 +114,39 @@ export default function Topbar({ onCreatePost }: TopbarProps) {
     }
   }
 
+  async function fetchNotifications() {
+    const token = localStorage.getItem('forum_token')
+
+    if (!token) {
+      setLoginOpen(true)
+      return
+    }
+
+    try {
+      const res = await api.get<Notification[]>('/forum-notifications')
+      setNotifications(res.data)
+    } catch (err) {
+      console.error('Lỗi load thông báo:', err)
+    }
+  }
+
+  async function fetchUnreadCount() {
+    const token = localStorage.getItem('forum_token')
+    if (!token) return
+
+    try {
+      const res = await api.get<number | { count: number }>(
+        '/forum-notifications/unread-count',
+      )
+
+      setUnreadCount(
+        typeof res.data === 'number' ? res.data : res.data.count || 0,
+      )
+    } catch (err) {
+      console.error('Lỗi count:', err)
+    }
+  }
+
   async function fetchConversations() {
     const token = localStorage.getItem('forum_token')
 
@@ -138,9 +183,11 @@ export default function Topbar({ onCreatePost }: TopbarProps) {
   useEffect(() => {
     loadUserFromStorage()
     fetchOnlineCount()
+    fetchUnreadCount()
 
     const interval = window.setInterval(() => {
       fetchOnlineCount()
+      fetchUnreadCount()
     }, 30000)
 
     return () => window.clearInterval(interval)
@@ -163,6 +210,17 @@ export default function Topbar({ onCreatePost }: TopbarProps) {
 
     return () => window.clearInterval(interval)
   }, [chatOpen, selectedConversation])
+
+  function handleOpenNotification() {
+    if (!user) {
+      setLoginOpen(true)
+      return
+    }
+
+    setNotificationOpen((prev) => !prev)
+    fetchNotifications()
+    fetchUnreadCount()
+  }
 
   function handleOpenChat() {
     if (!user) {
@@ -212,6 +270,9 @@ export default function Topbar({ onCreatePost }: TopbarProps) {
     setUserMenuOpen(false)
     setChatOpen(false)
     setSelectedConversation(null)
+    setNotificationOpen(false)
+    setNotifications([])
+    setUnreadCount(0)
     fetchOnlineCount()
   }
 
@@ -221,6 +282,7 @@ export default function Topbar({ onCreatePost }: TopbarProps) {
     setUser(payload.user)
     setLoginOpen(false)
     fetchOnlineCount()
+    fetchUnreadCount()
   }
 
   function handleCreatePostClick() {
@@ -252,10 +314,49 @@ export default function Topbar({ onCreatePost }: TopbarProps) {
             />
           </div>
 
-          <button className="relative flex h-11 w-11 items-center justify-center rounded-2xl border border-gray-200 bg-white text-gray-500 hover:bg-gray-50">
-            <Bell className="h-5 w-5" />
-            <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-red-500" />
-          </button>
+          <div className="relative">
+            <button
+              type="button"
+              onClick={handleOpenNotification}
+              className="relative flex h-11 w-11 items-center justify-center rounded-2xl border border-gray-200 bg-white text-gray-500 hover:bg-gray-50"
+            >
+              <Bell className="h-5 w-5" />
+
+              {unreadCount > 0 && (
+                <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-xs font-bold text-white">
+                  {unreadCount}
+                </span>
+              )}
+            </button>
+
+            {notificationOpen && (
+              <div className="absolute right-0 top-14 z-50 w-[350px] overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-xl">
+                <div className="border-b border-gray-100 p-4 font-bold text-gray-900">
+                  Thông báo
+                </div>
+
+                <div className="max-h-[400px] overflow-y-auto">
+                  {notifications.length === 0 && (
+                    <p className="py-8 text-center text-sm text-gray-400">
+                      Chưa có thông báo nào
+                    </p>
+                  )}
+
+                  {notifications.map((n) => (
+                    <div
+                      key={n.id}
+                      className={`border-b border-gray-100 p-3 text-sm ${
+                        !n.isRead ? 'bg-green-50' : 'bg-white'
+                      }`}
+                    >
+                      <p className="font-bold text-gray-900">{n.title}</p>
+                      <p className="mt-1 leading-5 text-gray-600">{n.message}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
 
           <button
             type="button"
