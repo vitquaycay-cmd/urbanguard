@@ -21,6 +21,13 @@ model ForumUser {
   likes    ForumPostLike[]
   comments ForumComment[]
 
+  conversationsAsUserOne ForumConversation[] @relation("ForumConversationUserOne")
+  conversationsAsUserTwo ForumConversation[] @relation("ForumConversationUserTwo")
+  sentMessages           ForumMessage[]      @relation("ForumMessageSender")
+
+  following ForumFollow[] @relation("UserFollowing")
+  followers ForumFollow[] @relation("UserFollowers")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -112,4 +119,53 @@ model ForumComment {
 
   @@index([postId])
   @@index([userId])
+}
+
+model ForumConversation {
+  id        String @id @default(cuid())
+  userOneId String
+  userTwoId String
+
+  userOne ForumUser @relation("ForumConversationUserOne", fields: [userOneId], references: [id], onDelete: Cascade)
+  userTwo ForumUser @relation("ForumConversationUserTwo", fields: [userTwoId], references: [id], onDelete: Cascade)
+
+  messages ForumMessage[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userOneId, userTwoId])
+  @@index([userOneId])
+  @@index([userTwoId])
+}
+
+model ForumMessage {
+  id             String  @id @default(cuid())
+  conversationId String
+  senderId       String
+  content        String  @db.Text
+  isRead         Boolean @default(false)
+
+  conversation ForumConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       ForumUser         @relation("ForumMessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([conversationId])
+  @@index([senderId])
+}
+
+model ForumFollow {
+  id          String @id @default(cuid())
+  followerId  String
+  followingId String
+
+  follower  ForumUser @relation("UserFollowing", fields: [followerId], references: [id], onDelete: Cascade)
+  following ForumUser @relation("UserFollowers", fields: [followingId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([followerId, followingId])
+  @@index([followerId])
+  @@index([followingId])
 }
