@@ -1,11 +1,18 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
+import { createClient } from "@supabase/supabase-js";
 import { PrismaService } from "../prisma/prisma.service";
 import { CreatePostDto } from "./dto/create-post.dto";
 import { ForumNotificationService } from "../forum-notification/forum-notification.service";
+
+const supabase = createClient(
+  process.env.SUPABASE_URL || "",
+  process.env.SUPABASE_SERVICE_ROLE_KEY || "",
+);
 
 @Injectable()
 export class ForumPostService {
@@ -54,11 +61,55 @@ export class ForumPostService {
     };
   }
 
+  private async uploadFileToSupabase(userId: string, file: Express.Multer.File) {
+    if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      throw new BadRequestException("Thiếu cấu hình Supabase trong file .env");
+    }
+
+    const bucket = process.env.SUPABASE_BUCKET || "forum-media";
+
+    const originalName = file.originalname || "file";
+    const ext = originalName.includes(".")
+      ? originalName.split(".").pop()
+      : "bin";
+
+    const safeFileName = `${Date.now()}-${Math.round(
+      Math.random() * 1e9,
+    )}.${ext}`;
+
+    const filePath = `forum-posts/${userId}/${safeFileName}`;
+
+    const { error } = await supabase.storage
+      .from(bucket)
+      .upload(filePath, file.buffer, {
+        contentType: file.mimetype,
+        upsert: false,
+      });
+
+    if (error) {
+      throw new BadRequestException(`Upload Supabase lỗi: ${error.message}`);
+    }
+
+    const { data } = supabase.storage.from(bucket).getPublicUrl(filePath);
+
+    return {
+      url: data.publicUrl,
+      type: file.mimetype.startsWith("video/") ? "video" : "image",
+      fileName: originalName,
+      mimeType: file.mimetype,
+      size: file.size,
+    };
+  }
+
   async create(
     userId: string,
     dto: CreatePostDto,
     files: Express.Multer.File[] = [],
   ) {
+    const uploadedMedia = await Promise.all(
+      files.map((file) => this.uploadFileToSupabase(userId, file)),
+    );
+
     const post = await this.prisma.forumPost.create({
       data: {
         title: dto.title,
@@ -68,13 +119,7 @@ export class ForumPostService {
         userId,
         categoryId: dto.categoryId,
         media: {
-          create: files.map((file) => ({
-            url: `/uploads/forum/${file.filename}`,
-            type: file.mimetype.startsWith("video/") ? "video" : "image",
-            fileName: file.originalname,
-            mimeType: file.mimetype,
-            size: file.size,
-          })),
+          create: uploadedMedia,
         },
       },
       include: this.includePost(userId),
@@ -130,26 +175,10 @@ export class ForumPostService {
     const posts = await this.prisma.forumPost.findMany({
       where: {
         OR: [
-          {
-            title: {
-              contains: q,
-            },
-          },
-          {
-            content: {
-              contains: q,
-            },
-          },
-          {
-            city: {
-              contains: q,
-            },
-          },
-          {
-            district: {
-              contains: q,
-            },
-          },
+          { title: { contains: q } },
+          { content: { contains: q } },
+          { city: { contains: q } },
+          { district: { contains: q } },
           {
             author: {
               fullName: {

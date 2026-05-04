@@ -12,18 +12,10 @@ import {
   UseInterceptors,
 } from "@nestjs/common";
 import { FilesInterceptor } from "@nestjs/platform-express";
-import { diskStorage } from "multer";
-import { extname } from "path";
-import { existsSync, mkdirSync } from "fs";
+import { memoryStorage } from "multer";
 import { ForumPostService } from "./forum-post.service";
 import { CreatePostDto } from "./dto/create-post.dto";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
-
-const uploadDir = "./uploads/forum";
-
-if (!existsSync(uploadDir)) {
-  mkdirSync(uploadDir, { recursive: true });
-}
 
 @Controller("forum/post")
 export class ForumPostController {
@@ -72,15 +64,7 @@ export class ForumPostController {
   @Post()
   @UseInterceptors(
     FilesInterceptor("files", 20, {
-      storage: diskStorage({
-        destination: uploadDir,
-        filename: (req, file, cb) => {
-          const uniqueName =
-            Date.now() + "-" + Math.round(Math.random() * 1e9);
-
-          cb(null, uniqueName + extname(file.originalname));
-        },
-      }),
+      storage: memoryStorage(),
       fileFilter: (req, file, cb) => {
         const isImage = file.mimetype.startsWith("image/");
         const isVideo = file.mimetype.startsWith("video/");
@@ -92,7 +76,7 @@ export class ForumPostController {
         }
       },
       limits: {
-        fileSize: 100 * 1024 * 1024,
+        fileSize: 50 * 1024 * 1024,
       },
     }),
   )
