@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard,
@@ -21,12 +22,44 @@ type NavItem = {
   }
 }
 
+type ForumUser = {
+  id?: string
+  fullName?: string
+  name?: string
+  email?: string
+  role?: string
+}
+
 export default function Sidebar() {
   const { pathname } = useLocation()
+  const [user, setUser] = useState<ForumUser | null>(null)
 
-  const initial = 'N'
-  const displayName = 'Nguyễn Văn A'
-  const roleLabel = 'Thành viên'
+  useEffect(() => {
+    const savedUser = localStorage.getItem('forum_user')
+
+    if (savedUser) {
+      try {
+        setUser(JSON.parse(savedUser))
+      } catch {
+        localStorage.removeItem('forum_user')
+        localStorage.removeItem('forum_token')
+      }
+    }
+  }, [])
+
+  const displayName = user?.fullName || user?.name || user?.email || 'Khách'
+  const roleLabel = user?.role || 'Thành viên'
+  const initial =
+    user?.fullName?.charAt(0).toUpperCase() ||
+    user?.name?.charAt(0).toUpperCase() ||
+    user?.email?.charAt(0).toUpperCase() ||
+    'K'
+
+  function handleLogout() {
+    localStorage.removeItem('forum_token')
+    localStorage.removeItem('forum_user')
+    window.location.reload()
+  }
 
   const mainNavItems: NavItem[] = [
     {
@@ -55,7 +88,6 @@ export default function Sidebar() {
       href: '/',
       badge: { text: '12', color: 'green' },
     },
-    
     {
       icon: Bell,
       label: 'Notifications',
@@ -88,7 +120,7 @@ export default function Sidebar() {
     }`
 
   const renderBadge = (
-    badge?: { text: string; color: 'green' | 'orange' | 'red' }
+    badge?: { text: string; color: 'green' | 'orange' | 'red' },
   ) => {
     if (!badge) return null
 
@@ -96,8 +128,8 @@ export default function Sidebar() {
       badge.color === 'green'
         ? 'bg-green-100 text-green-700'
         : badge.color === 'orange'
-          ? 'bg-orange-100 text-orange-600'
-          : 'bg-red-100 text-red-600'
+        ? 'bg-orange-100 text-orange-600'
+        : 'bg-red-100 text-red-600'
 
     return (
       <span className={`text-[10px] font-bold px-2 rounded-full ${badgeClass}`}>
@@ -200,20 +232,23 @@ export default function Sidebar() {
           <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-green-600">
             <span className="text-sm font-bold text-white">{initial}</span>
           </div>
+
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold text-gray-900">
               {displayName}
             </p>
+
             <p className="truncate text-xs text-gray-400">{roleLabel}</p>
           </div>
         </div>
 
         <button
+          onClick={handleLogout}
           type="button"
-          className="flex w-full flex-shrink-0 items-center justify-center gap-2 rounded-xl p-1 text-sm text-gray-400 transition-colors hover:bg-red-50 hover:text-red-500"
+          className="flex w-full flex-shrink-0 items-center justify-center gap-2 rounded-xl p-2 text-sm text-gray-400 transition-colors hover:bg-red-50 hover:text-red-500"
           aria-label="Đăng xuất"
         >
-          <span>Đăng xuất</span>
+          Đăng xuất
         </button>
       </div>
     </div>

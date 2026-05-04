@@ -1,6 +1,6 @@
 import { Module } from "@nestjs/common";
-import { ForumPostController } from "./forum-post.controller";
-import { ForumPostService } from "./forum-post.service";
+import { ForumChatService } from "./forum-chat.service";
+import { ForumChatController } from "./forum-chat.controller";
 import { PrismaModule } from "../prisma/prisma.module";
 import { AuthModule } from "../auth/auth.module";
 import { ForumNotificationModule } from "../forum-notification/forum-notification.module";
@@ -9,9 +9,9 @@ import { ForumNotificationModule } from "../forum-notification/forum-notificatio
   imports: [
     PrismaModule,
     AuthModule,
-    ForumNotificationModule,
+    ForumNotificationModule, // 🔥 thêm dòng này
   ],
-  controllers: [ForumPostController],
-  providers: [ForumPostService],
+  controllers: [ForumChatController],
+  providers: [ForumChatService],
 })
-export class ForumPostModule {}
+export class ForumChatModule {}
