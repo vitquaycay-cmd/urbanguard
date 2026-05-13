@@ -1,70 +1,46 @@
-import { HttpService } from '@nestjs/axios';
-import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { firstValueFrom } from 'rxjs';
-import { stripTrailingSlash } from '../common/url.util';
+import { Injectable, InternalServerErrorException } from "@nestjs/common";
+import { readFile } from "fs/promises";
 
-/** Phản hồi từ FastAPI `POST /ai/analyze`. */
-export type AiAnalyzeResponse = {
-  detected: boolean;
+export type AiDetection = {
+  label: string;
   confidence: number;
-  labels: string[];
-  predict?: Record<string, unknown>;
 };
 
-function normalizeLabelsFromAi(raw: unknown): string[] {
-  if (Array.isArray(raw)) {
-    return raw
-      .filter((x): x is string => typeof x === 'string')
-      .map((s) => s.trim())
-      .filter(Boolean);
-  }
-  if (typeof raw === 'string') {
-    return raw
-      .split(/[,;]/)
-      .map((s) => s.trim())
-      .filter(Boolean);
-  }
-  return [];
-}
+export type AiAnalyzeResponse = {
+  detections?: AiDetection[];
+  isRelevant?: boolean;
+  reason?: string;
+  [key: string]: unknown;
+};
 
 @Injectable()
 export class AiService {
-  private readonly logger = new Logger(AiService.name);
+  private readonly aiBaseUrl = process.env.AI_SERVICE_URL || "http://127.0.0.1:5000";
 
-  constructor(
-    private readonly http: HttpService,
-    private readonly config: ConfigService,
-  ) {}
+  async analyzeImage(filePath: string, originalName = "report.jpg"): Promise<AiAnalyzeResponse> {
+    try {
+      const buffer = await readFile(filePath);
 
-  private baseUrl(): string {
-    const raw =
-      this.config.get<string>('AI_SERVICE_URL') ?? 'http://127.0.0.1:8000';
-    return stripTrailingSlash(raw);
-  }
+      const formData = new FormData();
+      const blob = new Blob([buffer]);
+      formData.append("file", blob, originalName);
 
-  /**
-   * Gọi Python `POST {AI_SERVICE_URL}/ai/analyze` với `{ image_path }` = tên file trong uploads.
-   */
-  async analyze(imageFilename: string): Promise<AiAnalyzeResponse> {
-    const url = `${this.baseUrl()}/ai/analyze`;
-    const { data } = await firstValueFrom(
-      this.http.post<AiAnalyzeResponse>(
-        url,
-        { image_path: imageFilename },
-        {
-          headers: { 'Content-Type': 'application/json' },
-          timeout: 120_000,
-        },
-      ),
-    );
-    if (!data || typeof data.detected !== 'boolean') {
-      this.logger.warn(`AI analyze: response không hợp lệ từ ${url}`);
-      throw new Error('AI_ANALYZE_INVALID_RESPONSE');
+      const res = await fetch(`${this.aiBaseUrl}/analyze`, {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        throw new Error(`AI /analyze lỗi ${res.status}`);
+      }
+
+      return data as AiAnalyzeResponse;
+    } catch (error) {
+      throw new InternalServerErrorException(
+        error instanceof Error ? error.message : "Không gọi được AI service",
+      );
     }
-    return {
-      ...data,
-      labels: normalizeLabelsFromAi(data.labels),
-    };
   }
 }

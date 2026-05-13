@@ -5,24 +5,17 @@ import {
   Get,
   Param,
   Post,
+  Query,
   Req,
   UploadedFiles,
   UseGuards,
   UseInterceptors,
 } from "@nestjs/common";
 import { FilesInterceptor } from "@nestjs/platform-express";
-import { diskStorage } from "multer";
-import { extname } from "path";
-import { existsSync, mkdirSync } from "fs";
+import { memoryStorage } from "multer";
 import { ForumPostService } from "./forum-post.service";
 import { CreatePostDto } from "./dto/create-post.dto";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
-
-const uploadDir = "./uploads/forum";
-
-if (!existsSync(uploadDir)) {
-  mkdirSync(uploadDir, { recursive: true });
-}
 
 @Controller("forum/post")
 export class ForumPostController {
@@ -43,7 +36,7 @@ export class ForumPostController {
     return this.postService.findAll(userId);
   }
 
-    @Get("featured")
+  @Get("featured")
   getFeaturedPosts() {
     return this.postService.getFeaturedPosts();
   }
@@ -53,26 +46,25 @@ export class ForumPostController {
     return this.postService.getTopUsers();
   }
 
+  @Get("search")
+  searchPosts(@Query("q") q: string, @Req() req: any) {
+    const userId = req?.user?.userId;
+    return this.postService.searchPosts(q, userId);
+  }
+
   @Get(":id")
   findOne(@Param("id") id: string, @Req() req: any) {
     const userId = req?.user?.userId;
     return this.postService.findOne(id, userId);
   }
+
   // ================= CREATE =================
 
   @UseGuards(JwtAuthGuard)
   @Post()
   @UseInterceptors(
     FilesInterceptor("files", 20, {
-      storage: diskStorage({
-        destination: uploadDir,
-        filename: (req, file, cb) => {
-          const uniqueName =
-            Date.now() + "-" + Math.round(Math.random() * 1e9);
-
-          cb(null, uniqueName + extname(file.originalname));
-        },
-      }),
+      storage: memoryStorage(),
       fileFilter: (req, file, cb) => {
         const isImage = file.mimetype.startsWith("image/");
         const isVideo = file.mimetype.startsWith("video/");
@@ -84,7 +76,7 @@ export class ForumPostController {
         }
       },
       limits: {
-        fileSize: 100 * 1024 * 1024,
+        fileSize: 50 * 1024 * 1024,
       },
     }),
   )
@@ -128,10 +120,6 @@ export class ForumPostController {
   @UseGuards(JwtAuthGuard)
   @Delete(":id")
   deletePost(@Param("id") id: string, @Req() req: any) {
-    return this.postService.deletePost(
-      id,
-      req.user.userId,
-      req.user.role,
-    );
+    return this.postService.deletePost(id, req.user.userId, req.user.role);
   }
 }

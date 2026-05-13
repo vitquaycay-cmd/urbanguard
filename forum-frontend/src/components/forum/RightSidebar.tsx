@@ -15,6 +15,7 @@ type TopUser = {
   fullName: string
   avatarUrl: string | null
   postsCount: number
+  isFollowing?: boolean
 }
 
 type Conversation = {
@@ -67,6 +68,7 @@ export default function RightSidebar() {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [messageText, setMessageText] = useState('')
   const [chatLoading, setChatLoading] = useState(false)
+  const [followLoadingId, setFollowLoadingId] = useState('')
 
   const currentUserId = getCurrentUserId()
 
@@ -78,15 +80,39 @@ export default function RightSidebar() {
           api.get('/forum/post/top-users'),
         ])
 
-        setFeaturedPosts(postsRes.data)
-        setTopUsers(usersRes.data)
+        setFeaturedPosts(postsRes.data || [])
+
+        const users: TopUser[] = usersRes.data || []
+        const token = localStorage.getItem('forum_token')
+
+        if (!token) {
+          setTopUsers(users)
+          return
+        }
+
+        const usersWithFollow = await Promise.all(
+          users.map(async (user) => {
+            if (user.id === currentUserId) {
+              return { ...user, isFollowing: false }
+            }
+
+            try {
+              const res = await api.get(`/forum/follow/${user.id}`)
+              return { ...user, isFollowing: !!res.data?.isFollowing }
+            } catch {
+              return { ...user, isFollowing: false }
+            }
+          }),
+        )
+
+        setTopUsers(usersWithFollow)
       } catch (err) {
         console.error('Lỗi load sidebar:', err)
       }
     }
 
     fetchData()
-  }, [])
+  }, [currentUserId])
 
   useEffect(() => {
     if (!chatOpen || !conversationId) return
@@ -97,7 +123,7 @@ export default function RightSidebar() {
           `/forum/chat/${conversationId}/messages`,
         )
 
-        setMessages(res.data)
+        setMessages(res.data || [])
       } catch (err) {
         console.error('Lỗi cập nhật tin nhắn:', err)
       }
@@ -105,6 +131,38 @@ export default function RightSidebar() {
 
     return () => window.clearInterval(interval)
   }, [chatOpen, conversationId])
+
+  async function handleToggleFollow(user: TopUser) {
+    const token = localStorage.getItem('forum_token')
+
+    if (!token) {
+      alert('Bạn cần đăng nhập để theo dõi')
+      return
+    }
+
+    if (user.id === currentUserId) {
+      alert('Không thể tự theo dõi chính mình')
+      return
+    }
+
+    try {
+      setFollowLoadingId(user.id)
+
+      const res = await api.post(`/forum/follow/${user.id}`)
+      const followed = !!res.data?.followed
+
+      setTopUsers((prev) =>
+        prev.map((item) =>
+          item.id === user.id ? { ...item, isFollowing: followed } : item,
+        ),
+      )
+    } catch (err) {
+      console.error('Lỗi follow:', err)
+      alert('Không thể thực hiện theo dõi')
+    } finally {
+      setFollowLoadingId('')
+    }
+  }
 
   async function openChat(user: TopUser) {
     const token = localStorage.getItem('forum_token')
@@ -114,10 +172,17 @@ export default function RightSidebar() {
       return
     }
 
+    if (user.id === currentUserId) {
+      alert('Không thể nhắn tin cho chính mình')
+      return
+    }
+
     try {
       setChatLoading(true)
       setChatUser(user)
       setChatOpen(true)
+      setMessages([])
+      setMessageText('')
 
       const convRes = await api.post<Conversation>(`/forum/chat/start/${user.id}`)
       setConversationId(convRes.data.id)
@@ -125,10 +190,12 @@ export default function RightSidebar() {
       const msgRes = await api.get<ChatMessage[]>(
         `/forum/chat/${convRes.data.id}/messages`,
       )
-      setMessages(msgRes.data)
+
+      setMessages(msgRes.data || [])
     } catch (err) {
       console.error('Lỗi mở chat:', err)
       alert('Không mở được cuộc trò chuyện')
+      setChatOpen(false)
     } finally {
       setChatLoading(false)
     }
@@ -138,15 +205,15 @@ export default function RightSidebar() {
     if (!messageText.trim() || !conversationId) return
 
     try {
+      const content = messageText.trim()
+      setMessageText('')
+
       const res = await api.post<ChatMessage>(
         `/forum/chat/${conversationId}/message`,
-        {
-          content: messageText.trim(),
-        },
+        { content },
       )
 
       setMessages((prev) => [...prev, res.data])
-      setMessageText('')
     } catch (err) {
       console.error('Lỗi gửi tin nhắn:', err)
       alert('Không gửi được tin nhắn')
@@ -178,8 +245,8 @@ export default function RightSidebar() {
                     </p>
 
                     <div className="flex flex-wrap items-center gap-3 text-sm text-gray-400">
-                      <span>💗 {post.likesCount}</span>
-                      <span>💬 {post.commentsCount}</span>
+                      <span>💗 {post.likesCount || 0}</span>
+                      <span>💬 {post.commentsCount || 0}</span>
                       <span>🕒 {formatTime(post.createdAt)}</span>
                     </div>
                   </div>
@@ -205,9 +272,17 @@ export default function RightSidebar() {
                 className="border-b border-[#edf3ee] pb-4 last:border-b-0 last:pb-0"
               >
                 <div className="flex items-center gap-4">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-full bg-green-500 text-sm font-bold text-white">
-                    {user.fullName?.charAt(0).toUpperCase()}
-                  </div>
+                  {user.avatarUrl ? (
+                    <img
+                      src={user.avatarUrl}
+                      alt={user.fullName}
+                      className="h-11 w-11 rounded-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-11 w-11 items-center justify-center rounded-full bg-green-500 text-sm font-bold text-white">
+                      {user.fullName?.charAt(0).toUpperCase() || 'U'}
+                    </div>
+                  )}
 
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
@@ -219,27 +294,39 @@ export default function RightSidebar() {
                       </span>
                     </div>
                     <p className="text-sm text-gray-500">
-                      {user.postsCount} bài viết
+                      {user.postsCount || 0} bài viết
                     </p>
                   </div>
                 </div>
 
-                <div className="mt-3 flex gap-2">
-                  <button
-                    type="button"
-                    className="flex-1 rounded-full border border-[#d6e8db] px-4 py-2 text-sm font-semibold text-green-600 transition hover:bg-green-50"
-                  >
-                    Theo dõi
-                  </button>
+                {user.id !== currentUserId && (
+                  <div className="mt-3 flex gap-2">
+                    <button
+                      type="button"
+                      disabled={followLoadingId === user.id}
+                      onClick={() => handleToggleFollow(user)}
+                      className={`flex-1 rounded-full border px-4 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 ${
+                        user.isFollowing
+                          ? 'border-green-500 bg-green-50 text-green-600 hover:bg-green-100'
+                          : 'border-[#d6e8db] text-green-600 hover:bg-green-50'
+                      }`}
+                    >
+                      {followLoadingId === user.id
+                        ? 'Đang xử lý...'
+                        : user.isFollowing
+                          ? 'Đang theo dõi'
+                          : 'Theo dõi'}
+                    </button>
 
-                  <button
-                    type="button"
-                    onClick={() => openChat(user)}
-                    className="flex-1 rounded-full bg-green-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-green-600"
-                  >
-                    Nhắn tin
-                  </button>
-                </div>
+                    <button
+                      type="button"
+                      onClick={() => openChat(user)}
+                      className="flex-1 rounded-full bg-green-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-green-600"
+                    >
+                      Nhắn tin
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
 
@@ -254,9 +341,17 @@ export default function RightSidebar() {
         <div className="fixed bottom-6 right-6 z-50 flex h-[520px] w-[380px] flex-col overflow-hidden rounded-[28px] border border-gray-200 bg-white shadow-2xl">
           <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-500 text-sm font-bold text-white">
-                {chatUser.fullName.charAt(0).toUpperCase()}
-              </div>
+              {chatUser.avatarUrl ? (
+                <img
+                  src={chatUser.avatarUrl}
+                  alt={chatUser.fullName}
+                  className="h-10 w-10 rounded-full object-cover"
+                />
+              ) : (
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-500 text-sm font-bold text-white">
+                  {chatUser.fullName.charAt(0).toUpperCase()}
+                </div>
+              )}
 
               <div>
                 <h3 className="text-sm font-bold text-gray-900">

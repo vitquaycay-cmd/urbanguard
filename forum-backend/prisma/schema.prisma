@@ -28,6 +28,9 @@ model ForumUser {
   following ForumFollow[] @relation("UserFollowing")
   followers ForumFollow[] @relation("UserFollowers")
 
+  receivedNotifications ForumNotification[] @relation("ForumNotificationReceiver")
+  actorNotifications    ForumNotification[] @relation("ForumNotificationActor")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -66,6 +69,7 @@ model ForumPost {
   media    ForumPostMedia[]
   likes    ForumPostLike[]
   comments ForumComment[]
+  notifications ForumNotification[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -113,6 +117,7 @@ model ForumComment {
 
   post ForumPost @relation(fields: [postId], references: [id], onDelete: Cascade)
   user ForumUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+  notifications ForumNotification[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -130,6 +135,7 @@ model ForumConversation {
   userTwo ForumUser @relation("ForumConversationUserTwo", fields: [userTwoId], references: [id], onDelete: Cascade)
 
   messages ForumMessage[]
+  notifications ForumNotification[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -148,6 +154,7 @@ model ForumMessage {
 
   conversation ForumConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   sender       ForumUser         @relation("ForumMessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  notifications ForumNotification[]
 
   createdAt DateTime @default(now())
 
@@ -168,4 +175,41 @@ model ForumFollow {
   @@unique([followerId, followingId])
   @@index([followerId])
   @@index([followingId])
+}
+
+model ForumNotification {
+  id         String  @id @default(cuid())
+
+  receiverId String
+  actorId    String?
+
+  type       String
+  title      String
+  message    String
+  isRead     Boolean @default(false)
+
+  postId         String?
+  commentId      String?
+  conversationId String?
+  messageId      String?
+
+  receiver ForumUser  @relation("ForumNotificationReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+  actor    ForumUser? @relation("ForumNotificationActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  post         ForumPost?         @relation(fields: [postId], references: [id], onDelete: Cascade)
+  comment      ForumComment?      @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  conversation ForumConversation? @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  forumMessage ForumMessage?      @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([receiverId])
+  @@index([actorId])
+  @@index([type])
+  @@index([isRead])
+  @@index([postId])
+  @@index([commentId])
+  @@index([conversationId])
+  @@index([messageId])
 }

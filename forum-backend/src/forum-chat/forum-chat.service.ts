@@ -1,9 +1,13 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
+import { ForumNotificationService } from "../forum-notification/forum-notification.service";
 
 @Injectable()
 export class ForumChatService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private notificationService: ForumNotificationService, // 👈 thêm
+  ) {}
 
   // ================= START CHAT =================
   async startConversation(currentUserId: string, targetUserId: string) {
@@ -72,15 +76,13 @@ export class ForumChatService {
 
   // ================= GET MESSAGES =================
   async getMessages(conversationId: string) {
-    const messages = await this.prisma.forumMessage.findMany({
+    return this.prisma.forumMessage.findMany({
       where: { conversationId },
       orderBy: { createdAt: "asc" },
     });
-
-    return messages;
   }
 
-  // ================= SEND MESSAGE =================
+  // ================= SEND MESSAGE + NOTIFICATION =================
   async sendMessage(
     conversationId: string,
     senderId: string,
@@ -107,6 +109,23 @@ export class ForumChatService {
       data: {
         updatedAt: new Date(),
       },
+    });
+
+    // 🔥 XÁC ĐỊNH NGƯỜI NHẬN
+    const receiverId =
+      conversation.userOneId === senderId
+        ? conversation.userTwoId
+        : conversation.userOneId;
+
+    // 🔥 TẠO THÔNG BÁO
+    await this.notificationService.create({
+      receiverId,
+      actorId: senderId,
+      type: "MESSAGE",
+      title: "Tin nhắn mới",
+      message: "đã gửi cho bạn một tin nhắn",
+      conversationId: conversation.id,
+      messageId: message.id,
     });
 
     return message;

@@ -13,11 +13,11 @@ model User {
   email           String         @unique
   password        String
   username        String?        @unique
-  fullname        String? 
+  fullname        String?
   reputationScore Int            @default(0) @map("reputation_score")
   role            Role           @default(USER)
   createdAt       DateTime       @default(now())
-  isBanned  Boolean  @default(false)  @map("is_banned")
+  isBanned        Boolean        @default(false) @map("is_banned")
   notifications   Notification[]
   refreshTokens   RefreshToken[]
   reports         Report[]
@@ -27,29 +27,34 @@ model User {
 }
 
 model Report {
-  id            Int            @id @default(autoincrement())
-  title         String
-  description   String         @db.Text
-  latitude      Float
-  longitude     Float
-  imageUrl      String?        @map("image_url")
-  status        ReportStatus   @default(PENDING)
-  trustScore    Float          @default(0) @map("trust_score")
-  createdAt     DateTime       @default(now()) @map("created_at")
-  userId        Int            @map("user_id")
-  /// Kết quả thô từ service AI (FastAPI /predict), JSON.
-  aiSummary     Json?          @map("ai_summary")
-  /// Nhãn AI (ví dụ danh sách class_name) — JSON array string.
-  aiLabels      Json?          @map("ai_labels")
-  updated_at    DateTime
+  id          Int    @id @default(autoincrement())
+  title       String
+  description String @db.Text
+  latitude    Float
+  longitude   Float
+
+  imageUrl   String?      @map("image_url")
+  status     ReportStatus @default(PENDING)
+  trustScore Float        @default(0) @map("trust_score")
+
+  aiSummary Json? @map("ai_summary")
+  aiLabels  Json? @map("ai_labels")
+
+  userId Int  @map("user_id")
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  isHidden Boolean @default(false) @map("is_hidden")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
   notifications Notification[]
-  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   votes         Vote[]
-  updatedAt DateTime @updatedAt
-  isHidden   Boolean  @default(false)
 
   @@index([userId])
   @@index([latitude, longitude])
+  @@index([status])
+  @@index([createdAt])
   @@map("reports")
 }
 

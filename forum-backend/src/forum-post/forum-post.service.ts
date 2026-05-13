@@ -1,14 +1,25 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
+import { createClient } from "@supabase/supabase-js";
 import { PrismaService } from "../prisma/prisma.service";
 import { CreatePostDto } from "./dto/create-post.dto";
+import { ForumNotificationService } from "../forum-notification/forum-notification.service";
+
+const supabase = createClient(
+  process.env.SUPABASE_URL || "",
+  process.env.SUPABASE_SERVICE_ROLE_KEY || "",
+);
 
 @Injectable()
 export class ForumPostService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notificationService: ForumNotificationService,
+  ) {}
 
   private includePost(userId?: string) {
     return {
@@ -50,11 +61,55 @@ export class ForumPostService {
     };
   }
 
+  private async uploadFileToSupabase(userId: string, file: Express.Multer.File) {
+    if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      throw new BadRequestException("Thiếu cấu hình Supabase trong file .env");
+    }
+
+    const bucket = process.env.SUPABASE_BUCKET || "forum-media";
+
+    const originalName = file.originalname || "file";
+    const ext = originalName.includes(".")
+      ? originalName.split(".").pop()
+      : "bin";
+
+    const safeFileName = `${Date.now()}-${Math.round(
+      Math.random() * 1e9,
+    )}.${ext}`;
+
+    const filePath = `forum-posts/${userId}/${safeFileName}`;
+
+    const { error } = await supabase.storage
+      .from(bucket)
+      .upload(filePath, file.buffer, {
+        contentType: file.mimetype,
+        upsert: false,
+      });
+
+    if (error) {
+      throw new BadRequestException(`Upload Supabase lỗi: ${error.message}`);
+    }
+
+    const { data } = supabase.storage.from(bucket).getPublicUrl(filePath);
+
+    return {
+      url: data.publicUrl,
+      type: file.mimetype.startsWith("video/") ? "video" : "image",
+      fileName: originalName,
+      mimeType: file.mimetype,
+      size: file.size,
+    };
+  }
+
   async create(
     userId: string,
     dto: CreatePostDto,
     files: Express.Multer.File[] = [],
   ) {
+    const uploadedMedia = await Promise.all(
+      files.map((file) => this.uploadFileToSupabase(userId, file)),
+    );
+
     const post = await this.prisma.forumPost.create({
       data: {
         title: dto.title,
@@ -64,13 +119,7 @@ export class ForumPostService {
         userId,
         categoryId: dto.categoryId,
         media: {
-          create: files.map((file) => ({
-            url: `/uploads/forum/${file.filename}`,
-            type: file.mimetype.startsWith("video/") ? "video" : "image",
-            fileName: file.originalname,
-            mimeType: file.mimetype,
-            size: file.size,
-          })),
+          create: uploadedMedia,
         },
       },
       include: this.includePost(userId),
@@ -116,9 +165,57 @@ export class ForumPostService {
     };
   }
 
+  async searchPosts(keyword: string, userId?: string) {
+    const q = keyword?.trim();
+
+    if (!q) {
+      return [];
+    }
+
+    const posts = await this.prisma.forumPost.findMany({
+      where: {
+        OR: [
+          { title: { contains: q } },
+          { content: { contains: q } },
+          { city: { contains: q } },
+          { district: { contains: q } },
+          {
+            author: {
+              fullName: {
+                contains: q,
+              },
+            },
+          },
+          {
+            category: {
+              name: {
+                contains: q,
+              },
+            },
+          },
+        ],
+      },
+      include: this.includePost(userId),
+      orderBy: {
+        createdAt: "desc",
+      },
+      take: 10,
+    });
+
+    return posts.map((post: any) => ({
+      ...post,
+      likedByMe: Array.isArray(post.likes) && post.likes.length > 0,
+      likes: undefined,
+    }));
+  }
+
   async toggleLike(postId: string, userId: string) {
     const post = await this.prisma.forumPost.findUnique({
       where: { id: postId },
+      select: {
+        id: true,
+        userId: true,
+      },
     });
 
     if (!post) {
@@ -181,6 +278,17 @@ export class ForumPostService {
       }),
     ]);
 
+    if (post.userId !== userId) {
+      await this.notificationService.create({
+        receiverId: post.userId,
+        actorId: userId,
+        type: "LIKE",
+        title: "Có người thích bài viết",
+        message: "đã thích bài viết của bạn",
+        postId: post.id,
+      });
+    }
+
     const updatedPost = await this.prisma.forumPost.findUnique({
       where: { id: postId },
       select: {
@@ -197,6 +305,10 @@ export class ForumPostService {
   async addComment(postId: string, userId: string, content: string) {
     const post = await this.prisma.forumPost.findUnique({
       where: { id: postId },
+      select: {
+        id: true,
+        userId: true,
+      },
     });
 
     if (!post) {
@@ -235,6 +347,18 @@ export class ForumPostService {
         },
       }),
     ]);
+
+    if (post.userId !== userId) {
+      await this.notificationService.create({
+        receiverId: post.userId,
+        actorId: userId,
+        type: "COMMENT",
+        title: "Có bình luận mới",
+        message: "đã bình luận bài viết của bạn",
+        postId: post.id,
+        commentId: comment.id,
+      });
+    }
 
     return comment;
   }
@@ -306,7 +430,8 @@ export class ForumPostService {
       onlineCount: 0,
     };
   }
-    async getFeaturedPosts() {
+
+  async getFeaturedPosts() {
     return this.prisma.forumPost.findMany({
       take: 5,
       orderBy: [
