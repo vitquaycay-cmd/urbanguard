@@ -3,35 +3,70 @@ import { DangerMarkersGroup } from "@/components/map/DangerMarkersGroup";
 import { DangerZoneCircle } from "@/components/map/DangerZoneCircle";
 import { dangerZoneRadiusMeters } from "@/lib/dangerMarkerTheme";
 import { fetchActiveReports, MAP_API_BASE } from "@/lib/mapActiveReports";
-import type { ActiveReport } from "@/lib/mapActiveReports"; // 🔗 KẾT NỐI: Sử dụng import type
+import type { ActiveReport } from "@/lib/mapActiveReports";
 import type { LatLngLiteral } from "@/lib/routingAvoidance";
 import { getValidatedReportsForRouting } from "@/services/routingService";
-import { getHeatmapData } from "@/services/statistics.api"; // 🔗 KẾT NỐI: API Heatmap
+import { getHeatmapData } from "@/services/statistics.api";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "leaflet.markercluster/dist/MarkerCluster.css";
 import "leaflet.markercluster/dist/MarkerCluster.Default.css";
-import { Link } from "react-router-dom";
-import { io, type Socket } from "socket.io-client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  MapContainer,
-  TileLayer,
-  useMap,
-  ZoomControl,
   CircleMarker,
+  MapContainer,
+  Marker,
+  Polyline,
+  TileLayer,
+  Tooltip,
+  useMap,
+  useMapEvents,
+  ZoomControl,
 } from "react-leaflet";
+import { Link } from "react-router-dom";
+import { io, type Socket } from "socket.io-client";
 
-// 🔗 KẾT NỐI: Workaround cho lỗi type React 19 & React-Leaflet v5
 const MapContainerComp = MapContainer as any;
 const TileLayerComp = TileLayer as any;
 const CircleMarkerComp = CircleMarker as any;
+const PolylineComp = Polyline as any;
+const MarkerComp = Marker as any;
+const TooltipComp = Tooltip as any;
 
 export type { ActiveReport };
 
 const CLUSTER_AUTO_THRESHOLD = 12;
 const DEFAULT_CENTER: L.LatLngExpression = [10.762622, 106.660172];
-const DEFAULT_ZOOM = 12;
+const DEFAULT_ZOOM = 13;
+
+type LatLngTuple = [number, number];
+
+const currentLocationIcon = L.divIcon({
+  className: "ug-current-location-marker",
+  html: `
+    <div style="
+      width:18px;
+      height:18px;
+      border-radius:999px;
+      background:#2563eb;
+      border:3px solid white;
+      box-shadow:0 0 0 8px rgba(37,99,235,.2);
+    "></div>
+  `,
+  iconSize: [18, 18],
+  iconAnchor: [9, 9],
+});
+
+function isValidLatLng(lat: number, lng: number) {
+  return (
+    Number.isFinite(lat) &&
+    Number.isFinite(lng) &&
+    lat >= -90 &&
+    lat <= 90 &&
+    lng >= -180 &&
+    lng <= 180
+  );
+}
 
 function useDebouncedValue<T>(value: T, ms: number): T {
   const [debounced, setDebounced] = useState(value);
@@ -44,168 +79,64 @@ function useDebouncedValue<T>(value: T, ms: number): T {
   return debounced;
 }
 
-function FitBounds({ reports }: { reports: ActiveReport[] }) {
-  const map = useMap();
-
-  useEffect(() => {
-    if (reports.length === 0) {
-      map.setView(DEFAULT_CENTER, DEFAULT_ZOOM);
-      return;
-    }
-
-    const bounds = L.latLngBounds(
-      reports.map((r) => [r.latitude, r.longitude] as L.LatLngTuple),
-    );
-
-    map.fitBounds(bounds, { padding: [100, 56], maxZoom: 16 });
-  }, [map, reports]);
-
-  return null;
-}
-
-function MapFlyTo({
-  target,
-}: {
-  target: { lat: number; lng: number; zoom: number } | null;
-}) {
-  const map = useMap();
-
-  useEffect(() => {
-    if (target) {
-      map.flyTo([target.lat, target.lng], target.zoom, { duration: 1.2 });
-    }
-  }, [map, target]);
-
-  return null;
-}
-
-type SearchResult = {
-  type: "place" | "report";
-  label: string;
-  sublabel?: string;
-  lat: number;
-  lng: number;
-  reportId?: number;
-};
-
-async function geocodeNominatim(
-  query: string,
-  signal?: AbortSignal,
-): Promise<SearchResult[]> {
-  const url = `https://nominatim.openstreetmap.org/search?format=json&limit=5&q=${encodeURIComponent(query)}`;
-  const res = await fetch(url, {
-    signal,
-    headers: { "Accept-Language": "vi" },
-  });
-  if (!res.ok) return [];
-  const data = (await res.json()) as Array<{
-    display_name: string;
-    lat: string;
-    lon: string;
-  }>;
-  return data.map((item) => ({
-    type: "place" as const,
-    label: item.display_name.split(",")[0],
-    sublabel: item.display_name.split(",").slice(1, 3).join(",").trim(),
-    lat: parseFloat(item.lat),
-    lng: parseFloat(item.lon),
-  }));
-}
-
-function searchReports(query: string, reports: ActiveReport[]): SearchResult[] {
-  const q = query.toLowerCase();
-  return reports
-    .filter((r) => {
-      const text = `${r.title} ${r.description}`.toLowerCase();
-      const labels = Array.isArray(r.aiLabels)
-        ? r.aiLabels.join(" ").toLowerCase()
-        : "";
-      return text.includes(q) || labels.includes(q);
-    })
-    .slice(0, 5)
-    .map((r) => ({
-      type: "report" as const,
-      label: r.title || "Sự cố #" + r.id,
-      sublabel: r.description?.slice(0, 60),
-      lat: r.latitude,
-      lng: r.longitude,
-      reportId: r.id,
-    }));
-}
-
-function SearchOverlay({
+function FitBounds({
   reports,
-  onSelect,
+  currentLocation,
 }: {
   reports: ActiveReport[];
-  onSelect: (lat: number, lng: number, zoom?: number) => void;
+  currentLocation: LatLngTuple | null;
 }) {
-  const [query, setQuery] = useState("");
-  const [results, setResults] = useState<SearchResult[]>([]);
-  const [open, setOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const abortRef = useRef<AbortController | null>(null);
-  const wrapperRef = useRef<HTMLDivElement>(null);
+  const map = useMap();
 
   useEffect(() => {
-    const q = query.trim();
-    if (q.length < 2) {
-      setResults([]);
-      setOpen(false);
+    if (currentLocation) {
+      map.setView(currentLocation, 15);
       return;
     }
 
-    const localResults = searchReports(q, reports);
+    const validPoints = reports
+      .filter((r) => isValidLatLng(r.latitude, r.longitude))
+      .map((r) => [r.latitude, r.longitude] as L.LatLngTuple);
 
-    abortRef.current?.abort();
-    const ac = new AbortController();
-    abortRef.current = ac;
-    setLoading(true);
+    if (validPoints.length > 0) {
+      const bounds = L.latLngBounds(validPoints);
+      map.fitBounds(bounds, { padding: [100, 56], maxZoom: 16 });
+      return;
+    }
 
-    geocodeNominatim(q, ac.signal)
-      .then((places) => {
-        if (!ac.signal.aborted) {
-          setResults([...localResults, ...places]);
-          setOpen(true);
-        }
-      })
-      .catch(() => {
-        if (!ac.signal.aborted) {
-          setResults(localResults);
-          setOpen(localResults.length > 0);
-        }
-      })
-      .finally(() => {
-        if (!ac.signal.aborted) setLoading(false);
-      });
+    map.setView(DEFAULT_CENTER, DEFAULT_ZOOM);
+  }, [map, reports, currentLocation]);
 
-    return () => ac.abort();
-  }, [query, reports]);
+  return null;
+}
+
+function FitSafeRoute({ safeRoute }: { safeRoute: LatLngTuple[] }) {
+  const map = useMap();
 
   useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (
-        wrapperRef.current &&
-        !wrapperRef.current.contains(e.target as Node)
-      ) {
-        setOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+    if (safeRoute.length < 2) return;
+    const bounds = L.latLngBounds(safeRoute as L.LatLngTuple[]);
+    map.fitBounds(bounds, { padding: [80, 80], maxZoom: 17 });
+  }, [map, safeRoute]);
 
-  const handleSelect = (r: SearchResult) => {
-    setQuery(r.label);
-    setOpen(false);
-    onSelect(r.lat, r.lng, r.type === "report" ? 16 : 14);
-  };
+  return null;
+}
 
-  const reportResults = results.filter((r) => r.type === "report");
-  const placeResults = results.filter((r) => r.type === "place");
-  const hasResults = results.length > 0;
-  const showEmpty = open && !loading && query.trim().length >= 2 && !hasResults;
+function PickRoutePoint({
+  onPickPoint,
+}: {
+  onPickPoint?: (point: LatLngTuple) => void;
+}) {
+  useMapEvents({
+    click(e) {
+      onPickPoint?.([e.latlng.lat, e.latlng.lng]);
+    },
+  });
 
+  return null;
+}
+
+function SearchOverlay() {
   return (
     <div className="ug-search-overlay" ref={wrapperRef}>
       <div className="ug-search-card">
@@ -224,149 +155,9 @@ function SearchOverlay({
           </svg>
         </span>
 
-        <input
-          className="ug-search-input"
-          type="text"
-          placeholder="Tìm địa điểm hoặc sự cố..."
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          onFocus={() => results.length > 0 && setOpen(true)}
-        />
-
-        {query && (
-          <button
-            className="ug-search-clear"
-            onClick={() => {
-              setQuery("");
-              setResults([]);
-              setOpen(false);
-            }}
-            aria-label="Xóa"
-          >
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={2.5}
-              width={12}
-              height={12}
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
-          </button>
-        )}
-      </div>
-
-      {open && hasResults && (
-        <ul className="ug-search-results">
-          {reportResults.length > 0 && (
-            <>
-              <li className="ug-search-section-label">Sự cố</li>
-              {reportResults.map((r) => (
-                <li key={`report-${r.reportId}`}>
-                  <button
-                    className="ug-search-result-btn"
-                    onClick={() => handleSelect(r)}
-                  >
-                    <span className="ug-search-result-icon ug-search-result-icon--report">
-                      <svg
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth={2}
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z"
-                        />
-                      </svg>
-                    </span>
-                    <span className="ug-search-result-text">
-                      <span className="ug-search-result-label">{r.label}</span>
-                      {r.sublabel && (
-                        <span className="ug-search-result-sub">
-                          {r.sublabel}
-                        </span>
-                      )}
-                    </span>
-                    <span className="ug-search-result-badge ug-search-result-badge--report">
-                      Sự cố
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </>
-          )}
-
-          {reportResults.length > 0 && placeResults.length > 0 && (
-            <li className="ug-search-divider" aria-hidden />
-          )}
-
-          {placeResults.length > 0 && (
-            <>
-              <li className="ug-search-section-label">Địa điểm</li>
-              {placeResults.map((r, i) => (
-                <li key={`place-${i}`}>
-                  <button
-                    className="ug-search-result-btn"
-                    onClick={() => handleSelect(r)}
-                  >
-                    <span className="ug-search-result-icon ug-search-result-icon--place">
-                      <svg
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth={2}
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          d="M17.657 16.657L13.414 20.9a2 2 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-                        />
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
-                        />
-                      </svg>
-                    </span>
-                    <span className="ug-search-result-text">
-                      <span className="ug-search-result-label">{r.label}</span>
-                      {r.sublabel && (
-                        <span className="ug-search-result-sub">
-                          {r.sublabel}
-                        </span>
-                      )}
-                    </span>
-                    <span className="ug-search-result-badge ug-search-result-badge--place">
-                      Địa điểm
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </>
-          )}
-        </ul>
-      )}
-
-      {open && loading && (
-        <div className="ug-search-loading">
-          <span className="ug-search-loading-dot" />
-          <span className="ug-search-loading-dot" />
-          <span className="ug-search-loading-dot" />
-        </div>
-      )}
-
-      {showEmpty && (
-        <div className="ug-search-results">
-          <div className="ug-search-empty">
-            Không tìm thấy kết quả cho "{query}"
-          </div>
+        <div className="ug-search-copy">
+          <div className="ug-search-brand">UrbanGuard Search</div>
+          <div className="ug-search-sub">Tìm địa điểm, tuyến đường hoặc khu vực sự cố</div>
         </div>
       )}
     </div>
@@ -380,31 +171,34 @@ type MessageBannerProps = {
 
 function MessageBanner({ text, type = "warning" }: MessageBannerProps) {
   if (!text) return null;
-
   return <div className={`ug-banner ug-banner--${type}`}>{text}</div>;
 }
 
 type ActiveReportsMapProps = {
   enableMarkerClustering?: boolean;
+  safeRoute?: LatLngTuple[];
+  startPoint?: LatLngTuple | null;
+  endPoint?: LatLngTuple | null;
+  onPickPoint?: (point: LatLngTuple) => void;
+  onValidatedReportsChange?: (reports: ActiveReport[]) => void;
 };
 
 export default function ActiveReportsMap({
   enableMarkerClustering,
+  safeRoute = [],
+  startPoint = null,
+  endPoint = null,
+  onPickPoint,
+  onValidatedReportsChange,
 }: ActiveReportsMapProps = {}) {
   const [reports, setReports] = useState<ActiveReport[]>([]);
-  const [heatmapPoints, setHeatmapPoints] = useState<
-    [number, number, number][]
-  >([]); // 🔗 KẾT NỐI: Data heatmap
+  const [heatmapPoints, setHeatmapPoints] = useState<[number, number, number][]>([]);
   const [showHeatmap, setShowHeatmap] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [routeWarning, setRouteWarning] = useState("");
   const [routeCoords, setRouteCoords] = useState<LatLngLiteral[] | null>(null);
-  const [flyTarget, setFlyTarget] = useState<{
-    lat: number;
-    lng: number;
-    zoom: number;
-  } | null>(null);
+  const [currentLocation, setCurrentLocation] = useState<LatLngTuple | null>(null);
   const [entranceReportIds, setEntranceReportIds] = useState<Set<number>>(
     () => new Set(),
   );
@@ -412,16 +206,34 @@ export default function ActiveReportsMap({
   const skipInitialEntranceRef = useRef(true);
   const prevValidatedIdsRef = useRef<Set<number>>(new Set());
 
+  useEffect(() => {
+    if (!navigator.geolocation) {
+      console.warn("Trình duyệt không hỗ trợ định vị.");
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setCurrentLocation([pos.coords.latitude, pos.coords.longitude]);
+      },
+      (err) => {
+        console.warn("Không lấy được vị trí hiện tại:", err.message);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 12000,
+        maximumAge: 60000,
+      },
+    );
+  }, []);
+
   const handleAvoidanceMessage = useCallback((msg: string) => {
     setRouteWarning(msg);
   }, []);
 
-  const handleRouteGeometryChange = useCallback(
-    (coords: LatLngLiteral[] | null) => {
-      setRouteCoords(coords);
-    },
-    [],
-  );
+  const handleRouteGeometryChange = useCallback((coords: LatLngLiteral[] | null) => {
+    setRouteCoords(coords);
+  }, []);
 
   const loadReports = useCallback(async (signal?: AbortSignal) => {
     try {
@@ -436,7 +248,6 @@ export default function ActiveReportsMap({
     }
   }, []);
 
-  // 🔗 KẾT NỐI: Tải dữ liệu heatmap từ Backend
   const loadHeatmap = useCallback(async () => {
     try {
       const data = await getHeatmapData();
@@ -451,6 +262,7 @@ export default function ActiveReportsMap({
     setLoading(true);
     void loadReports(ac.signal);
     void loadHeatmap();
+
     return () => ac.abort();
   }, [loadReports, loadHeatmap]);
 
@@ -473,11 +285,10 @@ export default function ActiveReportsMap({
 
       if (p && ("report" in p || typeof p.id === "number")) {
         void loadReports();
-        void loadHeatmap(); // Làm mới khi có sự cố mới
+        void loadHeatmap();
       }
     };
 
-    // 🔗 KẾT NỐI: Lắng nghe sự kiện report:update (RESOLVED/REJECTED) từ Backend
     const onReportUpdate = () => {
       void loadReports();
       void loadHeatmap();
@@ -488,7 +299,7 @@ export default function ActiveReportsMap({
     };
 
     socket.on("report:new", onReportNew);
-    socket.on("report:update", onReportUpdate); // 🔗 KẾT NỐI: Xử lý cập nhật real-time
+    socket.on("report:update", onReportUpdate);
     socket.on("connect_error", onConnectError);
 
     return () => {
@@ -504,10 +315,14 @@ export default function ActiveReportsMap({
       reports.filter(
         (r) =>
           String(r.status).toUpperCase() === "VALIDATED" &&
-          Number(r.trustScore) > 0,
+          isValidLatLng(r.latitude, r.longitude),
       ),
     [reports],
   );
+
+  useEffect(() => {
+    onValidatedReportsChange?.(validatedReports);
+  }, [validatedReports, onValidatedReportsChange]);
 
   useEffect(() => {
     const next = new Set(validatedReports.map((r) => r.id));
@@ -551,11 +366,11 @@ export default function ActiveReportsMap({
         </div>
       )}
 
-      {/* 🔗 KẾT NỐI: Nút chuyển đổi chế độ Bản đồ nhiệt */}
       <div className="ug-map-controls-overlay">
         <button
+          type="button"
           className={`ug-btn-toggle ${showHeatmap ? "ug-btn-toggle--active" : ""}`}
-          onClick={() => setShowHeatmap(!showHeatmap)}
+          onClick={() => setShowHeatmap((v) => !v)}
         >
           {showHeatmap ? "🔥 Heatmap: ON" : "📍 Markers: ON"}
         </button>
@@ -574,8 +389,38 @@ export default function ActiveReportsMap({
         />
 
         <ZoomControl position="bottomleft" />
-        <FitBounds reports={validatedReports} />
-        <MapFlyTo target={flyTarget} />
+
+        {safeRoute.length > 0 ? (
+          <FitSafeRoute safeRoute={safeRoute} />
+        ) : (
+          <FitBounds reports={validatedReports} currentLocation={currentLocation} />
+        )}
+
+        <PickRoutePoint onPickPoint={onPickPoint} />
+
+        {currentLocation && (
+          <MarkerComp position={currentLocation} icon={currentLocationIcon}>
+            <TooltipComp permanent direction="top" offset={[0, -12]}>
+              Vị trí của bạn
+            </TooltipComp>
+          </MarkerComp>
+        )}
+
+        {startPoint && (
+          <MarkerComp position={startPoint}>
+            <TooltipComp permanent direction="top" offset={[0, -12]}>
+              A
+            </TooltipComp>
+          </MarkerComp>
+        )}
+
+        {endPoint && (
+          <MarkerComp position={endPoint}>
+            <TooltipComp permanent direction="top" offset={[0, -12]}>
+              B
+            </TooltipComp>
+          </MarkerComp>
+        )}
 
         <IncidentRouteControl
           incidents={reportsForRouting}
@@ -583,7 +428,17 @@ export default function ActiveReportsMap({
           onRouteGeometryChange={handleRouteGeometryChange}
         />
 
-        {/* 🔗 KẾT NỐI: Rendering Heatmap Layer */}
+        {safeRoute.length > 0 && (
+          <PolylineComp
+            positions={safeRoute}
+            pathOptions={{
+              color: "#16a34a",
+              weight: 6,
+              opacity: 0.95,
+            }}
+          />
+        )}
+
         {showHeatmap &&
           heatmapPoints.map((p, idx) => (
             <CircleMarkerComp
@@ -591,8 +446,7 @@ export default function ActiveReportsMap({
               center={[p[0], p[1]]}
               radius={25 + p[2] * 15}
               pathOptions={{
-                fillColor:
-                  p[2] > 0.6 ? "#ff0000" : p[2] > 0.3 ? "#ffae00" : "#ffff00",
+                fillColor: p[2] > 0.6 ? "#ff0000" : p[2] > 0.3 ? "#ffae00" : "#ffff00",
                 fillOpacity: 0.15 + p[2] * 0.3,
                 stroke: false,
                 interactive: false,
@@ -640,9 +494,11 @@ export default function ActiveReportsMap({
 
       <div className="ug-map-footer">
         <div className="ug-map-footer-card">
-          {routeCoords
-            ? "Tuyến đang hiển thị — kéo waypoint để đổi lộ trình. Vào đệm quanh sự cố sẽ có cảnh báo và thử né tự động."
-            : "Chọn điểm đi / đến trên bản đồ để xem tuyến OSRM."}
+          {safeRoute.length > 0
+            ? "Đang hiển thị tuyến đường an toàn do AI đề xuất."
+            : routeCoords
+              ? "Tuyến đang hiển thị — kéo waypoint để đổi lộ trình. Vào đệm quanh sự cố sẽ có cảnh báo và thử né tự động."
+              : "Click trên bản đồ để chọn điểm bắt đầu và điểm kết thúc, sau đó bấm Tìm đường an toàn."}
 
           {clustering && !showHeatmap && (
             <div className="ug-map-footer-sub">

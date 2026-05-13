@@ -103,3 +103,30 @@ CLAUDE.md
 # ========================
 frontend1/playwright.config.ts
 frontend1/vitest.config.ts
+# Python virtual environment
+.venv/
+venv/
+env/
+urbanguard-ai/.venv/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# AI/model/cache
+*.pt
+*.pth
+*.onnx
+*.h5
+*.pkl
+*.joblib
+
+# Node
+node_modules/
+dist/
+build/
+
+# Env
+.env
