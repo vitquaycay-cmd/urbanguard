@@ -444,3 +444,21 @@
     bottom: 84px;
   }
 }
+.ug-current-location-marker {
+  background: transparent !important;
+  border: none !important;
+}
+
+.danger-marker-popup .leaflet-popup-content-wrapper {
+  border-radius: 20px;
+}
+
+.ug-popup__badge--danger {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.ug-popup__badge--safe {
+  background: #ecfdf5;
+  color: #15803d;
+}

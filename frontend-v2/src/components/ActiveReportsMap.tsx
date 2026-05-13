@@ -2,33 +2,71 @@ import IncidentRouteControl from "@/components/IncidentRouteControl";
 import { DangerMarkersGroup } from "@/components/map/DangerMarkersGroup";
 import { DangerZoneCircle } from "@/components/map/DangerZoneCircle";
 import { dangerZoneRadiusMeters } from "@/lib/dangerMarkerTheme";
-import {
-  fetchActiveReports,
-  MAP_API_BASE,
-} from "@/lib/mapActiveReports";
-import type { ActiveReport } from "@/lib/mapActiveReports"; // 🔗 KẾT NỐI: Sử dụng import type
+import { fetchActiveReports, MAP_API_BASE } from "@/lib/mapActiveReports";
+import type { ActiveReport } from "@/lib/mapActiveReports";
 import type { LatLngLiteral } from "@/lib/routingAvoidance";
 import { getValidatedReportsForRouting } from "@/services/routingService";
-import { getHeatmapData } from "@/services/statistics.api"; // 🔗 KẾT NỐI: API Heatmap
+import { getHeatmapData } from "@/services/statistics.api";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "leaflet.markercluster/dist/MarkerCluster.css";
 import "leaflet.markercluster/dist/MarkerCluster.Default.css";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  CircleMarker,
+  MapContainer,
+  Marker,
+  Polyline,
+  TileLayer,
+  Tooltip,
+  useMap,
+  useMapEvents,
+  ZoomControl,
+} from "react-leaflet";
 import { Link } from "react-router-dom";
 import { io, type Socket } from "socket.io-client";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { MapContainer, TileLayer, useMap, ZoomControl, CircleMarker } from "react-leaflet";
 
-// 🔗 KẾT NỐI: Workaround cho lỗi type React 19 & React-Leaflet v5
 const MapContainerComp = MapContainer as any;
 const TileLayerComp = TileLayer as any;
 const CircleMarkerComp = CircleMarker as any;
+const PolylineComp = Polyline as any;
+const MarkerComp = Marker as any;
+const TooltipComp = Tooltip as any;
 
 export type { ActiveReport };
 
 const CLUSTER_AUTO_THRESHOLD = 12;
 const DEFAULT_CENTER: L.LatLngExpression = [10.762622, 106.660172];
-const DEFAULT_ZOOM = 12;
+const DEFAULT_ZOOM = 13;
+
+type LatLngTuple = [number, number];
+
+const currentLocationIcon = L.divIcon({
+  className: "ug-current-location-marker",
+  html: `
+    <div style="
+      width:18px;
+      height:18px;
+      border-radius:999px;
+      background:#2563eb;
+      border:3px solid white;
+      box-shadow:0 0 0 8px rgba(37,99,235,.2);
+    "></div>
+  `,
+  iconSize: [18, 18],
+  iconAnchor: [9, 9],
+});
+
+function isValidLatLng(lat: number, lng: number) {
+  return (
+    Number.isFinite(lat) &&
+    Number.isFinite(lng) &&
+    lat >= -90 &&
+    lat <= 90 &&
+    lng >= -180 &&
+    lng <= 180
+  );
+}
 
 function useDebouncedValue<T>(value: T, ms: number): T {
   const [debounced, setDebounced] = useState(value);
@@ -41,21 +79,59 @@ function useDebouncedValue<T>(value: T, ms: number): T {
   return debounced;
 }
 
-function FitBounds({ reports }: { reports: ActiveReport[] }) {
+function FitBounds({
+  reports,
+  currentLocation,
+}: {
+  reports: ActiveReport[];
+  currentLocation: LatLngTuple | null;
+}) {
   const map = useMap();
 
   useEffect(() => {
-    if (reports.length === 0) {
-      map.setView(DEFAULT_CENTER, DEFAULT_ZOOM);
+    if (currentLocation) {
+      map.setView(currentLocation, 15);
       return;
     }
 
-    const bounds = L.latLngBounds(
-      reports.map((r) => [r.latitude, r.longitude] as L.LatLngTuple),
-    );
+    const validPoints = reports
+      .filter((r) => isValidLatLng(r.latitude, r.longitude))
+      .map((r) => [r.latitude, r.longitude] as L.LatLngTuple);
 
-    map.fitBounds(bounds, { padding: [100, 56], maxZoom: 16 });
-  }, [map, reports]);
+    if (validPoints.length > 0) {
+      const bounds = L.latLngBounds(validPoints);
+      map.fitBounds(bounds, { padding: [100, 56], maxZoom: 16 });
+      return;
+    }
+
+    map.setView(DEFAULT_CENTER, DEFAULT_ZOOM);
+  }, [map, reports, currentLocation]);
+
+  return null;
+}
+
+function FitSafeRoute({ safeRoute }: { safeRoute: LatLngTuple[] }) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (safeRoute.length < 2) return;
+    const bounds = L.latLngBounds(safeRoute as L.LatLngTuple[]);
+    map.fitBounds(bounds, { padding: [80, 80], maxZoom: 17 });
+  }, [map, safeRoute]);
+
+  return null;
+}
+
+function PickRoutePoint({
+  onPickPoint,
+}: {
+  onPickPoint?: (point: LatLngTuple) => void;
+}) {
+  useMapEvents({
+    click(e) {
+      onPickPoint?.([e.latlng.lat, e.latlng.lng]);
+    },
+  });
 
   return null;
 }
@@ -76,9 +152,7 @@ function SearchOverlay() {
 
         <div className="ug-search-copy">
           <div className="ug-search-brand">UrbanGuard Search</div>
-          <div className="ug-search-sub">
-            Tìm địa điểm, tuyến đường hoặc khu vực sự cố
-          </div>
+          <div className="ug-search-sub">Tìm địa điểm, tuyến đường hoặc khu vực sự cố</div>
         </div>
       </div>
     </div>
@@ -92,24 +166,34 @@ type MessageBannerProps = {
 
 function MessageBanner({ text, type = "warning" }: MessageBannerProps) {
   if (!text) return null;
-
   return <div className={`ug-banner ug-banner--${type}`}>{text}</div>;
 }
 
 type ActiveReportsMapProps = {
   enableMarkerClustering?: boolean;
+  safeRoute?: LatLngTuple[];
+  startPoint?: LatLngTuple | null;
+  endPoint?: LatLngTuple | null;
+  onPickPoint?: (point: LatLngTuple) => void;
+  onValidatedReportsChange?: (reports: ActiveReport[]) => void;
 };
 
 export default function ActiveReportsMap({
   enableMarkerClustering,
+  safeRoute = [],
+  startPoint = null,
+  endPoint = null,
+  onPickPoint,
+  onValidatedReportsChange,
 }: ActiveReportsMapProps = {}) {
   const [reports, setReports] = useState<ActiveReport[]>([]);
-  const [heatmapPoints, setHeatmapPoints] = useState<[number, number, number][]>([]); // 🔗 KẾT NỐI: Data heatmap
+  const [heatmapPoints, setHeatmapPoints] = useState<[number, number, number][]>([]);
   const [showHeatmap, setShowHeatmap] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [routeWarning, setRouteWarning] = useState("");
   const [routeCoords, setRouteCoords] = useState<LatLngLiteral[] | null>(null);
+  const [currentLocation, setCurrentLocation] = useState<LatLngTuple | null>(null);
   const [entranceReportIds, setEntranceReportIds] = useState<Set<number>>(
     () => new Set(),
   );
@@ -117,16 +201,34 @@ export default function ActiveReportsMap({
   const skipInitialEntranceRef = useRef(true);
   const prevValidatedIdsRef = useRef<Set<number>>(new Set());
 
+  useEffect(() => {
+    if (!navigator.geolocation) {
+      console.warn("Trình duyệt không hỗ trợ định vị.");
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setCurrentLocation([pos.coords.latitude, pos.coords.longitude]);
+      },
+      (err) => {
+        console.warn("Không lấy được vị trí hiện tại:", err.message);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 12000,
+        maximumAge: 60000,
+      },
+    );
+  }, []);
+
   const handleAvoidanceMessage = useCallback((msg: string) => {
     setRouteWarning(msg);
   }, []);
 
-  const handleRouteGeometryChange = useCallback(
-    (coords: LatLngLiteral[] | null) => {
-      setRouteCoords(coords);
-    },
-    [],
-  );
+  const handleRouteGeometryChange = useCallback((coords: LatLngLiteral[] | null) => {
+    setRouteCoords(coords);
+  }, []);
 
   const loadReports = useCallback(async (signal?: AbortSignal) => {
     try {
@@ -141,7 +243,6 @@ export default function ActiveReportsMap({
     }
   }, []);
 
-  // 🔗 KẾT NỐI: Tải dữ liệu heatmap từ Backend 
   const loadHeatmap = useCallback(async () => {
     try {
       const data = await getHeatmapData();
@@ -156,6 +257,7 @@ export default function ActiveReportsMap({
     setLoading(true);
     void loadReports(ac.signal);
     void loadHeatmap();
+
     return () => ac.abort();
   }, [loadReports, loadHeatmap]);
 
@@ -178,11 +280,10 @@ export default function ActiveReportsMap({
 
       if (p && ("report" in p || typeof p.id === "number")) {
         void loadReports();
-        void loadHeatmap(); // Làm mới khi có sự cố mới
+        void loadHeatmap();
       }
     };
 
-    // 🔗 KẾT NỐI: Lắng nghe sự kiện report:update (RESOLVED/REJECTED) từ Backend
     const onReportUpdate = () => {
       void loadReports();
       void loadHeatmap();
@@ -193,7 +294,7 @@ export default function ActiveReportsMap({
     };
 
     socket.on("report:new", onReportNew);
-    socket.on("report:update", onReportUpdate); // 🔗 KẾT NỐI: Xử lý cập nhật real-time
+    socket.on("report:update", onReportUpdate);
     socket.on("connect_error", onConnectError);
 
     return () => {
@@ -209,10 +310,14 @@ export default function ActiveReportsMap({
       reports.filter(
         (r) =>
           String(r.status).toUpperCase() === "VALIDATED" &&
-          Number(r.trustScore) > 0,
+          isValidLatLng(r.latitude, r.longitude),
       ),
     [reports],
   );
+
+  useEffect(() => {
+    onValidatedReportsChange?.(validatedReports);
+  }, [validatedReports, onValidatedReportsChange]);
 
   useEffect(() => {
     const next = new Set(validatedReports.map((r) => r.id));
@@ -256,11 +361,11 @@ export default function ActiveReportsMap({
         </div>
       )}
 
-      {/* 🔗 KẾT NỐI: Nút chuyển đổi chế độ Bản đồ nhiệt */}
       <div className="ug-map-controls-overlay">
-        <button 
-          className={`ug-btn-toggle ${showHeatmap ? 'ug-btn-toggle--active' : ''}`}
-          onClick={() => setShowHeatmap(!showHeatmap)}
+        <button
+          type="button"
+          className={`ug-btn-toggle ${showHeatmap ? "ug-btn-toggle--active" : ""}`}
+          onClick={() => setShowHeatmap((v) => !v)}
         >
           {showHeatmap ? "🔥 Heatmap: ON" : "📍 Markers: ON"}
         </button>
@@ -279,7 +384,38 @@ export default function ActiveReportsMap({
         />
 
         <ZoomControl position="bottomleft" />
-        <FitBounds reports={validatedReports} />
+
+        {safeRoute.length > 0 ? (
+          <FitSafeRoute safeRoute={safeRoute} />
+        ) : (
+          <FitBounds reports={validatedReports} currentLocation={currentLocation} />
+        )}
+
+        <PickRoutePoint onPickPoint={onPickPoint} />
+
+        {currentLocation && (
+          <MarkerComp position={currentLocation} icon={currentLocationIcon}>
+            <TooltipComp permanent direction="top" offset={[0, -12]}>
+              Vị trí của bạn
+            </TooltipComp>
+          </MarkerComp>
+        )}
+
+        {startPoint && (
+          <MarkerComp position={startPoint}>
+            <TooltipComp permanent direction="top" offset={[0, -12]}>
+              A
+            </TooltipComp>
+          </MarkerComp>
+        )}
+
+        {endPoint && (
+          <MarkerComp position={endPoint}>
+            <TooltipComp permanent direction="top" offset={[0, -12]}>
+              B
+            </TooltipComp>
+          </MarkerComp>
+        )}
 
         <IncidentRouteControl
           incidents={reportsForRouting}
@@ -287,20 +423,31 @@ export default function ActiveReportsMap({
           onRouteGeometryChange={handleRouteGeometryChange}
         />
 
-        {/* 🔗 KẾT NỐI: Rendering Heatmap Layer */}
-        {showHeatmap && heatmapPoints.map((p, idx) => (
-          <CircleMarkerComp
-            key={`heat-${idx}`}
-            center={[p[0], p[1]]}
-            radius={25 + p[2] * 15}
+        {safeRoute.length > 0 && (
+          <PolylineComp
+            positions={safeRoute}
             pathOptions={{
-              fillColor: p[2] > 0.6 ? '#ff0000' : p[2] > 0.3 ? '#ffae00' : '#ffff00',
-              fillOpacity: 0.15 + p[2] * 0.3,
-              stroke: false,
-              interactive: false
+              color: "#16a34a",
+              weight: 6,
+              opacity: 0.95,
             }}
           />
-        ))}
+        )}
+
+        {showHeatmap &&
+          heatmapPoints.map((p, idx) => (
+            <CircleMarkerComp
+              key={`heat-${idx}`}
+              center={[p[0], p[1]]}
+              radius={25 + p[2] * 15}
+              pathOptions={{
+                fillColor: p[2] > 0.6 ? "#ff0000" : p[2] > 0.3 ? "#ffae00" : "#ffff00",
+                fillOpacity: 0.15 + p[2] * 0.3,
+                stroke: false,
+                interactive: false,
+              }}
+            />
+          ))}
 
         {!showHeatmap && (
           <>
@@ -337,9 +484,11 @@ export default function ActiveReportsMap({
 
       <div className="ug-map-footer">
         <div className="ug-map-footer-card">
-          {routeCoords
-            ? "Tuyến đang hiển thị — kéo waypoint để đổi lộ trình. Vào đệm quanh sự cố sẽ có cảnh báo và thử né tự động."
-            : "Chọn điểm đi / đến trên bản đồ để xem tuyến OSRM."}
+          {safeRoute.length > 0
+            ? "Đang hiển thị tuyến đường an toàn do AI đề xuất."
+            : routeCoords
+              ? "Tuyến đang hiển thị — kéo waypoint để đổi lộ trình. Vào đệm quanh sự cố sẽ có cảnh báo và thử né tự động."
+              : "Click trên bản đồ để chọn điểm bắt đầu và điểm kết thúc, sau đó bấm Tìm đường an toàn."}
 
           {clustering && !showHeatmap && (
             <div className="ug-map-footer-sub">
