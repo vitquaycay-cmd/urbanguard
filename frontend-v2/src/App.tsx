@@ -16,6 +16,7 @@ import AccountManagementPage from "@/pages/AccountManagementPage";
 import SettingsPage from "@/pages/SettingsPage";
 import ForumPage from "@/pages/ForumPage";
 import ReportManagementPage from "@/pages/ReportManagementPage";
+import LandingPage from "@/pages/LandingPage";
 
 function AppContent() {
   const { user } = useCurrentUser();
@@ -147,7 +148,7 @@ function AppContent() {
           }
         />
 
-        <Route path="/" element={<Navigate to="/login" replace />} />
+        <Route path="/" element={<LandingPage />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
       <BannedModal open={isBanned} onClose={() => setIsBanned(false)} />

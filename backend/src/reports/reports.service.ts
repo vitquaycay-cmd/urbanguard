@@ -249,7 +249,7 @@ export class ReportsService {
         userId,
         status: ReportStatus.PENDING,
         trustScore: 0,
-        updated_at: new Date(),
+        updatedAt: new Date(),
       },
       select: { id: true },
     });

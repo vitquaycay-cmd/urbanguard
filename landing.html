@@ -1,0 +1,1549 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>UrbanGuard — Traffic Safety Monitor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --brand-700: #15803d;
+    --brand-600: #16a34a;
+    --brand-500: #22c55e;
+    --brand-100: #bbf7d0;
+    --bg-cream:  #f5f2ed;
+    --bg-mint:   #f1faf3;
+    --ink:       #0f1f15;
+    --ink-soft:  rgba(15,31,21,0.62);
+    --ink-faint: rgba(15,31,21,0.32);
+    --rule:      rgba(15,31,21,0.10);
+    --field:     #f5f3ff;
+    --field-bd:  #e6e3f5;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0; min-height: 100vh; width: 100%;
+    background: var(--bg-cream);
+    color: var(--ink);
+    font-family: "Plus Jakarta Sans", "Inter", system-ui, sans-serif;
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ============ PHASE 1 — GLOBE INTRO ============ */
+  .phase1 {
+    position: fixed; inset: 0;
+    background:
+      radial-gradient(ellipse at 50% 38%, #f8f6ee 0%, #efece4 55%, #e6e2d5 100%);
+    display: grid; place-items: center;
+    z-index: 5;
+    transition: opacity 800ms ease;
+    overflow: hidden;
+  }
+  .phase1.hidden { opacity: 0; pointer-events: none; }
+  .globe-stage {
+    position: fixed; inset: 0;
+    width: 100vw;
+    height: 100vh;
+    max-width: none;
+    aspect-ratio: auto;
+    filter: drop-shadow(0 30px 60px rgba(22,163,74,0.18));
+  }
+  /* Atmospheric halo behind globe */
+  .halo {
+    position: absolute; inset: -10%;
+    z-index: 0; pointer-events: none;
+    background:
+      radial-gradient(circle at 50% 50%,
+        rgba(187,247,208,0.55) 0%,
+        rgba(134,239,172,0.32) 28%,
+        rgba(22,163,74,0.14) 44%,
+        rgba(22,163,74,0)    62%);
+    animation: haloBreathe 5s ease-in-out infinite;
+  }
+  @keyframes haloBreathe {
+    0%,100% { opacity: 0.85; transform: scale(1); }
+    50%     { opacity: 1;    transform: scale(1.04); }
+  }
+  /* Subtle starfield */
+  .stars {
+    position: absolute; inset: -40%;
+    z-index: 0; pointer-events: none;
+    background-image:
+      radial-gradient(1px 1px at 12% 18%, rgba(15,31,21,0.55) 50%, transparent 51%),
+      radial-gradient(1px 1px at 84% 22%, rgba(22,163,74,0.65) 50%, transparent 51%),
+      radial-gradient(1px 1px at 28% 72%, rgba(15,31,21,0.4)  50%, transparent 51%),
+      radial-gradient(1px 1px at 72% 86%, rgba(22,163,74,0.55) 50%, transparent 51%),
+      radial-gradient(1px 1px at 56% 12%, rgba(15,31,21,0.35) 50%, transparent 51%),
+      radial-gradient(1px 1px at 8%  62%, rgba(22,163,74,0.4)  50%, transparent 51%),
+      radial-gradient(1px 1px at 92% 54%, rgba(15,31,21,0.4)  50%, transparent 51%),
+      radial-gradient(1px 1px at 38% 38%, rgba(15,31,21,0.3)  50%, transparent 51%);
+    animation: twinkle 4s ease-in-out infinite;
+  }
+  @keyframes twinkle {
+    0%,100% { opacity: 0.55; }
+    50%     { opacity: 1; }
+  }
+  canvas.globe {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    z-index: 2;
+  }
+  /* Conic sweep light overlaid on globe */
+  .sweep {
+    position: absolute; inset: 0;
+    z-index: 3; pointer-events: none;
+    border-radius: 50%;
+    -webkit-mask: radial-gradient(circle at 50% 50%, #000 calc(50% - 2px), transparent calc(50% - 1px));
+            mask: radial-gradient(circle at 50% 50%, #000 calc(50% - 2px), transparent calc(50% - 1px));
+    background: conic-gradient(from 0deg,
+      rgba(34,197,94,0)        0deg,
+      rgba(34,197,94,0)        300deg,
+      rgba(187,247,208,0.45)   348deg,
+      rgba(255,255,255,0.55)   358deg,
+      rgba(187,247,208,0.45)   8deg,
+      rgba(34,197,94,0)        56deg,
+      rgba(34,197,94,0)        360deg);
+    animation: sweepRot 3.6s linear infinite;
+    mix-blend-mode: screen;
+    opacity: 0.85;
+  }
+  @keyframes sweepRot { to { transform: rotate(360deg); } }
+  .whirl {
+    position: absolute; inset: 0; z-index: 1; pointer-events: none;
+  }
+  .whirl svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+  .ring-a { animation: spinCW 14s linear infinite; transform-origin: 50% 50%; }
+  .ring-b { animation: spinCCW 22s linear infinite; transform-origin: 50% 50%; }
+  .ring-c { animation: spinCW 38s linear infinite; transform-origin: 50% 50%; }
+  .ring-d { animation: spinCCW 9s linear infinite;  transform-origin: 50% 50%; }
+  @keyframes spinCW  { to { transform: rotate(360deg); } }
+  @keyframes spinCCW { to { transform: rotate(-360deg); } }
+
+  .title-block {
+    position: fixed; left: 0; right: 0; top: 11vh;
+    text-align: center; z-index: 6; pointer-events: none;
+    transition: opacity 700ms ease, transform 700ms ease;
+  }
+  .eyebrow {
+    font: 500 11px/1 "Inter", sans-serif;
+    letter-spacing: 0.42em; text-transform: uppercase;
+    color: var(--ink-soft);
+    display: inline-flex; align-items: center; gap: 12px;
+    margin-bottom: 16px;
+  }
+  .eyebrow .bar { width: 28px; height: 1px; background: var(--ink-soft); display: inline-block; opacity: 0.55; }
+  .display {
+    font-family: "Cormorant Garamond", serif;
+    font-weight: 500;
+    font-size: clamp(48px, 7vw, 96px);
+    line-height: 1;
+    letter-spacing: -0.01em;
+    margin: 0;
+    color: var(--ink);
+  }
+  .display em { font-style: italic; font-weight: 400; }
+  .title-sub {
+    margin-top: 18px;
+    font: 500 12px/1 "Inter", sans-serif;
+    letter-spacing: 0.34em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+
+  .status-block {
+    position: fixed; left: 0; right: 0; bottom: 11vh;
+    text-align: center; z-index: 6;
+    transition: opacity 600ms ease;
+  }
+  .status-block .line {
+    font: 500 11px/1 "Inter", sans-serif;
+    letter-spacing: 0.36em; text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+  .status-block .line .pulse {
+    display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+    background: var(--ink); margin-right: 12px; vertical-align: middle;
+    animation: heartbeat 1.4s ease-in-out infinite;
+  }
+  @keyframes heartbeat {
+    0%,100% { opacity: 0.3; transform: scale(1); }
+    50%     { opacity: 1;   transform: scale(1.5); }
+  }
+  .coords {
+    margin-top: 12px;
+    font: 500 12px/1 "Inter", monospace;
+    font-feature-settings: "tnum" 1;
+    letter-spacing: 0.18em;
+    color: var(--ink);
+    opacity: 0;
+    transition: opacity 600ms ease;
+  }
+  .coords .sep { color: var(--ink-faint); margin: 0 14px; }
+
+  .fade-out { opacity: 0 !important; }
+  .lift     { transform: translateY(-12px); }
+
+  /* ============ PHASE 1.5 — LANDING ============ */
+  .landing {
+    position: fixed; inset: 0;
+    z-index: 4;
+    background:
+      radial-gradient(ellipse at 50% 0%, #f8f6ee 0%, #efece4 55%, #e6e2d5 100%);
+    overflow-y: auto;
+    overflow-x: hidden;
+    opacity: 0; pointer-events: none;
+    transition: opacity 800ms ease;
+  }
+  .landing.visible { opacity: 1; pointer-events: auto; }
+  .landing.hidden  { opacity: 0; pointer-events: none; }
+
+  .landing-nav {
+    position: sticky; top: 0; z-index: 5;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 22px 44px;
+    backdrop-filter: blur(10px);
+    background: rgba(248,246,238,0.78);
+    border-bottom: 1px solid var(--rule);
+  }
+  .landing-nav .brand {
+    display: inline-flex; align-items: center; gap: 12px;
+    font: 700 16px/1 "Plus Jakarta Sans", sans-serif;
+    color: var(--ink);
+    letter-spacing: -0.01em;
+  }
+  .landing-nav .brand svg { width: 22px; height: 22px; color: var(--brand-600); }
+  .landing-nav .nav-links {
+    display: inline-flex; gap: 28px;
+    font: 500 13px/1 "Inter", sans-serif;
+    color: var(--ink-soft);
+  }
+  .landing-nav .nav-links a { color: inherit; text-decoration: none; transition: color 180ms; }
+  .landing-nav .nav-links a:hover { color: var(--brand-700); }
+  .landing-nav .login-cta {
+    appearance: none; border: 0; cursor: pointer;
+    padding: 10px 22px; border-radius: 999px;
+    background: var(--brand-600); color: #fff;
+    font: 700 13px/1 "Plus Jakarta Sans", sans-serif;
+    box-shadow: 0 6px 16px -8px rgba(22,163,74,0.55);
+    transition: background 180ms, transform 80ms;
+  }
+  .landing-nav .login-cta:hover { background: var(--brand-700); }
+  .landing-nav .login-cta:active { transform: translateY(1px); }
+
+  .hero {
+    min-height: calc(100vh - 70px);
+    display: grid;
+    grid-template-columns: 1.1fr 1fr;
+    align-items: center;
+    gap: 48px;
+    padding: 80px 88px 100px;
+    position: relative;
+  }
+  .hero-text .eyebrow-l {
+    font: 500 11px/1 "Inter", sans-serif;
+    letter-spacing: 0.42em; text-transform: uppercase;
+    color: var(--brand-700);
+    display: inline-flex; align-items: center; gap: 12px;
+    margin-bottom: 28px;
+  }
+  .hero-text .eyebrow-l .bar { width: 28px; height: 1px; background: var(--brand-700); display: inline-block; opacity: 0.7; }
+  .hero h1 {
+    font-family: "Cormorant Garamond", serif;
+    font-weight: 500;
+    font-size: clamp(56px, 6.4vw, 104px);
+    line-height: 0.98;
+    letter-spacing: -0.015em;
+    margin: 0 0 28px;
+    color: var(--ink);
+  }
+  .hero h1 em { font-style: italic; color: var(--brand-700); font-weight: 400; }
+  .hero-text .lede {
+    font: 400 19px/1.55 "Inter", sans-serif;
+    color: var(--ink-soft);
+    max-width: 520px;
+    margin: 0 0 38px;
+  }
+  .hero-ctas { display: flex; gap: 14px; flex-wrap: wrap; }
+  .btn-primary, .btn-ghost {
+    appearance: none; border: 0; cursor: pointer;
+    height: 52px; padding: 0 28px; border-radius: 12px;
+    font: 700 14px/1 "Plus Jakarta Sans", sans-serif;
+    display: inline-flex; align-items: center; gap: 10px;
+    transition: all 200ms ease;
+  }
+  .btn-primary {
+    background: var(--brand-600); color: #fff;
+    box-shadow: 0 12px 28px -14px rgba(22,163,74,0.65);
+  }
+  .btn-primary:hover { background: var(--brand-700); transform: translateY(-1px); }
+  .btn-ghost {
+    background: transparent; color: var(--ink);
+    border: 1px solid var(--rule);
+  }
+  .btn-ghost:hover { background: rgba(15,31,21,0.04); border-color: rgba(15,31,21,0.2); }
+
+  .hero-meta {
+    margin-top: 44px;
+    display: flex; gap: 36px;
+    padding-top: 28px;
+    border-top: 1px solid var(--rule);
+  }
+  .hero-meta .stat .num {
+    font: 600 28px/1 "Cormorant Garamond", serif;
+    color: var(--brand-700);
+  }
+  .hero-meta .stat .lbl {
+    font: 500 11px/1 "Inter", sans-serif;
+    letter-spacing: 0.16em; text-transform: uppercase;
+    color: var(--ink-soft); margin-top: 6px;
+  }
+
+  /* Mini globe in hero */
+  .hero-globe {
+    position: relative;
+    aspect-ratio: 1 / 1;
+    width: 100%;
+    max-width: 520px;
+    margin: 0 auto;
+  }
+  .hero-globe canvas {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+  }
+  .hero-globe .h-whirl { position: absolute; inset: 0; pointer-events: none; }
+  .hero-globe .h-whirl svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+  .h-ring-a { animation: spinCW 18s linear infinite; transform-origin: 50% 50%; }
+  .h-ring-b { animation: spinCCW 26s linear infinite; transform-origin: 50% 50%; }
+
+  /* Audience sections */
+  .audience {
+    padding: 90px 88px;
+    background: #fbfaf6;
+    border-top: 1px solid var(--rule);
+  }
+  .audience.alt { background: var(--brand-700); color: #fff; border-top: 0; }
+  .audience-head {
+    display: flex; justify-content: space-between; align-items: flex-end;
+    margin-bottom: 56px; gap: 40px; flex-wrap: wrap;
+  }
+  .audience-head .label {
+    font: 500 11px/1 "Inter", sans-serif;
+    letter-spacing: 0.42em; text-transform: uppercase;
+    color: var(--brand-700);
+    margin-bottom: 14px;
+  }
+  .audience.alt .audience-head .label { color: rgba(255,255,255,0.7); }
+  .audience h2 {
+    font: 500 clamp(38px, 4.4vw, 64px)/1.05 "Cormorant Garamond", serif;
+    margin: 0;
+    max-width: 720px;
+    letter-spacing: -0.01em;
+  }
+  .audience h2 em { color: var(--brand-700); font-style: italic; }
+  .audience.alt h2 em { color: var(--brand-100); }
+  .audience-head .side-note {
+    max-width: 320px;
+    font: 400 15px/1.5 "Inter", sans-serif;
+    color: var(--ink-soft);
+  }
+  .audience.alt .audience-head .side-note { color: rgba(255,255,255,0.78); }
+
+  .audience-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 28px;
+  }
+  .a-card {
+    background: #fff;
+    border: 1px solid var(--rule);
+    border-radius: 16px;
+    padding: 28px;
+  }
+  .audience.alt .a-card {
+    background: rgba(255,255,255,0.06);
+    border-color: rgba(255,255,255,0.16);
+    color: #fff;
+  }
+  .a-card .ico {
+    width: 44px; height: 44px;
+    border-radius: 12px;
+    background: var(--bg-mint);
+    display: grid; place-items: center;
+    color: var(--brand-700);
+    margin-bottom: 22px;
+  }
+  .audience.alt .a-card .ico { background: rgba(255,255,255,0.12); color: #fff; }
+  .a-card .ico svg { width: 22px; height: 22px; }
+  .a-card h3 {
+    font: 700 18px/1.3 "Plus Jakarta Sans", sans-serif;
+    margin: 0 0 10px;
+    letter-spacing: -0.005em;
+  }
+  .a-card p {
+    font: 400 14px/1.55 "Inter", sans-serif;
+    color: var(--ink-soft);
+    margin: 0;
+  }
+  .audience.alt .a-card p { color: rgba(255,255,255,0.78); }
+
+  .closing-cta {
+    padding: 110px 88px;
+    text-align: center;
+  }
+  .closing-cta h2 {
+    font: 500 clamp(48px, 5.6vw, 88px)/1 "Cormorant Garamond", serif;
+    margin: 0 0 18px;
+    letter-spacing: -0.015em;
+  }
+  .closing-cta h2 em { color: var(--brand-700); font-style: italic; }
+  .closing-cta p {
+    font: 400 17px/1.55 "Inter", sans-serif;
+    color: var(--ink-soft);
+    max-width: 520px; margin: 0 auto 36px;
+  }
+  .footer {
+    padding: 36px 88px;
+    border-top: 1px solid var(--rule);
+    display: flex; justify-content: space-between;
+    font: 500 12px/1 "Inter", sans-serif;
+    color: var(--ink-soft); letter-spacing: 0.04em;
+  }
+
+  @media (max-width: 900px) {
+    .hero { grid-template-columns: 1fr; padding: 56px 28px 80px; gap: 36px; }
+    .audience, .closing-cta, .footer { padding-left: 28px; padding-right: 28px; }
+    .audience-grid { grid-template-columns: 1fr; }
+    .landing-nav { padding: 18px 24px; }
+    .landing-nav .nav-links { display: none; }
+  }
+
+  /* ============ PHASE 2 — LANDING / LOGIN ============ */
+  .phase2 {
+    position: fixed; inset: 0;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    z-index: 4;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 800ms ease;
+  }
+  .phase2.visible { opacity: 1; pointer-events: auto; }
+  .phase2.hidden { opacity: 0; pointer-events: none; }
+
+  /* LEFT — green brand panel */
+  .panel-brand {
+    position: relative;
+    background:
+      radial-gradient(ellipse at 0% 100%, rgba(255,255,255,0.18), transparent 60%),
+      linear-gradient(135deg, var(--brand-700) 0%, var(--brand-600) 100%);
+    color: #fff;
+    padding: 60px 72px;
+    display: flex; flex-direction: column; justify-content: center;
+    overflow: hidden;
+    transform: translateX(-8%);
+    transition: transform 900ms cubic-bezier(.2,.7,.2,1);
+  }
+  .phase2.visible .panel-brand { transform: translateX(0); }
+
+  .deco {
+    position: absolute; inset: 0; pointer-events: none;
+    color: rgba(255,255,255,0.12);
+  }
+  .deco svg { position: absolute; }
+  .deco .d-car      { top: 6%;  left: 6%;   width: 170px; }
+  .deco .d-tri      { top: 14%; right: 10%; width: 140px; }
+  .deco .d-pin      { top: 36%; left: 32%;  width: 16px;  }
+  .deco .d-pin-big  { top: 56%; left: 38%;  width: 110px; }
+
+  .logo-shield {
+    width: 56px; height: 56px;
+    color: #fff;
+    margin-bottom: 36px;
+    position: relative; z-index: 2;
+    opacity: 0; transform: translateY(8px);
+    transition: opacity 600ms ease 200ms, transform 600ms ease 200ms;
+  }
+  .phase2.visible .logo-shield { opacity: 1; transform: translateY(0); }
+
+  .panel-brand h1 {
+    position: relative; z-index: 2;
+    font: 800 clamp(44px, 5vw, 68px)/1 "Plus Jakarta Sans", sans-serif;
+    letter-spacing: -0.02em;
+    margin: 0 0 8px;
+    opacity: 0; transform: translateY(8px);
+    transition: opacity 600ms ease 280ms, transform 600ms ease 280ms;
+  }
+  .phase2.visible .panel-brand h1 { opacity: 1; transform: translateY(0); }
+  .panel-brand .tagline {
+    position: relative; z-index: 2;
+    font: 500 16px/1.4 "Inter", sans-serif;
+    color: rgba(255,255,255,0.85);
+    margin: 0 0 44px;
+    opacity: 0; transform: translateY(8px);
+    transition: opacity 600ms ease 360ms, transform 600ms ease 360ms;
+  }
+  .phase2.visible .panel-brand .tagline { opacity: 1; transform: translateY(0); }
+
+  .features {
+    position: relative; z-index: 2;
+    display: flex; flex-direction: column; gap: 22px;
+    max-width: 380px;
+  }
+  .feat {
+    display: flex; gap: 14px; align-items: flex-start;
+    opacity: 0; transform: translateX(-10px);
+    transition: opacity 500ms ease, transform 500ms ease;
+  }
+  .phase2.visible .feat { opacity: 1; transform: translateX(0); }
+  .phase2.visible .feat:nth-child(1) { transition-delay: 480ms; }
+  .phase2.visible .feat:nth-child(2) { transition-delay: 580ms; }
+  .phase2.visible .feat:nth-child(3) { transition-delay: 680ms; }
+  .feat .ico {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: rgba(255,255,255,0.18);
+    display: grid; place-items: center;
+    flex: 0 0 32px;
+    color: #fff;
+  }
+  .feat .ico svg { width: 16px; height: 16px; }
+  .feat .ft-title { font: 700 15px/1.2 "Plus Jakarta Sans", sans-serif; margin-bottom: 4px; color: #fff; }
+  .feat .ft-sub { font: 400 13px/1.45 "Inter", sans-serif; color: rgba(255,255,255,0.78); }
+
+  /* RIGHT — login form */
+  .panel-form {
+    background: var(--bg-mint);
+    display: grid; place-items: center;
+    padding: 40px;
+    position: relative;
+    transform: translateX(8%);
+    transition: transform 900ms cubic-bezier(.2,.7,.2,1);
+  }
+  .phase2.visible .panel-form { transform: translateX(0); }
+
+  .card {
+    width: 100%; max-width: 400px;
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 30px 60px -30px rgba(15,31,21,0.18),
+                0 8px 24px -12px rgba(15,31,21,0.08);
+    padding: 36px 32px 32px;
+    opacity: 0; transform: translateY(16px);
+    transition: opacity 700ms ease 300ms, transform 700ms ease 300ms;
+  }
+  .phase2.visible .card { opacity: 1; transform: translateY(0); }
+
+  .bear { width: 76px; height: 76px; margin: -8px auto 22px; display: block; }
+
+  .tabs {
+    display: grid; grid-template-columns: 1fr 1fr;
+    background: #f3f4f6; border-radius: 10px;
+    padding: 4px; margin-bottom: 22px; position: relative;
+  }
+  .tabs button {
+    appearance: none; border: 0; background: transparent;
+    padding: 10px 0; cursor: pointer;
+    font: 600 13px/1 "Plus Jakarta Sans", sans-serif;
+    color: var(--ink-soft);
+    border-radius: 8px;
+    transition: color 250ms ease;
+    position: relative; z-index: 2;
+  }
+  .tabs button.active { color: var(--ink); }
+  .tabs .indicator {
+    position: absolute; top: 4px; bottom: 4px;
+    width: calc(50% - 4px);
+    background: #fff; border-radius: 8px;
+    box-shadow: 0 2px 6px rgba(15,31,21,0.06);
+    transition: transform 280ms cubic-bezier(.2,.8,.2,1);
+    left: 4px;
+  }
+  .tabs.tab-1 .indicator { transform: translateX(100%); }
+
+  .field { margin-bottom: 16px; }
+  .field label {
+    display: block;
+    font: 600 11px/1 "Inter", sans-serif;
+    letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--ink-soft);
+    margin-bottom: 8px;
+  }
+  .input { position: relative; }
+  .input svg.lead {
+    position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+    width: 16px; height: 16px; color: var(--ink-faint);
+  }
+  .input button.eye {
+    position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+    width: 28px; height: 28px; display: grid; place-items: center;
+    border: 0; background: transparent; cursor: pointer;
+    color: var(--ink-faint);
+  }
+  .input input {
+    width: 100%; height: 44px;
+    padding: 0 38px 0 40px;
+    border-radius: 10px;
+    border: 1px solid var(--field-bd);
+    background: var(--field);
+    font: 500 14px/1 "Inter", sans-serif;
+    color: var(--ink);
+    outline: none;
+    transition: border-color 200ms, box-shadow 200ms, background 200ms;
+  }
+  .input input:focus {
+    border-color: var(--brand-500);
+    background: #fff;
+    box-shadow: 0 0 0 4px rgba(34,197,94,0.12);
+  }
+  .submit {
+    width: 100%; height: 46px;
+    border: 0; border-radius: 10px;
+    background: var(--brand-600);
+    color: #fff;
+    font: 700 14px/1 "Plus Jakarta Sans", sans-serif;
+    cursor: pointer; margin-top: 10px;
+    box-shadow: 0 8px 20px -10px rgba(22,163,74,0.55);
+    transition: background 180ms, transform 80ms;
+    display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+  }
+  .submit:hover { background: var(--brand-700); }
+  .submit:active { transform: translateY(1px); }
+  .submit .spinner {
+    display: none;
+    width: 16px; height: 16px;
+    border: 2px solid rgba(255,255,255,0.4);
+    border-top-color: #fff; border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  .submit.loading { pointer-events: none; background: var(--brand-700); }
+  .submit.loading .spinner { display: inline-block; }
+  .submit.loading .label-go { display: none; }
+  .submit.loading .label-loading { display: inline; }
+  .submit .label-loading { display: none; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Phase 2 slide-up exit */
+  .phase2.exit-up { transform: translateY(-30px); opacity: 0; transition: opacity 700ms ease, transform 700ms ease; }
+
+  /* ============ PHASE 3 — DASHBOARD ============ */
+  .welcome {
+    position: fixed; inset: 0;
+    display: grid; place-items: center;
+    z-index: 6;
+    background: var(--bg-mint);
+    opacity: 0; pointer-events: none;
+    transition: opacity 600ms ease;
+  }
+  .welcome.visible { opacity: 1; }
+  .welcome.fade-out { opacity: 0; }
+  .welcome-text {
+    text-align: center;
+    transform: translateY(8px);
+    opacity: 0;
+    transition: opacity 700ms ease 200ms, transform 700ms ease 200ms;
+  }
+  .welcome.visible .welcome-text { opacity: 1; transform: translateY(0); }
+  .welcome h2 {
+    font: 600 clamp(36px, 4.5vw, 56px)/1.1 "Cormorant Garamond", serif;
+    color: var(--ink); margin: 0 0 12px;
+  }
+  .welcome h2 em { color: var(--brand-600); font-style: italic; }
+  .welcome p {
+    font: 500 13px/1 "Inter", sans-serif;
+    letter-spacing: 0.3em; text-transform: uppercase;
+    color: var(--ink-soft); margin: 0;
+  }
+
+  .phase3 {
+    position: fixed; inset: 0;
+    background: var(--bg-mint);
+    z-index: 3;
+    opacity: 0; pointer-events: none;
+    transition: opacity 800ms ease;
+    display: flex; flex-direction: column;
+  }
+  .phase3.visible { opacity: 1; pointer-events: auto; }
+
+  .topbar {
+    height: 64px; flex: 0 0 64px;
+    background: #fff;
+    border-bottom: 1px solid var(--rule);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 28px;
+  }
+  .topbar .brand {
+    display: inline-flex; align-items: center; gap: 12px;
+    font: 700 16px/1 "Plus Jakarta Sans", sans-serif;
+    color: var(--ink);
+  }
+  .topbar .brand svg { width: 22px; height: 22px; color: var(--brand-600); }
+  .topbar .greet {
+    display: inline-flex; align-items: center; gap: 12px;
+    font: 500 13px/1 "Inter", sans-serif;
+    color: var(--ink-soft);
+  }
+  .topbar .greet .avatar {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: var(--brand-600); color: #fff;
+    display: grid; place-items: center;
+    font: 700 12px/1 "Plus Jakarta Sans", sans-serif;
+  }
+  .topbar .greet .name { color: var(--ink); font-weight: 700; }
+
+  .map-area {
+    flex: 1; position: relative; padding: 24px;
+  }
+  .map-card {
+    position: relative;
+    width: 100%; height: 100%;
+    background: #fff;
+    border: 1px solid var(--rule);
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 16px 36px -20px rgba(15,31,21,0.18);
+  }
+  .map-card iframe { width: 100%; height: 100%; border: 0; display: block; }
+
+  .map-badge {
+    position: absolute; top: 18px; left: 18px;
+    background: rgba(255,255,255,0.95);
+    backdrop-filter: blur(8px);
+    border: 1px solid var(--rule); border-radius: 999px;
+    padding: 10px 18px;
+    display: inline-flex; align-items: center; gap: 12px;
+    font: 500 12px/1 "Inter", sans-serif;
+    z-index: 2;
+  }
+  .map-badge .gdot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--brand-500);
+    box-shadow: 0 0 0 0 rgba(34,197,94,0.5);
+    animation: gpulse 1.5s ease-out infinite;
+  }
+  @keyframes gpulse {
+    0%   { box-shadow: 0 0 0 0 rgba(34,197,94,0.55); }
+    100% { box-shadow: 0 0 0 12px rgba(34,197,94,0); }
+  }
+  .map-badge .name { font-weight: 700; color: var(--ink); }
+  .map-badge .div { width: 1px; height: 12px; background: var(--ink-faint); }
+
+  @media (max-width: 760px) {
+    .phase2 { grid-template-columns: 1fr; }
+    .panel-brand { padding: 36px 28px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .ring-a, .ring-b, .ring-c, .ring-d, .pulse, .gdot, .halo, .stars, .sweep { animation: none !important; }
+  }
+</style>
+</head>
+<body>
+
+  <!-- ============ PHASE 1: GLOBE INTRO ============ -->
+  <div class="phase1" id="phase1">
+    <div class="stars" aria-hidden="true"></div>
+    <div class="globe-stage">
+      <div class="halo" aria-hidden="true"></div>
+      <div class="whirl">
+        <svg viewBox="0 0 200 200" preserveAspectRatio="xMidYMid meet">
+          <circle cx="100" cy="100" r="86" fill="none"
+                  stroke="rgba(15,31,21,0.45)" stroke-width="0.4"
+                  stroke-dasharray="1.2 3.5" />
+          <g stroke="rgba(15,31,21,0.55)" stroke-width="0.5" fill="none">
+            <g id="ticks"></g>
+          </g>
+          <g class="ring-a" fill="none" stroke="#15803d" stroke-linecap="round">
+            <circle cx="100" cy="100" r="92" stroke-width="0.6"
+                    stroke-dasharray="22 70 6 80 4 380" opacity="0.9"/>
+          </g>
+          <g class="ring-b" fill="none" stroke="#22c55e" stroke-linecap="round">
+            <circle cx="100" cy="100" r="98" stroke-width="0.5"
+                    stroke-dasharray="1 6" opacity="0.55"/>
+          </g>
+          <g class="ring-c" fill="none" stroke="#16a34a" stroke-linecap="round">
+            <circle cx="100" cy="100" r="104" stroke-width="0.4"
+                    stroke-dasharray="60 320" opacity="0.6"/>
+            <circle cx="100" cy="100" r="104" stroke-width="0.4"
+                    stroke-dasharray="14 380" stroke-dashoffset="-180" opacity="0.45"/>
+          </g>
+          <g class="ring-d" fill="none" stroke-linecap="round">
+            <circle cx="100" cy="100" r="110" stroke="#86efac" stroke-width="0.3"
+                    stroke-dasharray="2 10" opacity="0.5"/>
+          </g>
+        </svg>
+      </div>
+      <canvas class="globe" id="globe"></canvas>
+      <div class="sweep" aria-hidden="true"></div>
+    </div>
+
+    <section class="title-block" id="titleBlock">
+      <div class="eyebrow"><span class="bar"></span>UrbanGuard<span class="bar"></span></div>
+      <h1 class="display">Urban<em>Guard</em></h1>
+      <div class="title-sub">Traffic Safety Monitor</div>
+    </section>
+
+    <section class="status-block" id="statusBlock">
+      <div class="line"><span class="pulse"></span><span id="statusLine">Đang định vị...</span></div>
+      <div class="coords" id="coords">
+        <span id="latStr">— —</span><span class="sep">/</span><span id="lonStr">— —</span>
+      </div>
+    </section>
+  </div>
+
+  <!-- ============ PHASE 1.5: LANDING ============ -->
+  <div class="landing" id="landing" aria-hidden="true">
+    <nav class="landing-nav">
+      <span class="brand">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 5v6c0 5 3.5 9.7 8 11 4.5-1.3 8-6 8-11V5l-8-3Z"/></svg>
+        UrbanGuard
+      </span>
+      <span class="nav-links">
+        <a href="#for-citizens">Người dân</a>
+        <a href="#for-agencies">Cơ quan</a>
+        <a href="#about">Giới thiệu</a>
+      </span>
+      <button class="login-cta" id="navLoginBtn">Đăng nhập →</button>
+    </nav>
+
+    <section class="hero">
+      <div class="hero-text">
+        <div class="eyebrow-l"><span class="bar"></span>Traffic Safety Monitor</div>
+        <h1>An toàn<br/><em>đô thị</em>, mỗi con đường.</h1>
+        <p class="lede">Nền tảng báo cáo và giám sát sự cố giao thông theo thời gian thực — kết nối người dân và cơ quan quản lý để phản ứng nhanh, chính xác, an toàn hơn.</p>
+        <div class="hero-ctas">
+          <button class="btn-primary" id="heroLoginBtn">Đăng nhập →</button>
+          <a href="#for-citizens" class="btn-ghost">Tìm hiểu thêm</a>
+        </div>
+        <div class="hero-meta">
+          <div class="stat"><div class="num">12,400+</div><div class="lbl">Báo cáo đã xử lý</div></div>
+          <div class="stat"><div class="num">63</div><div class="lbl">Tỉnh / Thành</div></div>
+          <div class="stat"><div class="num">2.4 phút</div><div class="lbl">Thời gian phản hồi</div></div>
+        </div>
+      </div>
+      <div class="hero-globe">
+        <div class="h-whirl">
+          <svg viewBox="0 0 200 200" preserveAspectRatio="xMidYMid meet">
+            <circle cx="100" cy="100" r="86" fill="none" stroke="rgba(21,128,61,0.4)" stroke-width="0.4" stroke-dasharray="1.2 3.5"/>
+            <g class="h-ring-a" fill="none" stroke="#16a34a" stroke-linecap="round">
+              <circle cx="100" cy="100" r="94" stroke-width="0.5" stroke-dasharray="22 70 6 80 4 380" opacity="0.7"/>
+            </g>
+            <g class="h-ring-b" fill="none" stroke="#22c55e" stroke-linecap="round">
+              <circle cx="100" cy="100" r="100" stroke-width="0.4" stroke-dasharray="60 320" opacity="0.5"/>
+            </g>
+          </svg>
+        </div>
+        <canvas id="heroGlobe"></canvas>
+      </div>
+    </section>
+
+    <section class="audience" id="for-citizens">
+      <div class="audience-head">
+        <div>
+          <div class="label">Dành cho người dân</div>
+          <h2>Báo cáo một sự cố, bảo vệ <em>cả cộng đồng</em>.</h2>
+        </div>
+        <p class="side-note">Chụp ảnh, gửi vị trí — 30 giây là đủ. Mọi báo cáo được xác thực và chuyển tới đúng đơn vị xử lý.</p>
+      </div>
+      <div class="audience-grid">
+        <div class="a-card">
+          <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="4"/><path d="M5 7h3l2-3h4l2 3h3v12H5z"/></svg></span>
+          <h3>Chụp ân là báo cáo</h3>
+          <p>Camera mở nhanh, tự động đính kèm toạ độ và thời gian. Không cần form phức tạp.</p>
+        </div>
+        <div class="a-card">
+          <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s7-7 7-12a7 7 0 1 0-14 0c0 5 7 12 7 12Z"/><circle cx="12" cy="10" r="2.5"/></svg></span>
+          <h3>Theo dõi điểm nóng</h3>
+          <p>Biết trước khu vực hay ngập, hay tai nạn — chọn cung đường an toàn hơn mỗi ngày.</p>
+        </div>
+        <div class="a-card">
+          <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></span>
+          <h3>Theo dõi tiến độ</h3>
+          <p>Nhận thông báo khi báo cáo của bạn được xác thực, tiếp nhận và xử lý xong.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="audience alt" id="for-agencies">
+      <div class="audience-head">
+        <div>
+          <div class="label">Dành cho cơ quan quản lý</div>
+          <h2>Dữ liệu sống cho <em>quyết định nhanh</em>.</h2>
+        </div>
+        <p class="side-note">Dashboard tập trung, bộ lọc theo loại sự cố, AI phân loại sơ bộ, kết xuất báo cáo theo quận / tuyến đường.</p>
+      </div>
+      <div class="audience-grid">
+        <div class="a-card">
+          <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M7 14l3-3 3 3 4-5"/></svg></span>
+          <h3>Bản đồ nhiệt</h3>
+          <p>Heatmap mật độ sự cố theo giờ / tuần — định vị điểm cần can thiệp trước.</p>
+        </div>
+        <div class="a-card">
+          <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 18 0 9 9 0 0 0-18 0Z"/><path d="M12 7v5l3 2"/></svg></span>
+          <h3>Phản hồi nhanh</h3>
+          <p>Routing sự cố tới đúng đội xử lý, theo dõi SLA từng báo cáo.</p>
+        </div>
+        <div class="a-card">
+          <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v6H4zM4 14h16v6H4z"/><path d="M8 7h.01M8 17h.01"/></svg></span>
+          <h3>Kết xuất báo cáo</h3>
+          <p>Xuất CSV / PDF cho họp giao ban, kết nối API với hệ thống nội bộ.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="closing-cta" id="about">
+      <h2>Sẵn sàng <em>bắt đầu?</em></h2>
+      <p>Đăng nhập để truy cập bản đồ sự cố của khu vực bạn.</p>
+      <button class="btn-primary" id="closingLoginBtn">Đăng nhập →</button>
+    </section>
+
+    <footer class="footer">
+      <span>© 2026 UrbanGuard · Traffic Safety Monitor</span>
+      <span>Made for safer streets</span>
+    </footer>
+  </div>
+
+  <!-- ============ PHASE 2: LANDING / LOGIN ============ -->
+  <main class="phase2" id="phase2" aria-hidden="true">
+    <aside class="panel-brand">
+      <div class="deco" aria-hidden="true">
+        <svg class="d-car" viewBox="0 0 200 100" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 70 H186 M22 70 V58 L42 30 H158 L178 58 V70"/>
+          <path d="M42 30 L52 56 H148 L158 30"/>
+          <circle cx="54" cy="78" r="10"/><circle cx="146" cy="78" r="10"/>
+        </svg>
+        <svg class="d-tri" viewBox="0 0 140 130" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M70 12 L130 118 H10 Z"/>
+          <path d="M70 50 V82 M70 96 V100"/>
+        </svg>
+        <svg class="d-pin" viewBox="0 0 16 16" fill="currentColor"><circle cx="8" cy="8" r="3"/></svg>
+        <svg class="d-pin-big" viewBox="0 0 80 110" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M40 8 C20 8 8 22 8 42 C8 70 40 102 40 102 C40 102 72 70 72 42 C72 22 60 8 40 8Z"/>
+          <circle cx="40" cy="40" r="10"/>
+        </svg>
+      </div>
+
+      <svg class="logo-shield" viewBox="0 0 56 56" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M28 6 L48 12 V26 C48 38 38 48 28 50 C18 48 8 38 8 26 V12 L28 6Z" fill="rgba(255,255,255,0.08)"/>
+      </svg>
+      <h1>UrbanGuard</h1>
+      <p class="tagline">Traffic Safety Monitor</p>
+
+      <div class="features">
+        <div class="feat">
+          <span class="ico">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s7-7 7-12a7 7 0 1 0-14 0c0 5 7 12 7 12Z"/><circle cx="12" cy="10" r="2.5"/></svg>
+          </span>
+          <div>
+            <div class="ft-title">Theo dõi điểm nóng</div>
+            <div class="ft-sub">Bản đồ sự cố theo thời gian thực</div>
+          </div>
+        </div>
+        <div class="feat">
+          <span class="ico">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4 6v6c0 5 3.5 9.5 8 11 4.5-1.5 8-6 8-11V6l-8-3Z"/></svg>
+          </span>
+          <div>
+            <div class="ft-title">An toàn đô thị</div>
+            <div class="ft-sub">Cảnh báo và phối hợp phản ứng</div>
+          </div>
+        </div>
+        <div class="feat">
+          <span class="ico">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4 14h7l-1 8 9-12h-7l1-8Z"/></svg>
+          </span>
+          <div>
+            <div class="ft-title">Phản hồi nhanh</div>
+            <div class="ft-sub">Luồng thông tin tức thì cho đội xử lý</div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <section class="panel-form">
+      <div class="card">
+        <svg class="bear" viewBox="0 0 80 80" fill="none">
+          <circle cx="22" cy="22" r="9" fill="#16a34a"/>
+          <circle cx="58" cy="22" r="9" fill="#16a34a"/>
+          <circle cx="22" cy="22" r="4" fill="#86efac"/>
+          <circle cx="58" cy="22" r="4" fill="#86efac"/>
+          <circle cx="40" cy="44" r="22" fill="#22c55e"/>
+          <ellipse cx="40" cy="56" rx="14" ry="11" fill="#bbf7d0"/>
+          <circle cx="32" cy="42" r="3" fill="#0f1f15"/>
+          <circle cx="48" cy="42" r="3" fill="#0f1f15"/>
+          <circle cx="33" cy="41" r="0.9" fill="#fff"/>
+          <circle cx="49" cy="41" r="0.9" fill="#fff"/>
+          <ellipse cx="40" cy="52" rx="2.6" ry="1.8" fill="#0f1f15"/>
+          <path d="M36 56 Q40 60 44 56" stroke="#0f1f15" stroke-width="1.6" stroke-linecap="round" fill="none"/>
+        </svg>
+
+        <div class="tabs" id="tabs">
+          <button class="active" data-tab="0">Đăng nhập</button>
+          <button data-tab="1">Đăng ký</button>
+          <span class="indicator"></span>
+        </div>
+
+        <form id="loginForm" autocomplete="off">
+          <div class="field">
+            <label for="email">Email</label>
+            <div class="input">
+              <svg class="lead" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>
+              <input id="email" type="email" placeholder="anh8" />
+            </div>
+          </div>
+          <div class="field">
+            <label for="pass">Mật khẩu</label>
+            <div class="input">
+              <svg class="lead" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+              <input id="pass" type="password" value="········"/>
+              <button type="button" class="eye" id="eyeBtn" aria-label="Hiện mật khẩu">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+            </div>
+          </div>
+          <button class="submit" id="submitBtn" type="submit">
+            <span class="spinner"></span>
+            <span class="label-go">Đăng nhập →</span>
+            <span class="label-loading">Đang đăng nhập...</span>
+          </button>
+        </form>
+      </div>
+    </section>
+  </main>
+
+  <!-- Welcome interstitial -->
+  <div class="welcome" id="welcome" aria-hidden="true">
+    <div class="welcome-text">
+      <h2>Chào mừng bạn đến với <em>UrbanGuard</em></h2>
+      <p>Đang khởi tạo bảng điều khiển</p>
+    </div>
+  </div>
+
+  <!-- ============ PHASE 3: DASHBOARD ============ -->
+  <div class="phase3" id="phase3" aria-hidden="true">
+    <header class="topbar">
+      <span class="brand">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 5v6c0 5 3.5 9.7 8 11 4.5-1.3 8-6 8-11V5l-8-3Z"/></svg>
+        UrbanGuard
+      </span>
+      <span class="greet">
+        Xin chào, <span class="name" id="userName">Người dùng</span>
+        <span class="avatar" id="avatar">U</span>
+      </span>
+    </header>
+    <div class="map-area">
+      <div class="map-card">
+        <div class="map-badge">
+          <span class="gdot"></span>
+          <span class="name" id="badgeName">—</span>
+          <span class="div"></span>
+          <span id="badgeCoords">—</span>
+        </div>
+        <iframe id="mapFrame" loading="lazy" title="UrbanGuard Map" referrerpolicy="no-referrer-when-downgrade"></iframe>
+      </div>
+    </div>
+  </div>
+
+<script>
+/* ===========================================================
+   PHASE 1 — Globe (canvas, no JS libs)
+   =========================================================== */
+(() => {
+  const canvas = document.getElementById('globe');
+  const ctx = canvas.getContext('2d');
+  const DPR = Math.min(window.devicePixelRatio || 1, 2);
+  let cx=0, cy=0, R=0;
+
+  function fit() {
+    const stage = canvas.parentElement;
+    const rect = stage.getBoundingClientRect();
+    canvas.width = Math.round(rect.width * DPR);
+    canvas.height = Math.round(rect.height * DPR);
+    canvas.style.width = rect.width + 'px';
+    canvas.style.height = rect.height + 'px';
+    cx = canvas.width / 2; cy = canvas.height / 2;
+    const vmin = Math.min(window.innerWidth, window.innerHeight);
+    R = vmin * 0.18 * DPR;
+  }
+  window.addEventListener('resize', fit); fit();
+
+  /* Tiny TopoJSON decoder */
+  function topoFeature(topology, object) {
+    const { transform, arcs } = topology;
+    const tx = transform ? transform.translate : [0,0];
+    const sc = transform ? transform.scale : [1,1];
+    function decodeArc(i) {
+      const reverse = i < 0; if (reverse) i = ~i;
+      const arc = arcs[i]; const out = []; let x=0,y=0;
+      for (let k=0;k<arc.length;k++){
+        const p=arc[k];
+        if(transform){ x+=p[0]; y+=p[1]; out.push([x*sc[0]+tx[0], y*sc[1]+tx[1]]); }
+        else out.push([p[0],p[1]]);
+      }
+      return reverse ? out.reverse() : out;
+    }
+    function ring(arcIdx){
+      const c=[];
+      for(let j=0;j<arcIdx.length;j++){const d=decodeArc(arcIdx[j]); if(j===0) c.push(...d); else c.push(...d.slice(1));}
+      return c;
+    }
+    function geom(g){
+      if(g.type==='Polygon') return {type:'Polygon', coordinates:g.arcs.map(ring)};
+      if(g.type==='MultiPolygon') return {type:'MultiPolygon', coordinates:g.arcs.map(p=>p.map(ring))};
+      return null;
+    }
+    if(object.type==='GeometryCollection'){
+      return {type:'FeatureCollection', features:object.geometries.map(g=>({type:'Feature', geometry:geom(g), properties:g.properties||{}}))};
+    }
+    return {type:'Feature', geometry:geom(object), properties:object.properties||{}};
+  }
+
+  const rot = { lambda: 0, phi: -18 };
+  const DEG = Math.PI / 180;
+  let scaleMul = 1;
+
+  function project(lon, lat) {
+    const l=(lon+rot.lambda)*DEG, p=lat*DEG, ph=rot.phi*DEG;
+    const cp=Math.cos(p);
+    const x=cp*Math.sin(l), y=Math.sin(p), z=cp*Math.cos(l);
+    const cph=Math.cos(ph), sph=Math.sin(ph);
+    const ny=y*cph-z*sph, nz=y*sph+z*cph;
+    return { x: cx + R*scaleMul*x, y: cy - R*scaleMul*ny, visible: nz>0 };
+  }
+
+  function drawSphere() {
+    const r = R*scaleMul;
+    // Ocean: subtle radial gradient, cream→soft mint with brand-tinted shading on the right
+    const grad = ctx.createRadialGradient(cx - r*0.35, cy - r*0.4, r*0.1, cx, cy, r*1.05);
+    grad.addColorStop(0,    '#fbfaf6');
+    grad.addColorStop(0.45, '#eef7ef');
+    grad.addColorStop(0.85, '#d6ecdb');
+    grad.addColorStop(1,    '#bcdcc4');
+    ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2);
+    ctx.fillStyle = grad; ctx.fill();
+    // Outline
+    ctx.lineWidth = 1.2 * DPR;
+    ctx.strokeStyle = 'rgba(21,128,61,0.85)';
+    ctx.stroke();
+  }
+  // Soft inner shadow to give the sphere volume
+  function drawInnerShadow() {
+    const r = R*scaleMul;
+    const g = ctx.createRadialGradient(cx, cy, r*0.55, cx, cy, r);
+    g.addColorStop(0, 'rgba(15,31,21,0)');
+    g.addColorStop(1, 'rgba(15,31,21,0.18)');
+    ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2);
+    ctx.fillStyle = g; ctx.fill();
+  }
+  // Terminator: subtle night-side shading offset to upper-left light source
+  function drawTerminator() {
+    const r = R*scaleMul;
+    const lx = cx - r*0.55, ly = cy - r*0.55; // light center (highlight)
+    const sx = cx + r*0.7,  sy = cy + r*0.6;  // shadow center
+    const g = ctx.createRadialGradient(sx, sy, r*0.2, sx, sy, r*1.4);
+    g.addColorStop(0, 'rgba(15,31,21,0.32)');
+    g.addColorStop(1, 'rgba(15,31,21,0)');
+    ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2);
+    ctx.fillStyle = g; ctx.fill();
+    // soft highlight
+    const h = ctx.createRadialGradient(lx, ly, r*0.05, lx, ly, r*0.7);
+    h.addColorStop(0, 'rgba(255,255,255,0.45)');
+    h.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2);
+    ctx.fillStyle = h; ctx.fill();
+  }
+  function drawGraticule() {
+    ctx.lineWidth = 0.5 * DPR;
+    ctx.strokeStyle = 'rgba(21,128,61,0.28)';
+    for (let lon=-180; lon<180; lon+=15) {
+      ctx.beginPath(); let started=false;
+      for (let lat=-88; lat<=88; lat+=2) {
+        const p=project(lon,lat);
+        if(!p.visible){started=false; continue;}
+        if(!started){ctx.moveTo(p.x,p.y); started=true;} else ctx.lineTo(p.x,p.y);
+      }
+      ctx.stroke();
+    }
+    for (let lat=-75; lat<=75; lat+=15) {
+      ctx.beginPath(); let started=false;
+      for (let lon=-180; lon<=180; lon+=2) {
+        const p=project(lon,lat);
+        if(!p.visible){started=false; continue;}
+        if(!started){ctx.moveTo(p.x,p.y); started=true;} else ctx.lineTo(p.x,p.y);
+      }
+      ctx.stroke();
+    }
+  }
+  function withSphereClip(fn){
+    ctx.save();
+    ctx.beginPath(); ctx.arc(cx,cy,R*scaleMul,0,Math.PI*2); ctx.clip();
+    fn(); ctx.restore();
+  }
+  function drawGeoFill(feature) {
+    if (!feature) return;
+    ctx.beginPath();
+    const draw = (geom) => {
+      if (!geom) return;
+      const polys = geom.type==='Polygon' ? [geom.coordinates] : geom.coordinates;
+      for (const poly of polys) for (const ring of poly) {
+        let started=false;
+        for (let i=0;i<ring.length;i++){
+          const [lon,lat]=ring[i]; const p=project(lon,lat);
+          if(p.visible){ if(!started){ctx.moveTo(p.x,p.y); started=true;} else ctx.lineTo(p.x,p.y); }
+          else started=false;
+        }
+      }
+    };
+    if (feature.type==='FeatureCollection') feature.features.forEach(f=>draw(f.geometry));
+    else draw(feature.geometry);
+    // Land: deep UrbanGuard green, with a faint highlight edge stroke
+    ctx.fillStyle = '#15803d';
+    ctx.fill('evenodd');
+    ctx.lineWidth = 0.6 * DPR;
+    ctx.strokeStyle = 'rgba(187,247,208,0.4)';
+    ctx.stroke();
+  }
+
+  let marker = null;
+  function drawMarker(t) {
+    if(!marker) return;
+    const p = project(marker.lon, marker.lat);
+    if(!p.visible) return;
+    const pulse = 0.5 + 0.5*Math.sin(t/280);
+    const rDot = 4 * DPR;
+    ctx.beginPath(); ctx.arc(p.x,p.y, rDot+6*DPR + pulse*8*DPR, 0, Math.PI*2);
+    ctx.fillStyle = `rgba(22,163,74,${0.25*(1-pulse)})`; ctx.fill();
+    ctx.beginPath(); ctx.arc(p.x,p.y, rDot+3*DPR, 0, Math.PI*2);
+    ctx.strokeStyle = 'rgba(22,163,74,0.95)'; ctx.lineWidth=1.4*DPR; ctx.stroke();
+    ctx.beginPath(); ctx.arc(p.x,p.y, rDot, 0, Math.PI*2);
+    ctx.fillStyle = '#16a34a'; ctx.fill();
+  }
+
+  let world = null;
+  function render(now) {
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    drawSphere();
+    withSphereClip(() => {
+      drawGraticule();
+      if (world) drawGeoFill(world);
+      drawTerminator();
+      drawInnerShadow();
+    });
+    drawMarker(now);
+  }
+
+  /* ticks for orbit ring */
+  let ticks='';
+  for (let i=0;i<60;i++){
+    const a=(i/60)*360; const long=i%5===0;
+    const r1=long?78:80, r2=82;
+    ticks += `<line transform="rotate(${a} 100 100)" x1="100" y1="${100-r2}" x2="100" y2="${100-r1}" />`;
+  }
+  document.getElementById('ticks').innerHTML=ticks;
+
+  /* Phase controller */
+  const PHASE = { SPIN:0, ZOOM:1, OUT:2 };
+  let phase = PHASE.SPIN;
+  let phaseStart = performance.now();
+  let lastFrame  = performance.now();
+  const SPIN_MS=3000, ZOOM_MS=3000;
+  const easeInOutCubic = t => t<0.5 ? 4*t*t*t : 1 - Math.pow(-2*t+2,3)/2;
+  const easeOutCubic   = t => 1 - Math.pow(1-t,3);
+  const lerp = (a,b,t) => a+(b-a)*t;
+  let spinSpeed=32;
+  let zoomStartScale=1, zoomTargetScale=4.5;
+  let zoomStartLambda=0, zoomStartPhi=-18, zoomTargetLambda=0, zoomTargetPhi=0;
+
+  function shortestLambdaTarget(cur, des) {
+    let c=((cur%360)+540)%360-180, t=((des%360)+540)%360-180;
+    let d=t-c; if(d>180) d-=360; if(d<-180) d+=360;
+    return c+d;
+  }
+
+  /* Geolocation */
+  let userPos=null, geoResolved=false;
+  const FALLBACK = { lat: 21.0285, lon: 105.8542, name: 'Hà Nội · Việt Nam' };
+  window.__urbanGuard = { userPos: null };
+
+  function requestPosition() {
+    return new Promise(resolve => {
+      if (!('geolocation' in navigator)) return resolve(null);
+      const t=setTimeout(()=>resolve(null), 5500);
+      navigator.geolocation.getCurrentPosition(
+        pos => { clearTimeout(t); resolve({lat:pos.coords.latitude, lon:pos.coords.longitude}); },
+        ()  => { clearTimeout(t); resolve(null); },
+        { enableHighAccuracy:false, timeout:5000, maximumAge:600000 }
+      );
+    });
+  }
+  async function reverseGeocode(lat, lon) {
+    try {
+      const url=`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}&zoom=10&addressdetails=1&accept-language=vi`;
+      const r=await fetch(url, { headers:{'Accept':'application/json'} });
+      if(!r.ok) throw 0;
+      const j=await r.json(); const a=j.address||{};
+      const place=a.city||a.town||a.village||a.hamlet||a.county||a.state_district||a.state||a.region||j.name||'';
+      const country=a.country||'';
+      return [place,country].filter(Boolean).join(' · ') || (j.display_name||'').split(',').slice(0,2).join(' · ');
+    } catch { return null; }
+  }
+  function fmtCoord(v, axis) {
+    const dir = axis==='lat' ? (v>=0?'N':'S') : (v>=0?'E':'W');
+    const a=Math.abs(v), d=Math.floor(a), m=Math.floor((a-d)*60), s=((a-d)*60-m)*60;
+    return `${d}° ${String(m).padStart(2,'0')}′ ${s.toFixed(1).padStart(4,'0')}″ ${dir}`;
+  }
+  function setStatus(t) {
+    document.getElementById('statusLine').textContent = t;
+  }
+
+  /* Boot: load world + start animation, request geo in parallel */
+  (async () => {
+    try {
+      const topo = await fetch('https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/land-50m.json').then(r=>r.json());
+      world = topoFeature(topo, topo.objects.land);
+      window.__urbanGuard.world = world;
+    } catch(e) { console.warn('world load failed', e); }
+
+    requestPosition().then(async pos => {
+      if (!pos) {
+        userPos = { lat:FALLBACK.lat, lon:FALLBACK.lon, fallback:true, name:FALLBACK.name };
+      } else {
+        userPos = { lat:pos.lat, lon:pos.lon, fallback:false };
+        const name = await reverseGeocode(pos.lat, pos.lon);
+        userPos.name = name || `${pos.lat.toFixed(2)}°, ${pos.lon.toFixed(2)}°`;
+      }
+      window.__urbanGuard.userPos = userPos;
+      geoResolved = true;
+    });
+
+    requestAnimationFrame(loop);
+  })();
+
+  function startZoomPhase() {
+    phase=PHASE.ZOOM; phaseStart=performance.now();
+    setStatus(userPos?.fallback ? 'Sử dụng vị trí mặc định' : 'Đang định vị tọa độ của bạn');
+    const targetLambda = -((userPos?.lon ?? FALLBACK.lon));
+    const targetPhi    = -((userPos?.lat ?? FALLBACK.lat));
+    zoomStartLambda=rot.lambda; zoomStartPhi=rot.phi;
+    zoomTargetLambda=shortestLambdaTarget(zoomStartLambda, targetLambda);
+    zoomTargetPhi=targetPhi;
+    zoomStartScale=scaleMul; zoomTargetScale=4.5;
+    document.getElementById('coords').style.opacity='1';
+    document.getElementById('latStr').textContent=fmtCoord(userPos?.lat ?? FALLBACK.lat,'lat');
+    document.getElementById('lonStr').textContent=fmtCoord(userPos?.lon ?? FALLBACK.lon,'lon');
+    marker={ lon:userPos?.lon ?? FALLBACK.lon, lat:userPos?.lat ?? FALLBACK.lat };
+  }
+
+  function endIntro() {
+    phase = PHASE.OUT;
+    document.getElementById('titleBlock').classList.add('fade-out','lift');
+    document.getElementById('statusBlock').classList.add('fade-out');
+    document.getElementById('phase1').classList.add('hidden');
+    setTimeout(() => {
+      const land = document.getElementById('landing');
+      land.classList.add('visible');
+      land.setAttribute('aria-hidden', 'false');
+      // Boot mini hero globe once landing appears
+      if (typeof window.__bootHeroGlobe === 'function') window.__bootHeroGlobe();
+    }, 400);
+  }
+
+  function loop(now) {
+    const dt = Math.min(64, now - lastFrame) / 1000;
+    lastFrame = now;
+    const elapsed = now - phaseStart;
+
+    if (phase === PHASE.SPIN) {
+      rot.lambda = (rot.lambda + spinSpeed * dt) % 360;
+      if (elapsed >= SPIN_MS && geoResolved) startZoomPhase();
+      else if (elapsed >= SPIN_MS + 4000) {
+        if (!userPos) userPos = { lat:FALLBACK.lat, lon:FALLBACK.lon, fallback:true, name:FALLBACK.name };
+        window.__urbanGuard.userPos = userPos;
+        geoResolved = true; startZoomPhase();
+      }
+    } else if (phase === PHASE.ZOOM) {
+      const t = Math.min(1, elapsed / ZOOM_MS);
+      const e = easeInOutCubic(t);
+      const spinT = Math.min(1, t / 0.6);
+      const speed = spinSpeed * (1 - easeOutCubic(spinT));
+      rot.lambda = lerp(zoomStartLambda, zoomTargetLambda, e) + (1 - spinT) * speed * dt;
+      rot.phi    = lerp(zoomStartPhi,    zoomTargetPhi,    e);
+      scaleMul   = lerp(zoomStartScale,  zoomTargetScale,  e);
+      if (t >= 1) { endIntro(); }
+    }
+
+    render(now);
+    if (phase !== PHASE.OUT) requestAnimationFrame(loop);
+  }
+})();
+
+/* ===========================================================
+   PHASE 1.5 — Hero mini globe + Landing CTAs
+   =========================================================== */
+(() => {
+  function bootHero() {
+    const cv = document.getElementById('heroGlobe');
+    if (!cv || cv.dataset.booted) return;
+    cv.dataset.booted = '1';
+    const ctx = cv.getContext('2d');
+    const DPR = Math.min(window.devicePixelRatio || 1, 2);
+    let cx=0, cy=0, R=0, lambda=0, lastT=performance.now();
+    function fit() {
+      const r = cv.getBoundingClientRect();
+      cv.width = Math.round(r.width*DPR); cv.height = Math.round(r.height*DPR);
+      cv.style.width=r.width+'px'; cv.style.height=r.height+'px';
+      cx=cv.width/2; cy=cv.height/2; R=Math.min(cv.width,cv.height)*0.36;
+    }
+    fit(); window.addEventListener('resize', fit);
+    const DEG=Math.PI/180, phi=-18*DEG;
+    function project(lon,lat){
+      const l=(lon+lambda)*DEG, p=lat*DEG, cp=Math.cos(p);
+      const x=cp*Math.sin(l), y=Math.sin(p), z=cp*Math.cos(l);
+      const cph=Math.cos(phi), sph=Math.sin(phi);
+      const ny=y*cph-z*sph, nz=y*sph+z*cph;
+      return { x:cx+R*x, y:cy-R*ny, visible:nz>0 };
+    }
+    // Pull cached land geometry from main globe scope if available
+    function draw() {
+      ctx.clearRect(0,0,cv.width,cv.height);
+      // sphere base
+      const g = ctx.createRadialGradient(cx-R*0.4,cy-R*0.4,R*0.1, cx,cy,R);
+      g.addColorStop(0,'#f1faf3'); g.addColorStop(0.6,'#bbf7d0'); g.addColorStop(1,'#15803d');
+      ctx.fillStyle=g; ctx.beginPath(); ctx.arc(cx,cy,R,0,Math.PI*2); ctx.fill();
+      // graticule
+      ctx.save(); ctx.beginPath(); ctx.arc(cx,cy,R,0,Math.PI*2); ctx.clip();
+      ctx.lineWidth=0.5*DPR; ctx.strokeStyle='rgba(255,255,255,0.18)';
+      for (let lon=-180; lon<180; lon+=20) {
+        ctx.beginPath(); let s=false;
+        for (let lat=-88; lat<=88; lat+=3) {
+          const p=project(lon,lat); if(!p.visible){s=false;continue;}
+          if(!s){ctx.moveTo(p.x,p.y);s=true;} else ctx.lineTo(p.x,p.y);
+        }
+        ctx.stroke();
+      }
+      for (let lat=-60; lat<=60; lat+=20) {
+        ctx.beginPath(); let s=false;
+        for (let lon=-180; lon<=180; lon+=3) {
+          const p=project(lon,lat); if(!p.visible){s=false;continue;}
+          if(!s){ctx.moveTo(p.x,p.y);s=true;} else ctx.lineTo(p.x,p.y);
+        }
+        ctx.stroke();
+      }
+      // try drawing land if main globe loaded it
+      const land = window.__urbanGuard && window.__urbanGuard.world;
+      if (land) {
+        ctx.beginPath();
+        const drawGeom = (geom) => {
+          if(!geom) return;
+          const polys = geom.type==='Polygon' ? [geom.coordinates] : geom.coordinates;
+          for (const poly of polys) for (const ring of poly) {
+            let s=false;
+            for (let i=0;i<ring.length;i++){
+              const [lon,lat]=ring[i]; const p=project(lon,lat);
+              if(p.visible){if(!s){ctx.moveTo(p.x,p.y);s=true;} else ctx.lineTo(p.x,p.y);}
+              else s=false;
+            }
+          }
+        };
+        if (land.type==='FeatureCollection') land.features.forEach(f=>drawGeom(f.geometry));
+        else drawGeom(land.geometry);
+        ctx.fillStyle='#15803d'; ctx.fill('evenodd');
+      }
+      ctx.restore();
+      // rim
+      ctx.beginPath(); ctx.arc(cx,cy,R,0,Math.PI*2);
+      ctx.lineWidth=1.0*DPR; ctx.strokeStyle='rgba(15,128,61,0.45)'; ctx.stroke();
+    }
+    function loop(t) {
+      const dt=Math.min(64,t-lastT)/1000; lastT=t;
+      lambda=(lambda+18*dt)%360;
+      draw();
+      requestAnimationFrame(loop);
+    }
+    requestAnimationFrame(loop);
+  }
+  window.__bootHeroGlobe = bootHero;
+
+  function goToLogin() {
+    const land = document.getElementById('landing');
+    const p2 = document.getElementById('phase2');
+    land.classList.add('hidden');
+    setTimeout(() => {
+      p2.classList.add('visible');
+      p2.setAttribute('aria-hidden', 'false');
+    }, 400);
+  }
+  ['navLoginBtn','heroLoginBtn','closingLoginBtn'].forEach(id => {
+    const b = document.getElementById(id);
+    if (b) b.addEventListener('click', goToLogin);
+  });
+})();
+
+/* ===========================================================
+   PHASE 2 — Login form interactions
+   =========================================================== */
+(() => {
+  const tabs = document.getElementById('tabs');
+  tabs.addEventListener('click', e => {
+    const btn = e.target.closest('button[data-tab]'); if (!btn) return;
+    tabs.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    tabs.classList.toggle('tab-1', btn.dataset.tab === '1');
+  });
+
+  const eye = document.getElementById('eyeBtn');
+  const pass = document.getElementById('pass');
+  eye.addEventListener('click', () => {
+    pass.type = pass.type === 'password' ? 'text' : 'password';
+  });
+
+  const form = document.getElementById('loginForm');
+  const submitBtn = document.getElementById('submitBtn');
+  form.addEventListener('submit', e => {
+    e.preventDefault();
+    submitBtn.classList.add('loading');
+    setTimeout(goToDashboard, 1500);
+  });
+
+  function goToDashboard() {
+    const phase2 = document.getElementById('phase2');
+    const welcome = document.getElementById('welcome');
+    const phase3 = document.getElementById('phase3');
+
+    phase2.classList.add('exit-up');
+    phase2.setAttribute('aria-hidden', 'true');
+
+    setTimeout(() => {
+      welcome.classList.add('visible');
+      welcome.setAttribute('aria-hidden', 'false');
+    }, 300);
+
+    setTimeout(() => {
+      // Build dashboard with user pos
+      const u = (window.__urbanGuard && window.__urbanGuard.userPos) ||
+                { lat:21.0285, lon:105.8542, name:'Hà Nội · Việt Nam' };
+      const lat = u.lat, lon = u.lon;
+      const d = 0.04;
+      const bbox = [lon-d, lat-d/1.6, lon+d, lat+d/1.6].join(',');
+      const src = `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${lat},${lon}`;
+      document.getElementById('mapFrame').src = src;
+      document.getElementById('badgeName').textContent = u.name || `${lat.toFixed(3)}°, ${lon.toFixed(3)}°`;
+      document.getElementById('badgeCoords').textContent =
+        `${lat.toFixed(3)}° ${lat>=0?'N':'S'} · ${lon.toFixed(3)}° ${lon>=0?'E':'W'}`;
+
+      const emailVal = (document.getElementById('email').value || 'anh8').trim();
+      const userName = emailVal.split('@')[0] || 'anh8';
+      document.getElementById('userName').textContent = userName;
+      document.getElementById('avatar').textContent = (userName[0] || 'U').toUpperCase();
+
+      phase3.classList.add('visible');
+      phase3.setAttribute('aria-hidden', 'false');
+    }, 1700);
+
+    setTimeout(() => {
+      welcome.classList.add('fade-out');
+    }, 2800);
+  }
+})();
+</script>
+</body>
+</html>
