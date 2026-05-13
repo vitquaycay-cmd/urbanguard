@@ -138,15 +138,10 @@ function PickRoutePoint({
 
 function SearchOverlay() {
   return (
-    <div className="ug-search-overlay" ref={wrapperRef}>
+    <div className="ug-search-overlay">
       <div className="ug-search-card">
         <span className="ug-search-icon" aria-hidden>
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={2}
-          >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
             <path
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -159,7 +154,7 @@ function SearchOverlay() {
           <div className="ug-search-brand">UrbanGuard Search</div>
           <div className="ug-search-sub">Tìm địa điểm, tuyến đường hoặc khu vực sự cố</div>
         </div>
-      )}
+      </div>
     </div>
   );
 }
@@ -474,12 +469,7 @@ export default function ActiveReportsMap({
         )}
       </MapContainerComp>
 
-      <SearchOverlay
-        reports={validatedReports}
-        onSelect={(lat, lng, zoom) =>
-          setFlyTarget({ lat, lng, zoom: zoom ?? 14 })
-        }
-      />
+      <SearchOverlay />
 
       <div className="ug-banner-wrap ug-banner-wrap--top">
         <MessageBanner text={routeWarning} type="warning" />

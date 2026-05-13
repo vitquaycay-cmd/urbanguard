@@ -183,12 +183,12 @@ function MapRightPanel({
             </div>
             <div className="mt-2 text-xs font-bold text-slate-500">Dangers</div>
           </div>
-        )}
+        </div>
       </section>
 
       <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
         <h2 className="mb-3 text-[13px] font-extrabold uppercase tracking-widest text-slate-400">
-          Chú giải
+          Legend
         </h2>
 
         <div className="flex min-h-[38px] items-center gap-2.5 text-sm font-semibold text-slate-700">
@@ -204,7 +204,7 @@ function MapRightPanel({
 
       <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
         <h2 className="mb-3 text-[13px] font-extrabold uppercase tracking-widest text-slate-400">
-          Cập nhật gần đây
+          Recent updates
         </h2>
 
         <ul className="space-y-3">
