@@ -11,9 +11,10 @@ import { getMeRequest, type MeUser } from "@/services/auth.api";
 export type CurrentUser = MeUser;
 
 type CurrentUserContextValue = {
-  user: CurrentUser | null;
-  loading: boolean;
-};
+    user: CurrentUser | null;
+    loading: boolean;
+    refreshUser: () => Promise<void>;
+  };
 
 const CurrentUserContext = createContext<CurrentUserContextValue | undefined>(
   undefined,
@@ -25,14 +26,23 @@ export function CurrentUserProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    getMeRequest()
-      .then(setUser)
-      .catch(() => setUser(null))
-      .finally(() => setLoading(false));
+    void refreshUser();
   }, []);
 
+  async function refreshUser() {
+    setLoading(true);
+    try {
+      const me = await getMeRequest();
+      setUser(me);
+    } catch {
+      setUser(null);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
-    <CurrentUserContext.Provider value={{ user, loading }}>
+    <CurrentUserContext.Provider value={{ user, loading,refreshUser }}>
       {children}
     </CurrentUserContext.Provider>
   );
