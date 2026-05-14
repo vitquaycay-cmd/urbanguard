@@ -8,12 +8,16 @@ import { createClient } from "@supabase/supabase-js";
 import { PrismaService } from "../prisma/prisma.service";
 import { CreatePostDto } from "./dto/create-post.dto";
 import { ForumNotificationService } from "../forum-notification/forum-notification.service";
-
+import ws from 'ws';
 const supabase = createClient(
   process.env.SUPABASE_URL || "",
   process.env.SUPABASE_SERVICE_ROLE_KEY || "",
+  {
+    realtime: {
+      transport: ws as any,
+    },
+  },
 );
-
 @Injectable()
 export class ForumPostService {
   constructor(

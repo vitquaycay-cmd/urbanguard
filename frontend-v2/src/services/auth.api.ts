@@ -3,8 +3,10 @@
  * Xử lý: login, register, refresh token, logout, đổi mật khẩu
  */
 
-/** Base URL từ biến môi trường Vite */
-export const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3000";
+import { getApiBaseUrl } from "@/lib/apiConfig";
+
+/** Base URL lấy từ config chung */
+export const API_BASE = getApiBaseUrl();
 
 /** Key lưu access token trong localStorage */
 export const AUTH_TOKEN_KEY = "urbanguard_access_token";
