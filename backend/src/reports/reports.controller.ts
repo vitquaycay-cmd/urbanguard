@@ -20,6 +20,7 @@ import {
   ApiParam,
   ApiResponse,
 } from "@nestjs/swagger";
+import { SkipThrottle } from "@nestjs/throttler";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { existsSync, mkdirSync } from "fs";
 import { diskStorage } from "multer";
@@ -28,6 +29,7 @@ import { Role } from "@prisma/client";
 import { Roles } from "../auth/decorators/roles.decorator";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { RolesGuard } from "../auth/guards/roles.guard";
+import { skipAllThrottles } from "../common/throttle-skip";
 import { QueryReportsDto } from "./dto/query-reports.dto";
 import { UpdateReportStatusDto } from "./dto/update-report-status.dto";
 import { ReportsService } from "./reports.service";
@@ -51,11 +53,13 @@ function filename(
 export class ReportsController {
   constructor(private readonly reportsService: ReportsService) {}
 
+  @SkipThrottle(skipAllThrottles)
   @Get("active")
   findActiveReports() {
     return this.reportsService.findActiveReports();
   }
 
+  @SkipThrottle(skipAllThrottles)
   @Get()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
@@ -108,6 +112,7 @@ export class ReportsController {
     });
   }
 
+  @SkipThrottle(skipAllThrottles)
   @Get(":id")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
@@ -123,6 +128,7 @@ export class ReportsController {
     return this.reportsService.findOne(id);
   }
 
+  @SkipThrottle(skipAllThrottles)
   @Patch(":id/status")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
@@ -139,6 +145,7 @@ export class ReportsController {
     return this.reportsService.updateStatus(id, dto.status);
   }
 
+  @SkipThrottle(skipAllThrottles)
   @Delete(":id")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)

@@ -9,7 +9,10 @@ export class AdminService {
   async getPendingReports(page = 1, limit = 20) {
     const skip = (page - 1) * limit;
 
-    const where = { status: ReportStatus.PENDING };
+    const where = {
+      status: ReportStatus.PENDING,
+      isHidden: false,
+    };
 
     const [data, total] = await Promise.all([
       this.prisma.report.findMany({

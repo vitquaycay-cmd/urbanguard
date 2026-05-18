@@ -185,8 +185,11 @@ export class ReportsService {
   }
 
   async findOne(id: number) {
-    const report = await this.prisma.report.findUnique({
-      where: { id },
+    const report = await this.prisma.report.findFirst({
+      where: {
+        id,
+        isHidden: false,
+      },
       select: {
         ...reportSelectFull,
         user: {
@@ -207,7 +210,9 @@ export class ReportsService {
     const limit = dto.limit ?? 20;
     const skip = (page - 1) * limit;
 
-    const where: Prisma.ReportWhereInput = {};
+    const where: Prisma.ReportWhereInput = {
+      isHidden: false,
+    };
 
     if (dto.status) {
       where.status = dto.status;
