@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Routes, Route, Navigate, BrowserRouter } from "react-router-dom";
-import { CurrentUserProvider, useCurrentUser } from "@/hooks/useCurrentUser";
+import { CurrentUserProvider } from "@/hooks/CurrentUserProvider";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 import BannedModal from "@/components/BannedModal";
 import { useBannedSocket } from "@/hooks/useBannedSocket";
 import ProtectedRoute from "@/components/ProtectedRoute";

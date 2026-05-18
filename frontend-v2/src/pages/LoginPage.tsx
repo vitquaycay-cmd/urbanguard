@@ -2,6 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import LoginCard from "@/components/login/LoginCard";
 import LoginForm from "@/components/login/LoginForm";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 import {
   loginRequest,
   setStoredAccessToken,
@@ -10,6 +11,7 @@ import {
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const { refreshUser } = useCurrentUser();
 
   const [formData, setFormData] = useState({
     email: "",
@@ -40,6 +42,8 @@ export default function LoginPage() {
       const res = await loginRequest(formData.email, formData.password);
       setStoredAccessToken(res.access_token);
       setStoredRefreshToken(res.refresh_token);
+      // Sync auth context before entering protected routes.
+      await refreshUser();
       navigate("/map");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Đăng nhập thất bại");

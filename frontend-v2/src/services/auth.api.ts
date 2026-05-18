@@ -84,6 +84,16 @@ export type MeUser = {
   createdAt: string;
 };
 
+/** Preserve HTTP status so auth state can react only to real auth failures. */
+export class AuthApiError extends Error {
+  status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "AuthApiError";
+    this.status = status;
+  }
+}
 // ── Helper parse lỗi ──────────────────────────────────────────
 
 function parseError(res: Response, data: unknown, fallback: string): string {
@@ -112,7 +122,8 @@ export async function getMeRequest(signal?: AbortSignal): Promise<MeUser> {
   });
 
   if (!res.ok) {
-    throw new Error("Không thể lấy thông tin user");
+    // 401/403 are handled by CurrentUserProvider to clear stale or banned sessions.
+    throw new AuthApiError("Không thể lấy thông tin user", res.status);
   }
 
   return (await res.json()) as MeUser;

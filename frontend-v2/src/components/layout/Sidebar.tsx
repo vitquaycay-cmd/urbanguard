@@ -27,14 +27,13 @@ interface SidebarProps {
 export default function Sidebar({ onLogout }: SidebarProps) {
   const { pathname } = useLocation();
   const navigate = useNavigate();
-  const { user } = useCurrentUser();
+  const { user, clearUser } = useCurrentUser();
   // const unreadCount = useUnreadCount(user?.id)
 
   const initial = (user?.fullname || user?.email || "U")[0].toUpperCase();
   const displayName =
     user?.fullname || user?.username || user?.email || "Người dùng";
   const roleLabel = user?.role === "ADMIN" ? "Quản trị viên" : "Thành viên";
-
   async function handleLogout() {
     try {
       const refreshToken = getStoredRefreshToken();
@@ -43,6 +42,8 @@ export default function Sidebar({ onLogout }: SidebarProps) {
       /* ignore */
     }
     removeStoredTokens();
+    // Logout must clear both persisted tokens and the in-memory auth context.
+    clearUser();
     onLogout?.();
     navigate("/login");
   }

@@ -1,145 +1,124 @@
-# UrbanGuard – Hệ thống bản đồ cảnh báo sự cố giao thông đô thị
+# UrbanGuard Product Overview
 
-## 1. Giới thiệu
-UrbanGuard là hệ thống cho phép người dân báo cáo các sự cố giao thông (ổ gà, tai nạn, ngập nước,...) và hiển thị trực quan trên bản đồ, kết hợp AI và xác minh cộng đồng để đảm bảo độ tin cậy.
+UrbanGuard helps citizens report urban traffic and road-safety incidents, then shows trusted incidents on a live map so users can avoid dangerous areas.
 
-## 2. Công nghệ sử dụng
+## Product Goals
+
+- Make it easy to submit a road incident with an image, description, and GPS location.
+- Use AI to assist the first review of incident images.
+- Let admins manage users and review pending reports.
+- Show validated reports on a map with danger markers and route assistance.
+- Keep authentication and banned-user handling consistent across backend and frontend.
+
+## Active Applications
+
+| App | Path | Purpose |
+|---|---|---|
+| Backend API | `backend/` | REST API, auth, reports, users, notifications, statistics |
+| Web app | `frontend-v2/` | Main user/admin UI |
+| AI service | `urbanguard-ai/` | Image analysis and safe-route service |
+| Forum apps | `forum-backend/`, `forum-frontend/` | Separate forum scope |
+
+## Technology
 
 ### Backend
+
 - NestJS
 - Prisma ORM
-- MySQL (XAMPP)
+- MySQL
 - JWT + Passport
+- bcrypt
 - Multer
+- Socket.IO
 - Swagger
-- @nestjs/axios (gọi AI Python)
 
-### AI service (Python)
-- FastAPI, Uvicorn
-- Ultralytics YOLOv8n
+### Frontend v2
 
-### Frontend
-- React / Next.js
-- Tailwind CSS (+ shadcn/ui nếu mở rộng)
+- Vite
+- React
+- TypeScript
+- Tailwind CSS
+- React Router
+- Leaflet / React Leaflet
+- Recharts
+- Socket.IO client
 
-### Bản đồ
-- Leaflet + OpenStreetMap
-- react-leaflet, leaflet-routing-machine (OSRM)
+### AI
 
-### Realtime
-- Socket.IO (Nest gateway; client `socket.io-client` trên `/map`)
+- FastAPI
+- Python
+- Image analyzer service
+- OSRM-based route helpers
 
-### Hệ thống
-- PM2
-- Nginx
+## Main User Features
 
-## 3. Kiến trúc hệ thống
-Client (Next.js) → **NestJS API** → MySQL (Prisma) + lưu file `uploads/`; Nest → **Python AI** (`/ai/analyze`); client map ↔ **Socket.IO** (`/realtime`).
+- Register and login.
+- Keep session through current-user context.
+- Submit a new incident report.
+- View validated incidents on a map.
+- Vote on reports.
+- View and manage notifications.
+- View profile and settings.
 
-## 4. Chức năng
+## Main Admin Features
 
-### Người dùng
-- Đăng ký / đăng nhập
-- Gửi báo cáo (ảnh, GPS, mô tả)
-- Xem bản đồ
-- Xác nhận báo cáo
-- Nhận cảnh báo
+- List users with filters and stats.
+- Promote/demote user roles.
+- Ban or unban users.
+- View pending report queue.
+- Use report-management UI; some backend report-management endpoints are still missing.
 
-### Admin
-- Quản lý user
-- Duyệt báo cáo
-- Xóa báo cáo giả
-- Thống kê dữ liệu
+## Report Flow
 
-### Hệ thống
-- Bảo mật
-- Log
-- Backup
-- Dọn dữ liệu
+```mermaid
+flowchart TD
+  A["User submits image + GPS + description"] --> B["Backend POST /api/reports"]
+  B --> C["Multer stores image"]
+  C --> D["Backend calls AI POST /analyze"]
+  D --> E{"AI says relevant?"}
+  E -->|"Yes"| F["Create report as VALIDATED"]
+  E -->|"No"| G["Create report as PENDING"]
+  F --> H["Map can load it through /api/reports/active"]
+  G --> I["Admin reviews later"]
+```
 
-## 5. AI
+## Auth And Ban Flow
 
-### Trạng thái: **đã tích hợp** (Python + Nest)
+- Login returns an access token and refresh token.
+- Frontend stores tokens and immediately loads `/api/auth/me`.
+- `JwtStrategy` checks the user in DB on protected requests.
+- Banned users are rejected even if their access token has not expired.
+- When admin bans a user, refresh tokens are deleted and `account:banned` is emitted over Socket.IO.
 
-- **Dịch vụ Python** (`ai-service/`): **FastAPI**, **Ultralytics YOLOv8n**, đọc ảnh trong `backend/uploads` (hoặc `UPLOADS_ROOT`).
-- **Endpoint chính cho Nest:** `POST /ai/analyze` — trả `detected`, `confidence`, `labels`, `predict` (JSON đầy đủ detections).
-- **Endpoint tương thích:** `POST /predict` — payload predict chi tiết (lọc nhãn COCO giao thông).
-- **NestJS:** module **`ai`** (`AiService`) gọi `{AI_SERVICE_URL}/ai/analyze` sau khi lưu báo cáo + file.
+## Map And Safe Route
 
-**Luồng gắn báo cáo:**
+- `GET /api/reports/active` returns validated, non-hidden reports.
+- The map displays danger markers, danger zones, clustering, and heatmap data.
+- Safe-route UI sends current danger points to `urbanguard-ai` through `/real-safe-route`.
+- The AI service evaluates alternatives and returns selected route coordinates for Leaflet.
 
-- `detected === true` và **`confidence` > 0.7** → DB **`VALIDATED`**, `trustScore = 15`, lưu **`aiLabels`** + **`aiSummary`**; cộng **reputation** người gửi (+5).
-- **`confidence` < 0.5** → giữ **`PENDING`** để admin duyệt tay.
-- Lỗi mạng / AI tắt → **PENDING**, `aiSummary` ghi lỗi, `trustScore = 0`.
+## Current Known Gaps
 
-**Validation upload (unchanged):** MIME ảnh (regex + Multer), giới hạn dung lượng, lưu `uploads/` + `imageUrl`.
+| Area | Gap |
+|---|---|
+| Report management | Frontend expects list/detail/status/delete report endpoints that backend does not expose yet |
+| Vote | Backend and frontend response contracts need alignment |
+| Notifications | Frontend listens for `notification:new`, but backend emission is not fully wired |
+| AI failure | Report creation currently fails if the AI call fails |
+| Lint | Full frontend lint has existing issues outside the recent user/auth work |
 
-**Roadmap mở rộng:** phân tích mô tả văn bản, phát hiện trùng báo cáo, model tuỳ biến thay YOLOn.
+## Documentation
 
-## 6. Map
+| File | Purpose |
+|---|---|
+| `README.md` | Setup and current API snapshot |
+| `SYSTEM_ARCHITECTURE.md` | Current architecture |
+| `AUTH_USERS_FLOW.md` | Auth/user flow |
+| `READ-RUN.md` | Local run commands |
+| `frontend-v2/README.md` | Frontend-specific notes |
+| `docs/README.md` | Documentation index |
 
-- **Marker** báo cáo **VALIDATED** (OSM + Leaflet).
-- **Tìm đường:** **leaflet-routing-machine** + OSRM công khai; vùng đệm quanh điểm sự cố → chèn waypoint né; cảnh báo theo **nhãn AI** (`aiLabels`) hoặc tiêu đề.
-- **Realtime:** Socket.IO **`report:new`** → refetch danh sách active trên `/map`.
-- Heatmap / lọc nâng cao / cảnh báo khoảng cách — có thể bổ sung sau.
+## Slogan
 
-## 7. Module NestJS
-- auth
-- **ai** (HTTP → Python `/ai/analyze`)
-- users
-- reports
-- uploads
-- map
-- admin
-- ai-review (stub; luồng chính: **`ai`** + Python)
-- notifications
-- statistics
+UrbanGuard - safer routes through shared awareness.
 
-## 8. Database
-
-### User
-- id
-- email
-- password
-- reputationScore
-- role (ADMIN / USER)
-
-### Report
-- id
-- title
-- description
-- latitude
-- longitude
-- imageUrl
-- **status** — **`PENDING`**, **`VALIDATED`** (hiển thị bản đồ + `/active`; có thể do **AI auto** hoặc **admin**), **`REJECTED`**, **`RESOLVED`**, **`VERIFIED`** (legacy trong enum Prisma nếu còn dữ liệu cũ).
-- trustScore
-- **aiSummary** (JSON) — kết quả `/ai/analyze` hoặc object lỗi khi AI không sẵn sàng.
-- **aiLabels** (JSON array string) — nhãn lớp giao thông (YOLO), phục vụ UI / cảnh báo routing.
-
-## 9. Xác minh dữ liệu
-
-### Các lớp xác minh
-
-- **AI (YOLO + `/ai/analyze`):** xem **§5** — nhận diện vật thể giao thông (COCO lọc nhãn), tự **VALIDATED** khi độ tin cậy cao; ngược lại **PENDING** chờ admin.
-- **Cộng đồng:** vote (UPVOTE / DOWNVOTE), **reputation** — schema có sẵn; logic vote có thể bổ sung dần.
-- **Admin:** `PATCH` trạng thái **VALIDATED** / **REJECTED** từ **PENDING**; đồng bộ `GET /api/reports/active` và bản đồ; phát **`report:new`** khi VALIDATED.
-
-### Trạng thái báo cáo trong tài liệu
-
-Toàn bộ tài liệu dự án dùng **VALIDATED** cho trạng thái “đã duyệt / hiển thị công khai”, **thay cho VERIFIED**, để **khớp với mã nguồn NestJS** và enum Prisma hiện tại. Không mô tả luồng mới là “lưu VERIFIED” nữa.
-
-## 10. Luồng hoạt động
-1. User gửi báo cáo (ảnh + GPS + mô tả) — validation MIME, lưu file, tạo bản ghi **PENDING** ban đầu.
-2. Nest gọi **AI `/ai/analyze`** — cập nhật **`aiSummary`**, **`aiLabels`**, **`trustScore`**, và có thể **`VALIDATED`** tự động (hoặc giữ **PENDING**).
-3. Socket **`report:new`** — client bản đồ có thể refetch danh sách active.
-4. Admin duyệt các báo cáo còn **PENDING** → **VALIDATED** / **REJECTED** (nếu cần).
-5. Hiển thị map — chỉ báo cáo **VALIDATED** trên lớp công khai; tìm đường dùng tọa độ active + né vùng sự cố (heuristic).
-
-## 11. Triển khai
-- Cloud hoặc server riêng
-
-## 12. Kết luận
-UrbanGuard giúp tăng an toàn giao thông.
-
-## 13. Slogan
-UrbanGuard – Bảo vệ bạn trên mọi cung đường

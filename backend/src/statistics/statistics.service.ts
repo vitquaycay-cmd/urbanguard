@@ -79,4 +79,3 @@ export class StatisticsService {
     return { module: 'statistics', note: 'Thống kê báo cáo, vote — truy vấn aggregate sau khi có DB.' };
   }
 }
-console.log('DB URL:', process.env.DATABASE_URL);
