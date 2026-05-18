@@ -1,4 +1,5 @@
 import { WebSocketGateway, WebSocketServer, OnGatewayConnection } from '@nestjs/websockets';
+import { JwtService } from '@nestjs/jwt';
 import { Server, Socket } from 'socket.io';
 
 function socketCorsOrigins(): string | string[] {
@@ -22,11 +23,24 @@ function socketCorsOrigins(): string | string[] {
   namespace: '/realtime',
 })
 export class NotificationsGateway implements OnGatewayConnection {
+  constructor(private readonly jwtService: JwtService) {}
+
   @WebSocketServer()
   server: Server;
 
   handleConnection(client: Socket) {
-    const userId = client.handshake.query.userId
+    const token = client.handshake.auth?.token;
+    let payload: { sub?: number | string; id?: number | string } | null = null;
+    try {
+      payload =
+        typeof token === 'string'
+          ? this.jwtService.verify<{ sub?: number | string; id?: number | string }>(token)
+          : null;
+    } catch {
+      client.disconnect();
+      return;
+    }
+    const userId = payload?.sub ?? payload?.id;
     if (userId) {
       client.join(`user:${userId}`)
     }
@@ -40,6 +54,10 @@ export class NotificationsGateway implements OnGatewayConnection {
   /** Gọi từ Reports / AI sau khi cập nhật trustScore hoặc trạng thái báo cáo. */
   emitReportUpdate(payload: Record<string, unknown>) {
     this.server.emit('report:update', payload);
+  }
+
+  emitNotificationNew(userId: number, payload: Record<string, unknown>) {
+    this.server.to(`user:${userId}`).emit('notification:new', payload);
   }
 
   emitAccountBanned(userId: number) {

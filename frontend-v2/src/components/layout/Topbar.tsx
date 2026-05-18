@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Search, RotateCw, Bell, User, LogOut } from "lucide-react";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { useUnreadCount } from "@/hooks/useUnreadCount";
 import {
   logoutRequest,
   getStoredRefreshToken,
@@ -15,6 +16,7 @@ interface TopbarProps {
 
 export default function Topbar({ title, subtitle }: TopbarProps) {
   const { user } = useCurrentUser();
+  const unreadCount = useUnreadCount(user?.id);
   const initial = (user?.fullname || user?.email || "U")[0].toUpperCase();
 
   const [showMenu, setShowMenu] = useState(false);
@@ -77,7 +79,11 @@ export default function Topbar({ title, subtitle }: TopbarProps) {
           aria-label="Notifications"
         >
           <Bell size={18} />
-          <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+          {unreadCount > 0 && (
+            <span className="absolute -right-1 -top-1 min-w-4 rounded-full bg-red-500 px-1 text-center text-[10px] font-bold leading-4 text-white">
+              {unreadCount > 99 ? "99+" : unreadCount}
+            </span>
+          )}
         </Link>
 
         {/* User Avatar + dropdown */}

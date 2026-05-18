@@ -1,9 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
+import { io } from "socket.io-client";
 import {
   deleteAllNotificationsRequest,
   getNotificationsRequest,
+  getStoredAccessToken,
   markAllReadRequest,
 } from "@/services/auth.api";
+import { getApiBaseUrl } from "@/lib/apiConfig";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 import NotificationsHeader from "@/components/notifications/NotificationsHeader";
 import NotificationsFilters from "@/components/notifications/NotificationsFilters";
 import NotificationsList from "@/components/notifications/NotificationsList";
@@ -27,6 +31,7 @@ function normalizeNotificationsList(data: unknown): Notification[] {
 }
 
 export default function NotificationsPage() {
+  const { user } = useCurrentUser();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [activeTab, setActiveTab] = useState<NotifType>("ALL");
   const [loading, setLoading] = useState(true);
@@ -46,6 +51,23 @@ export default function NotificationsPage() {
   useEffect(() => {
     void loadNotifications();
   }, [loadNotifications]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const socket = io(`${getApiBaseUrl().replace("/api", "")}/realtime`, {
+      auth: { token: getStoredAccessToken() },
+      transports: ["websocket"],
+    });
+
+    socket.on("notification:new", () => {
+      void loadNotifications();
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [user?.id, loadNotifications]);
 
   async function handleMarkAllRead() {
     await markAllReadRequest();

@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { io } from "socket.io-client";
 import { getApiBaseUrl } from "@/lib/apiConfig";
-import { getUnreadNotificationsCount } from "@/services/auth.api";
+import {
+  getStoredAccessToken,
+  getUnreadNotificationsCount,
+} from "@/services/auth.api";
 
 export function useUnreadCount(userId: number | undefined) {
   const [count, setCount] = useState(0);
@@ -17,7 +20,7 @@ export function useUnreadCount(userId: number | undefined) {
     if (!userId) return;
 
     const socket = io(`${getApiBaseUrl().replace("/api", "")}/realtime`, {
-      query: { userId: String(userId) },
+      auth: { token: getStoredAccessToken() },
       transports: ["websocket"],
     });
 

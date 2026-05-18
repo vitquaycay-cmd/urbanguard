@@ -67,6 +67,37 @@ export class NotificationsService {
     );
   }
 
+  async createForUser(params: {
+    userId: number;
+    title: string;
+    body: string;
+    type?: NotificationType;
+    reportId?: number;
+  }) {
+    const notification = await this.prisma.notification.create({
+      data: {
+        userId: params.userId,
+        title: params.title,
+        body: params.body,
+        type: params.type ?? NotificationType.REPORT_UPDATE,
+        reportId: params.reportId,
+      },
+    });
+
+    const payload = {
+      id: notification.id,
+      title: notification.title,
+      body: notification.body,
+      type: notification.type,
+      readAt: notification.readAt?.toISOString() ?? null,
+      createdAt: notification.createdAt.toISOString(),
+      reportId: notification.reportId ?? undefined,
+    };
+
+    this.gateway.emitNotificationNew(params.userId, payload);
+    return payload;
+  }
+
   async getUnreadCount(userId: number) {
     const count = await this.prisma.notification.count({
       where: {

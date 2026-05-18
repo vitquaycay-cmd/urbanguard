@@ -19,6 +19,7 @@ import {
   getStoredRefreshToken,
   removeStoredTokens,
 } from "@/services/auth.api";
+import { useUnreadCount } from "@/hooks/useUnreadCount";
 
 interface SidebarProps {
   onLogout?: () => void;
@@ -28,7 +29,7 @@ export default function Sidebar({ onLogout }: SidebarProps) {
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const { user, clearUser } = useCurrentUser();
-  // const unreadCount = useUnreadCount(user?.id)
+  const unreadCount = useUnreadCount(user?.id);
 
   const initial = (user?.fullname || user?.email || "U")[0].toUpperCase();
   const displayName =
@@ -72,6 +73,10 @@ export default function Sidebar({ onLogout }: SidebarProps) {
       icon: Bell,
       label: "Notifications",
       href: "/notifications",
+      badge:
+        unreadCount > 0
+          ? { text: unreadCount > 99 ? "99+" : String(unreadCount), color: "red" }
+          : undefined,
     },
   ];
 
@@ -130,7 +135,13 @@ export default function Sidebar({ onLogout }: SidebarProps) {
                     <span className="flex-1">{item.label}</span>
 
                     {item.badge && (
-                      <span className="text-[10px] font-bold px-2 rounded-full bg-green-100 text-green-700">
+                      <span
+                        className={`text-[10px] font-bold px-2 rounded-full ${
+                          item.badge.color === "red"
+                            ? "bg-red-100 text-red-700"
+                            : "bg-green-100 text-green-700"
+                        }`}
+                      >
                         {item.badge.text}
                       </span>
                     )}
@@ -152,7 +163,13 @@ export default function Sidebar({ onLogout }: SidebarProps) {
                   <span className="flex-1">{item.label}</span>
 
                   {item.badge && (
-                    <span className="text-[10px] font-bold px-2 rounded-full bg-green-100 text-green-700">
+                    <span
+                      className={`text-[10px] font-bold px-2 rounded-full ${
+                        item.badge.color === "red"
+                          ? "bg-red-100 text-red-700"
+                          : "bg-green-100 text-green-700"
+                      }`}
+                    >
                       {item.badge.text}
                     </span>
                   )}

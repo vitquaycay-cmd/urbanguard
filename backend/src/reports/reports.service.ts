@@ -8,7 +8,7 @@ import {
 import { existsSync, unlinkSync } from 'fs';
 import { join } from 'path';
 import { Prisma } from '@prisma/client';
-import { ReportStatus } from '@prisma/client';
+import { NotificationType, ReportStatus } from '@prisma/client';
 import { AiService } from '../ai/ai.service';
 import { PrismaService } from '../prisma/prisma.service';
 import {
@@ -31,6 +31,25 @@ const CONFIDENCE_AUTO_VALIDATE = 0.7;
 
 const REPORT_STATUS_VALIDATED = 'VALIDATED' as ReportStatus;
 const REPORT_STATUS_REJECTED = 'REJECTED' as ReportStatus;
+
+function buildStatusNotification(action: AdminReportStatus, reportId: number) {
+  if (action === AdminReportStatus.VALIDATED) {
+    return {
+      title: 'Báo cáo đã được duyệt',
+      body: `Báo cáo #${reportId} của bạn đã được xác nhận và hiển thị trên bản đồ.`,
+    };
+  }
+  if (action === AdminReportStatus.REJECTED) {
+    return {
+      title: 'Báo cáo đã bị từ chối',
+      body: `Báo cáo #${reportId} của bạn chưa đủ điều kiện để hiển thị trên hệ thống.`,
+    };
+  }
+  return {
+    title: 'Báo cáo đã được khắc phục',
+    body: `Báo cáo #${reportId} đã được đánh dấu là đã khắc phục.`,
+  };
+}
 
 /** Chuẩn hoá nhãn AI: luôn `string[]` (hỗ trợ AI trả chuỗi "a, b"). */
 function normalizeAnalysisLabels(raw: unknown): string[] {
@@ -395,6 +414,20 @@ reputationScore: { increment: REPUTATION_BONUS_ON_VALIDATION },
         id: report.id,
         status: adminAction,
       });
+    }
+
+    try {
+      const notification = buildStatusNotification(adminAction, report.id);
+      await this.notificationsService.createForUser({
+        userId: report.userId,
+        reportId: report.id,
+        type: NotificationType.REPORT_UPDATE,
+        ...notification,
+      });
+    } catch (err) {
+      this.logger.warn(
+        `[Notification] Không thể tạo thông báo cho report #${report.id}: ${(err as Error).message}`,
+      );
     }
 
     return result;
