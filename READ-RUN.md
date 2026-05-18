@@ -1,22 +1,87 @@
-tạo database
+# Run Guide
+
+Use this guide for local development. Run each app from its own directory.
+
+## 1. Database
+
+Create a MySQL database:
+
+```sql
 CREATE DATABASE urbanguard CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+```
 
-cd ai-service
-py -3 -m pip install -r requirements.txt
-py -3 -m uvicorn main:app --reload --port 8000
+Configure `backend/.env` with `DATABASE_URL`, JWT secrets, and `AI_SERVICE_URL`.
 
-cd frontend-v2
-npm run build
-npm run dev
+## 2. Backend
 
-chạy database khởi tạo file
+```bash
+cd backend
+npm install
 npx prisma generate
-tạo Prisma Client
 npx prisma migrate dev
-tạo & cập nhật database
 npm run start:dev
+```
 
-backend
+Useful backend commands:
+
+```bash
+npm test
+npx tsc --noEmit
+npm run build
 npx prisma studio
-kiểm tra csdl
-npx prisma migrate dev
+```
+
+Default URLs:
+
+- API: `http://localhost:3000/api`
+- Swagger: `http://localhost:3000/api/docs`
+- Uploads: `http://localhost:3000/uploads/...`
+
+## 3. AI Service
+
+```bash
+cd urbanguard-ai
+py -3 -m pip install -r requirements.txt
+py -3 -m uvicorn main:app --reload --host 127.0.0.1 --port 5000
+```
+
+Default backend fallback expects:
+
+```env
+AI_SERVICE_URL=http://127.0.0.1:5000
+```
+
+Useful AI URLs:
+
+- Docs: `http://127.0.0.1:5000/docs`
+- Image analysis: `POST http://127.0.0.1:5000/analyze`
+- Safe route: `POST http://127.0.0.1:5000/real-safe-route`
+
+## 4. Frontend v2
+
+```bash
+cd frontend-v2
+npm install
+npm run dev
+```
+
+Default Vite URL:
+
+- `http://localhost:3002`
+
+Optional `frontend-v2/.env`:
+
+```env
+VITE_API_URL=http://localhost:3000
+```
+
+Useful frontend commands:
+
+```bash
+npx tsc --noEmit -p tsconfig.app.json
+npm run build
+npm run lint
+```
+
+Note: full frontend lint currently still reports issues outside the user/auth area.
+

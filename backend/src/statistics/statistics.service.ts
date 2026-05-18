@@ -44,10 +44,31 @@ export class StatisticsService {
     // 4. Tính toán tỷ lệ phần trăm an toàn (tránh lỗi chia cho 0)
     const autoValidatedRate = totalReports > 0 ? (autoValidatedCount / totalReports) * 100 : 0;
 
+    // 5. Thống kê theo khu vực (Top 5 khu vực có nhiều báo cáo nhất)
+    // Vì DB hiện tại chưa có trường Quận/Huyện (District), ta gom nhóm theo tọa độ 
+    // làm tròn 2 chữ số thập phân (độ chính xác ~1.1km) để xác định các "điểm nóng".
+    const allReports = await this.prisma.report.findMany({
+      select: { latitude: true, longitude: true },
+    });
+
+    const areaMap = new Map<string, number>();
+    allReports.forEach((r) => {
+      const lat = r.latitude.toFixed(2);
+      const lng = r.longitude.toFixed(2);
+      const key = `Khu vực (${lat}, ${lng})`;
+      areaMap.set(key, (areaMap.get(key) || 0) + 1);
+    });
+
+    const topAreas = Array.from(areaMap.entries())
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+
     return {
       total: totalReports,
       autoValidatedRate: parseFloat(autoValidatedRate.toFixed(2)),
       byStatus,
+      topAreas,
     };
   }
 //===============================Get Heatmap Data===============================
@@ -79,4 +100,3 @@ export class StatisticsService {
     return { module: 'statistics', note: 'Thống kê báo cáo, vote — truy vấn aggregate sau khi có DB.' };
   }
 }
-console.log('DB URL:', process.env.DATABASE_URL);

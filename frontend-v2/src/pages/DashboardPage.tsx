@@ -13,6 +13,10 @@ import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { fetchAdminReports, type ReportDetail } from "@/services/report.api";
+import {
+  getStatisticsOverview,
+  type StatsOverview,
+} from "@/services/statistics.api";
 
 const DAY_LABELS = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"];
 
@@ -54,13 +58,23 @@ export default function DashboardPage() {
 
   const [activeTab, setActiveTab] = useState("week");
   const [allReports, setAllReports] = useState<ReportDetail[]>([]);
+  const [statsOverview, setStatsOverview] = useState<StatsOverview | null>(
+    null,
+  );
   const [isLoading, setIsLoading] = useState(false);
 
   const fetchStats = useCallback(() => {
     setIsLoading(true);
-    fetchAdminReports({ limit: 100, sortBy: "createdAt", sortOrder: "desc" })
-      .then((res) => setAllReports(res.data))
-      .catch(() => {})
+    // 🔗 KẾT NỐI: Gọi đồng thời cả danh sách báo cáo và dữ liệu thống kê tổng hợp từ Backend
+    Promise.all([
+      fetchAdminReports({ limit: 100, sortBy: "createdAt", sortOrder: "desc" }),
+      getStatisticsOverview(),
+    ])
+      .then(([reportsRes, statsRes]) => {
+        setAllReports(reportsRes.data);
+        setStatsOverview(statsRes);
+      })
+      .catch((err) => console.error("Dashboard fetch error:", err))
       .finally(() => setIsLoading(false));
   }, []);
 
@@ -297,13 +311,13 @@ export default function DashboardPage() {
             </div>
           </div>
           <div className="mt-2 text-3xl font-bold text-gray-900">
-            {resolvedPct}%
+            {statsOverview ? `${statsOverview.autoValidatedRate}%` : `${resolvedPct}%`}
           </div>
           <div className="mt-0.5 text-sm text-gray-500">Đã xử lý</div>
           <div className="mt-3 h-1.5 rounded-full bg-gray-100">
             <div
               className="h-full rounded-full bg-green-500"
-              style={{ width: `${resolvedPct}%` }}
+              style={{ width: `${statsOverview?.autoValidatedRate ?? resolvedPct}%` }}
             ></div>
           </div>
         </div>
@@ -426,15 +440,29 @@ export default function DashboardPage() {
             <p className="mt-1 text-sm text-gray-500">
               Mật độ sự cố cập nhật theo khu vực thời gian thực.
             </p>
-            <div className="mt-4 flex items-center gap-2">
-              <div className="h-2 w-2 rounded-full bg-green-500"></div>
-              <div>
-                <p className="text-xs font-semibold text-gray-700">
-                  Khu vực nóng nhất
-                </p>
-                <p className="text-xs text-gray-400">Quận 1, TP. Hồ Chí Minh</p>
+              <div className="mt-4 flex items-center gap-2">
+                <div className="h-2 w-2 rounded-full bg-green-500"></div>
+                <div>
+                  <p className="text-xs font-semibold text-gray-700">
+                    Khu vực nóng nhất
+                  </p>
+                  <p className="text-xs text-gray-400">
+                    {statsOverview?.topAreas[0]?.name || "Đang xác định..."}
+                  </p>
+                </div>
               </div>
-            </div>
+              {statsOverview && statsOverview.topAreas.length > 1 && (
+                <div className="mt-2 space-y-1">
+                  {statsOverview.topAreas.slice(1, 3).map((area, i) => (
+                    <div key={i} className="flex items-center gap-2 opacity-70">
+                      <div className="h-1.5 w-1.5 rounded-full bg-gray-400"></div>
+                      <p className="text-[10px] text-gray-500">
+                        {area.name} ({area.count})
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
           </div>
 
           {/* Right: Fake Map */}
