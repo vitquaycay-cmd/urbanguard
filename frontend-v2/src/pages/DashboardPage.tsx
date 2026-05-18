@@ -168,6 +168,7 @@ export default function DashboardPage() {
     "va chạm",
     "đâm",
   ]);
+  
   const floodsCount = countByKeyword(allReports, [
     "ngập",
     "lụt",
