@@ -61,6 +61,15 @@ const reportSelectFull = {
   userId: true,
 } as const;
 
+const reportUserSelect = {
+  id: true,
+  email: true,
+  fullname: true,
+  username: true,
+  reputationScore: true,
+  role: true,
+} as const;
+
 @Injectable()
 export class ReportsService {
   private readonly logger = new Logger(ReportsService.name);
@@ -175,6 +184,79 @@ export class ReportsService {
     });
   }
 
+  async findOne(id: number) {
+    const report = await this.prisma.report.findUnique({
+      where: { id },
+      select: {
+        ...reportSelectFull,
+        user: {
+          select: reportUserSelect,
+        },
+      },
+    });
+
+    if (!report) {
+      throw new NotFoundException(`Không tìm thấy báo cáo #${id}`);
+    }
+
+    return report;
+  }
+
+  async findAll(dto: QueryReportsDto) {
+    const page = dto.page ?? 1;
+    const limit = dto.limit ?? 20;
+    const skip = (page - 1) * limit;
+
+    const where: Prisma.ReportWhereInput = {};
+
+    if (dto.status) {
+      where.status = dto.status;
+    }
+
+    if (dto.userId) {
+      where.userId = dto.userId;
+    }
+
+    if (dto.search) {
+      where.OR = [
+        { title: { contains: dto.search } },
+        { description: { contains: dto.search } },
+      ];
+    }
+
+    const sortBy = dto.sortBy ?? "createdAt";
+    const sortOrder = dto.sortOrder ?? "desc";
+    const orderBy: Prisma.ReportOrderByWithRelationInput = {
+      [sortBy]: sortOrder,
+    };
+
+    const [data, total] = await Promise.all([
+      this.prisma.report.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy,
+        select: {
+          ...reportSelectFull,
+          user: {
+            select: reportUserSelect,
+          },
+        },
+      }),
+      this.prisma.report.count({ where }),
+    ]);
+
+    return {
+      data,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
   async remove(id: number) {
     const report = await this.prisma.report.findUnique({
       where: { id },
@@ -185,10 +267,15 @@ export class ReportsService {
       throw new NotFoundException("Không tìm thấy báo cáo");
     }
 
-    return this.prisma.report.update({
+    await this.prisma.report.update({
       where: { id },
       data: { isHidden: true },
     });
+
+    return {
+      message: "Đã xóa báo cáo",
+      deletedId: id,
+    };
   }
 
    /**
