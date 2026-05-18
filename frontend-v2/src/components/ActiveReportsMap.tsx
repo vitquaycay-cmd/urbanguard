@@ -9,6 +9,9 @@ import { getValidatedReportsForRouting } from "@/services/routingService";
 import { getHeatmapData } from "@/services/statistics.api";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
+import markerIcon from "leaflet/dist/images/marker-icon.png";
+import markerShadow from "leaflet/dist/images/marker-shadow.png";
 import "leaflet.markercluster/dist/MarkerCluster.css";
 import "leaflet.markercluster/dist/MarkerCluster.Default.css";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -40,6 +43,14 @@ const DEFAULT_CENTER: L.LatLngExpression = [10.762622, 106.660172];
 const DEFAULT_ZOOM = 13;
 
 type LatLngTuple = [number, number];
+
+// Leaflet default marker image paths are not resolved automatically in Vite production builds.
+delete (L.Icon.Default.prototype as unknown as { _getIconUrl?: unknown })._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: markerIcon2x,
+  iconUrl: markerIcon,
+  shadowUrl: markerShadow,
+});
 
 const currentLocationIcon = L.divIcon({
   className: "ug-current-location-marker",
