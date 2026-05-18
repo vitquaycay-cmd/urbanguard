@@ -1,73 +1,86 @@
-# React + TypeScript + Vite
+# UrbanGuard Frontend v2
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Main UrbanGuard web app built with Vite, React, TypeScript, Tailwind, Leaflet, Socket.IO client, and Recharts.
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+| Area | Description |
+|---|---|
+| Auth | Login/register, protected routes, current-user context |
+| Map | Validated reports, danger markers, clustering, heatmap toggle |
+| Safe route | Calls `urbanguard-ai` `/real-safe-route` with current danger points |
+| Reports | User report form with image upload and GPS position |
+| Notifications | Notification list, read-all, delete-all |
+| Admin users | User list, filters, ban/unban |
+| Admin reports | UI exists, but some backend report-management endpoints are not implemented yet |
 
-## React Compiler
+## Environment
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Create `frontend-v2/.env` when the backend is not on the default URL:
 
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```env
+VITE_API_URL=http://localhost:3000
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+The safe-route service currently calls:
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```text
+http://127.0.0.1:5000/real-safe-route
 ```
+
+## Commands
+
+```bash
+npm install
+npm run dev
+npm run build
+npx tsc --noEmit -p tsconfig.app.json
+npm run lint
+```
+
+Default dev URL:
+
+```text
+http://localhost:3002
+```
+
+## Important Files
+
+| File | Purpose |
+|---|---|
+| `src/App.tsx` | Route tree and app-level providers |
+| `src/hooks/CurrentUserProvider.tsx` | Current-user loading and refresh logic |
+| `src/hooks/currentUserContext.ts` | Current-user context shape |
+| `src/hooks/useCurrentUser.tsx` | Current-user hook |
+| `src/services/auth.api.ts` | Auth, tokens, notifications API helpers |
+| `src/services/report.api.ts` | Report and admin-report API helpers |
+| `src/services/user.api.ts` | Admin user API helpers |
+| `src/pages/MapPage.tsx` | Safe-route page shell |
+| `src/components/ActiveReportsMap.tsx` | Leaflet map and realtime report loading |
+| `src/pages/AccountManagementPage.tsx` | Admin user-management page |
+| `src/pages/ReportManagementPage.tsx` | Admin report-management page |
+
+## Auth Notes
+
+Login flow:
+
+1. `LoginPage` calls `loginRequest`.
+2. Tokens are stored in local storage.
+3. `refreshUser()` loads `/api/auth/me`.
+4. Protected routes can render once `CurrentUserProvider` has the user.
+
+Logout flow:
+
+1. Sidebar calls `/api/auth/logout` when a refresh token exists.
+2. Local tokens are removed.
+3. Current-user context is cleared.
+4. User is navigated to `/login`.
+
+If `/api/auth/me` returns `401` or `403`, the provider clears stored tokens.
+
+## Known Gaps
+
+- Full lint still fails in files outside the recent user/auth work.
+- Report-management page calls backend endpoints that are not currently exposed by `backend/src/reports/reports.controller.ts`.
+- Vote UI expects `trustScore` and `userVote`, but backend vote response currently uses `newTrustScore`.
+

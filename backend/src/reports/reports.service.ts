@@ -3,16 +3,72 @@ import {
   Injectable,
   NotFoundException,
   UnauthorizedException,
+  Logger,
 } from "@nestjs/common";
-import { Prisma, ReportStatus } from "@prisma/client";
-import { AiService } from "../ai/ai.service";
-import { PrismaService } from "../prisma/prisma.service";
+import { existsSync, unlinkSync } from 'fs';
+import { join } from 'path';
+import { Prisma } from '@prisma/client';
+import { ReportStatus } from '@prisma/client';
+import { AiService } from '../ai/ai.service';
+import { PrismaService } from '../prisma/prisma.service';
+import {
+  buildReportNewSocketPayload,
+  NotificationsService,
+} from '../notifications/notifications.service';
+import { AdminReportStatus } from './dto/update-report-status.dto';
+import { CreateReportDto } from './dto/create-report.dto';
+import { QueryReportsDto } from './dto/query-reports.dto';
+const IMAGE_URL_PREFIX = '/uploads';
+
+/** Điểm uy tín user khi báo cáo được VALIDATED (admin hoặc AI tự động). */
+const REPUTATION_BONUS_ON_VALIDATION = 5;
+
+/** Điểm trustScore gán khi AI tự động VALIDATED (confidence > ngưỡng). */
+const AUTO_VALIDATED_TRUST_SCORE = 15;
+
+/** Ngưỡng tự duyệt: `detected === true` và `confidence` phải **lớn hơn** giá trị này. */
+const CONFIDENCE_AUTO_VALIDATE = 0.7;
+
+const REPORT_STATUS_VALIDATED = 'VALIDATED' as ReportStatus;
+const REPORT_STATUS_REJECTED = 'REJECTED' as ReportStatus;
+
+/** Chuẩn hoá nhãn AI: luôn `string[]` (hỗ trợ AI trả chuỗi "a, b"). */
+function normalizeAnalysisLabels(raw: unknown): string[] {
+  if (Array.isArray(raw)) {
+    return raw.filter((x): x is string => typeof x === 'string').map((s) => s.trim()).filter(Boolean);
+  }
+  if (typeof raw === 'string') {
+    return raw
+      .split(/[,;]/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+  }
+  return [];
+}
+
+const reportSelectFull = {
+  id: true,
+  title: true,
+  description: true,
+  latitude: true,
+  longitude: true,
+  imageUrl: true,
+  status: true,
+  trustScore: true,
+  aiSummary: true,
+  aiLabels: true,
+  createdAt: true,
+  userId: true,
+} as const;
 
 @Injectable()
 export class ReportsService {
+  private readonly logger = new Logger(ReportsService.name);
   constructor(
     private readonly prisma: PrismaService,
     private readonly aiService: AiService,
+    private readonly notificationsService: NotificationsService,
+    
   ) {}
 
   private getUserId(user: any): number {
@@ -133,5 +189,122 @@ export class ReportsService {
       where: { id },
       data: { isHidden: true },
     });
+  }
+
+   /**
+     * Helper dọn dẹp file vật lý
+     */
+    private deletePhysicalFile(imageUrl: string) {
+      const filename = imageUrl.replace(/^\/uploads\//, '');
+      const filePath = join(process.cwd(), 'uploads', filename);
+      try {
+        if (existsSync(filePath)) {
+          unlinkSync(filePath);
+          this.logger.log(`🗑️ [File Cleanup] Đã xoá file thành công: ${filename}`);
+        }
+      } catch (err) {
+        this.logger.warn(
+          `⚠️ [File Cleanup] Không thể xóa file ${filePath}: ${(err as Error).message}`,
+        );
+      }
+    }
+  async updateStatus(reportId: number, action: AdminReportStatus) {
+    // [Cũ] Sửa: Logic cũ phân loại đích đến của Dev A:
+    // const nextDbStatus: ReportStatus =
+    //   action === AdminReportStatus.VALIDATED
+    //     ? REPORT_STATUS_VALIDATED
+    //     : REPORT_STATUS_REJECTED;
+
+    // [Mới] Logic thêm flow RESOLVED
+    let nextDbStatus: ReportStatus;
+    if (action === AdminReportStatus.VALIDATED) nextDbStatus = ReportStatus.VALIDATED;
+    else if (action === AdminReportStatus.REJECTED) nextDbStatus = ReportStatus.REJECTED;
+    else nextDbStatus = ReportStatus.RESOLVED;
+
+    const result = await this.prisma.$transaction(async (tx) => {
+      const report = await tx.report.findUnique({
+        where: { id: reportId },
+        select: { id: true, status: true, userId: true, trustScore: true },
+      });
+
+      if (!report) {
+        throw new NotFoundException(`Không tìm thấy báo cáo #${reportId}`);
+      }
+
+      // [Cũ] Sửa: Cữ chặn cũ của Dev A (Chỉ duyệt PENDING):
+      // if (report.status !== ReportStatus.PENDING) {
+      //   throw new BadRequestException(
+      //     `Chỉ có thể duyệt báo cáo đang PENDING (hiện tại: ${report.status})`,
+      //   );
+      // }
+
+      // [Mới] Cữ chặn linh hoạt cho RESOLVED:
+      if (report.status === ReportStatus.PENDING && action === AdminReportStatus.RESOLVED) {
+        throw new BadRequestException(`Báo cáo PENDING không thể chuyển thẳng thành RESOLVED`);
+      }
+      if (report.status === ReportStatus.VALIDATED && (action === AdminReportStatus.VALIDATED || action === AdminReportStatus.REJECTED)) {
+         throw new BadRequestException(`Báo cáo đang hiển thị (VALIDATED) chỉ có thể chuyển thành đã khắc phục (RESOLVED)`);
+      }
+      if (report.status === ReportStatus.RESOLVED || report.status === ReportStatus.REJECTED) {
+         throw new BadRequestException(`Báo cáo này đã kết thúc, không thể thay đổi trạng thái nữa`);
+      }
+
+      let trustForValidated = report.trustScore;
+      if (action === AdminReportStatus.VALIDATED) {
+        trustForValidated =
+          report.trustScore > 0 ? report.trustScore : AUTO_VALIDATED_TRUST_SCORE;
+        if (trustForValidated === 0) {
+          trustForValidated = AUTO_VALIDATED_TRUST_SCORE;
+        }
+      }
+
+      const updated = await tx.report.update({
+        where: { id: reportId },
+        data: {
+          status: nextDbStatus,
+          ...(action === AdminReportStatus.VALIDATED
+            ? { trustScore: trustForValidated }
+            : {}),
+        },
+        select: reportSelectFull,
+      });
+
+      // Tự động dọn dẹp file khi chuyển sang REJECTED
+      if (nextDbStatus === ReportStatus.REJECTED && updated.imageUrl) {
+        this.deletePhysicalFile(updated.imageUrl);
+      }
+
+      if (action === AdminReportStatus.VALIDATED) {
+        await tx.user.update({
+          where: { id: report.userId },
+          data: {
+reputationScore: { increment: REPUTATION_BONUS_ON_VALIDATION },
+          },
+        });
+      }
+
+      return {
+        ...updated,
+        adminAction: action,
+      };
+    });
+
+    const { adminAction, ...report } = result;
+    if (adminAction === AdminReportStatus.VALIDATED) {
+      this.notificationsService.emitReportNew({
+        ...buildReportNewSocketPayload(report),
+        report,
+      });
+    }
+
+    // WIRE VÀO FLOW RESOLVED / REJECTED ĐỂ PHÁT SOCKET
+    if (adminAction === AdminReportStatus.RESOLVED || adminAction === AdminReportStatus.REJECTED) {
+      this.notificationsService.broadcastReportUpdate({
+        id: report.id,
+        status: adminAction,
+      });
+    }
+
+    return result;
   }
 }

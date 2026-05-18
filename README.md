@@ -1,51 +1,75 @@
 # UrbanGuard
 
-**Bảo vệ bạn trên mọi cung đường** — Hệ thống bản đồ cảnh báo sự cố giao thông đô thị: người dân gửi báo cáo (ảnh + GPS + mô tả), **AI (YOLO) + admin** duyệt, dữ liệu tin cậy hiển thị trên bản đồ (Leaflet / OSM), có **tìm đường né điểm sự cố** (leaflet-routing-machine + OSRM). Tổng quan: [`UrbanGuard.md`](./UrbanGuard.md).
+UrbanGuard is an urban traffic incident reporting and safety-routing system. Users submit road incidents with an image, GPS position, and description. The backend stores the report, asks the AI service to review the image, and exposes validated incidents to the map UI. Admin users can manage accounts and review pending reports.
 
----
+This repository is a multi-app workspace. It is not configured as a root npm workspace; install and run each app from its own folder.
 
-## Cấu trúc thư mục
+## Current Apps
 
-| Thư mục / file | Mô tả |
-|----------------|--------|
-| [`backend/`](./backend/) | API **NestJS 10**: REST, JWT, Prisma, MySQL, Swagger, Multer, **`AiModule`** (HTTP → Python), **`ReportsService`** (auto VALIDATED / PENDING), Socket.IO. |
-| [`frontend/`](./frontend/) | **Next.js** + React + Tailwind + **react-leaflet** + **leaflet-routing-machine**; `/map` — marker VALIDATED, Socket `report:new`, panel OSRM. |
-| [`ai-service/`](./ai-service/) | **FastAPI + Ultralytics YOLOv8n**: `POST /ai/analyze`, `POST /predict`, `GET /health`; đọc ảnh từ `backend/uploads`. |
-| [`docs/`](./docs/) | Tài liệu thiết kế; **`docs/plans/`** — file plan (.md) theo dõi bằng Git (xem [`docs/plans/README.md`](./docs/plans/README.md)). |
-| [`.cursor/skills/`](./.cursor/skills/) · [`.agents/skills/`](./.agents/skills/) | Skills Cursor/agent: brainstorm, kế hoạch triển khai, thực hiện plan. |
-| `UrbanGuard.md` | Mô tả sản phẩm, module, AI, DB, luồng. |
-| `UrbanGuard_description.txt` | Chi tiết chức năng, rủi ro. |
-| `UrbanGuard_Docs_Structure.md` | Sơ đồ cây `docs/`. |
+| Path | Role | Stack |
+|---|---|---|
+| `backend/` | Main REST API, auth, reports, users, notifications, statistics | NestJS, Prisma, MySQL, Socket.IO |
+| `frontend-v2/` | Main web app | Vite, React, TypeScript, Tailwind, Leaflet |
+| `urbanguard-ai/` | AI image analysis and safe-route service | FastAPI, Python, OSRM helpers |
+| `forum-backend/`, `forum-frontend/` | Separate forum apps | Out of scope for the current backend/frontend-v2 review |
+| `docs/` | Project documentation | Markdown |
 
-Monorepo: **không** npm workspace ở root — cài và chạy riêng `backend`, `frontend`, `ai-service`.
+## High-Level Architecture
 
----
+```mermaid
+flowchart LR
+  User["Browser / frontend-v2"] -->|"REST /api + JWT"| API["backend NestJS"]
+  User -->|"Socket.IO /realtime"| API
+  User -->|"safe route request"| AI["urbanguard-ai FastAPI"]
+  API -->|"Prisma"| DB[("MySQL")]
+  API -->|"multipart image /analyze"| AI
+  API -->|"static /uploads"| Files["backend/uploads"]
+  AI -->|"OSRM route alternatives"| OSRM["OSRM public API"]
+```
 
-## Công nghệ (đang dùng trong repo)
+## Backend API Snapshot
 
-| Lớp | Công nghệ |
-|-----|-----------|
-| API | NestJS, Prisma, MySQL, Passport JWT, bcrypt, Multer, class-validator, Swagger, **@nestjs/axios** |
-| AI (Python) | FastAPI, Uvicorn, Ultralytics YOLOv8n |
-| Realtime | Socket.IO (`/realtime`) — sự kiện **`report:new`** (sau tạo báo cáo / admin VALIDATED) |
-| Web | Next.js, React, Tailwind, Leaflet, react-leaflet, **socket.io-client**, **leaflet-routing-machine** (OSRM công khai) |
-| DB | MySQL `utf8mb4` (khuyến nghị XAMPP) |
-| Test | Backend/Frontend: **Vitest**; AI: **pytest** (`npm test` / `npm run build` trong `ai-service` gọi Python) |
+All backend routes use the `/api` prefix.
 
-PM2, Nginx, shadcn đầy đủ… trong `UrbanGuard.md` là **hướng triển khai**, chưa nhất thiết đã cấu hình trong repo.
+| Area | Endpoint | Status |
+|---|---|---|
+| Health | `GET /api/health` | Implemented |
+| Auth | `POST /api/auth/register` | Implemented |
+| Auth | `POST /api/auth/login` | Implemented |
+| Auth | `GET /api/auth/me` | Implemented, JWT required |
+| Auth | `POST /api/auth/refresh` | Implemented |
+| Auth | `PATCH /api/auth/password` | Implemented, JWT required |
+| Auth | `POST /api/auth/logout` | Implemented, JWT required |
+| Users | `GET /api/users` | Implemented, ADMIN required |
+| Users | `PATCH /api/users/:id/role` | Implemented, ADMIN required |
+| Users | `GET /api/users/:id/profile` | Implemented, JWT required |
+| Users | `PATCH /api/users/:id/ban` | Implemented, ADMIN required |
+| Reports | `GET /api/reports/active` | Implemented |
+| Reports | `POST /api/reports` | Implemented, JWT + image upload required |
+| Reports | `POST /api/reports/:id/vote` | Implemented, JWT required |
+| Admin | `GET /api/admin/reports/pending` | Implemented, ADMIN required |
+| Notifications | `GET /api/notifications` | Implemented, JWT required |
+| Notifications | `GET /api/notifications/unread-count` | Implemented, JWT required |
+| Notifications | `PATCH /api/notifications/read-all` | Implemented, JWT required |
+| Notifications | `PATCH /api/notifications/:id/read` | Implemented, JWT required |
+| Notifications | `DELETE /api/notifications` | Implemented, JWT required |
+| Statistics | `GET /api/statistics/overview` | Implemented |
+| Statistics | `GET /api/statistics/heatmap-data` | Implemented |
 
----
+Known gaps:
 
-## Yêu cầu môi trường
+- `GET /api/reports`, `GET /api/reports/:id`, `PATCH /api/reports/:id/status`, and `DELETE /api/reports/:id` are expected by parts of `frontend-v2`, but are not currently exposed by `ReportsController`.
+- Vote response shape is not yet aligned with the frontend expectation in all places.
+- Some realtime hooks exist, but report create/status flows do not fully emit all frontend-expected events.
 
-- **Node.js** 18+ (khuyến nghị 20+)
-- **MySQL** (ví dụ XAMPP, cổng `3306`)
-- **Python 3.10+** (AI service; Windows nên dùng `py -3`)
-- **npm**
+## Requirements
 
----
+- Node.js 20+ recommended
+- npm
+- MySQL reachable by `backend/.env`
+- Python 3.10+ for `urbanguard-ai`
 
-## Cài đặt nhanh
+## Setup
 
 ### 1. Database
 
@@ -57,148 +81,120 @@ CREATE DATABASE urbanguard CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 ```bash
 cd backend
-cp .env.example .env
-# Chỉnh DATABASE_URL, JWT_SECRET, AI_SERVICE_URL (mặc định http://127.0.0.1:8000)
 npm install
 npx prisma generate
 npx prisma migrate dev
 npm run start:dev
 ```
 
-- API: `http://localhost:3000`
+Expected backend URLs:
+
+- API: `http://localhost:3000/api`
 - Swagger: `http://localhost:3000/api/docs`
-- Ảnh: `backend/uploads/` → `http://localhost:3000/uploads/...`
+- Uploads: `http://localhost:3000/uploads/...`
 
-**Biến môi trường** (`backend/.env.example`):
+Important backend environment variables:
 
-| Biến | Ý nghĩa |
-|------|---------|
-| `PORT` | Cổng HTTP API |
-| `DATABASE_URL` | Prisma MySQL |
-| `JWT_SECRET` / `JWT_EXPIRES_IN` | JWT |
-| **`AI_SERVICE_URL`** | Gốc Python AI, **không** `/` cuối (ví dụ `http://127.0.0.1:8000`) |
+| Variable | Purpose |
+|---|---|
+| `DATABASE_URL` | Prisma MySQL connection |
+| `JWT_SECRET` | Access token signing secret |
+| `JWT_EXPIRES_IN` | Access token lifetime |
+| `JWT_REFRESH_SECRET` | Refresh token signing secret |
+| `JWT_REFRESH_EXPIRES_IN` | Refresh token lifetime |
+| `AI_SERVICE_URL` | AI service base URL, default code fallback is `http://127.0.0.1:5000` |
+| `PORT` | Backend port, default `3000` |
+| `CORS_ORIGIN` | Optional Socket.IO CORS origin list |
 
-### 3. AI service (Python)
+### 3. AI Service
 
 ```bash
-cd ai-service
+cd urbanguard-ai
 py -3 -m pip install -r requirements.txt
-py -3 -m uvicorn main:app --reload --port 8000
+py -3 -m uvicorn main:app --reload --host 127.0.0.1 --port 5000
 ```
 
-Tùy chọn: `UPLOADS_ROOT` = đường dẫn tuyệt đối tới `backend/uploads` nếu không chạy từ layout mặc định trong repo.
+AI endpoints:
 
-Kiểm tra: `GET http://127.0.0.1:8000/health`, Swagger AI: `http://127.0.0.1:8000/docs`.
+| Endpoint | Purpose |
+|---|---|
+| `POST /analyze` | Multipart image analysis |
+| `POST /safe-route` | String-based route helper |
+| `POST /real-safe-route` | Safe route from coordinates and danger points |
+| `GET /docs` | FastAPI OpenAPI UI |
 
-**npm trong `ai-service`** (tiện thống nhất lệnh):
-
-```bash
-npm run build   # compileall .py
-npm test        # pytest
-```
-
-### 4. Frontend
+### 4. Frontend v2
 
 ```bash
-cd frontend
-cp .env.local.example .env.local   # nếu có
+cd frontend-v2
 npm install
+npm run dev
 ```
 
-`frontend/.env.local`:
+Default Vite URL: `http://localhost:3002`
+
+Set `frontend-v2/.env` if needed:
 
 ```env
-NEXT_PUBLIC_API_URL=http://localhost:3000
+VITE_API_URL=http://localhost:3000
 ```
 
-Chạy dev (đổi port nếu trùng API):
+## Test And Quality Commands
+
+Backend:
 
 ```bash
-npx next dev --turbopack -p 3001
+cd backend
+npm test
+npx tsc --noEmit
+npm run build
 ```
 
-- Trang chủ: `http://localhost:3000/`
-- Bản đồ: `http://localhost:3000/map` — marker **VALIDATED**, routing, cảnh báo né sự cố, realtime refetch khi có **`report:new`**.
-
----
-
-## Luồng nghiệp vụ tóm tắt
-
-1. User **POST `/api/reports`** (JWT, multipart ảnh) → lưu DB **PENDING**, file vào `uploads/`.
-2. Nest gọi **`POST {AI_SERVICE_URL}/ai/analyze`** với `{ image_path: "<tên file>" }`.
-3. Nếu **`detected` && `confidence` > 0.7** → cập nhật **`VALIDATED`**, `trustScore = 15`, **`aiLabels`**, `aiSummary`; cộng **reputation** user (+5). Nếu **`confidence` < 0.5** → giữ **PENDING** chờ admin. Lỗi AI → PENDING + JSON lỗi trong `aiSummary`.
-4. **`report:new`** qua Socket.IO cho client bản đồ.
-5. Admin có thể **PATCH** `/api/reports/:id/status` → **VALIDATED** / **REJECTED** (chỉ từ PENDING); VALIDATED cũng phát **`report:new`**.
-6. **GET `/api/reports/active`** (public) — chỉ **VALIDATED**; có **`aiLabels`** cho UI / routing.
-
----
-
-## API đã triển khai (tóm tắt)
-
-| Phương thức | Đường dẫn | Mô tả |
-|-------------|-----------|--------|
-| `POST` | `/api/auth/register` | Đăng ký |
-| `POST` | `/api/auth/login` | JWT |
-| `GET` | `/api/auth/me` | Profile (JWT) |
-| `GET` | `/api/reports/active` | Public — **VALIDATED**; gồm **`aiLabels`** (JSON) |
-| `POST` | `/api/reports` | Tạo báo cáo + bước AI (JWT) |
-| `PATCH` | `/api/reports/:id/status` | Admin: **VALIDATED** / **REJECTED** (JWT + ADMIN) |
-
-**Admin:** gán `role = ADMIN` trong bảng `users` (MySQL).
-
----
-
-## Module NestJS — trạng thái trong code
-
-| Module | Vai trò |
-|--------|---------|
-| `auth` | JWT, register/login, `RolesGuard` |
-| **`ai`** | **`AiService`** → HTTP Python `/ai/analyze` |
-| `reports` | CRUD nghiệp vụ báo cáo, tích hợp AI + **`NotificationsService.emitReportNew`** |
-| `prisma` | Global |
-| `notifications` | Gateway **`/realtime`**, **`report:new`** (và `report:update` nếu bật sau) |
-| `users`, `uploads`, `map`, `admin`, `statistics` | Khung / mở rộng |
-| `ai-review` | Stub cũ — luồng AI chính dùng module **`ai`** + Python |
-
----
-
-## Kiểm thử (npm test)
-
-Chạy **riêng** từng package:
+Frontend:
 
 ```bash
-cd backend && npm test
-cd frontend && npm test
-cd ai-service && npm test
+cd frontend-v2
+npx tsc --noEmit -p tsconfig.app.json
+npm run build
+npm run lint
 ```
 
----
+Current note: targeted user/auth lint passes after the auth-context cleanup. Full frontend lint still reports existing issues in other map/dashboard/notification/report-management files.
 
-## Luồng test gợi ý (E2E ngắn)
+## Main User Flows
 
-1. MySQL + migrate; chạy **ai-service** (8000), **backend** (3000), **frontend** (3001).
-2. Swagger: register → login → **POST /reports** (ảnh có đối tượng giao thông) → kiểm tra `status` / `aiSummary` / `trustScore`.
-3. **GET /active** — nếu auto **VALIDATED** thì có trên list; mở **`/map`** thấy marker + thử tìm đường.
-4. User **PENDING**: admin **PATCH** → **VALIDATED** → map cập nhật (Socket + refetch).
+### Login/session
 
----
+1. User logs in via `POST /api/auth/login`.
+2. Frontend stores `access_token` and `refresh_token`.
+3. Frontend calls `/api/auth/me` through the current-user provider before entering protected routes.
+4. If `/auth/me` returns `401` or `403`, frontend clears stored tokens.
+5. Backend JWT validation checks the user in DB and rejects banned accounts before token expiry.
 
-## Tài liệu trong `docs/`
+### Create report
 
-- [docs/README.md](./docs/README.md)
-- [System architecture](./docs/01-system-design/system-architecture.md), [Kiến trúc (C4)](./docs/01-system-design/architecture.md), [Database](./docs/01-system-design/database-design.md)
-- Cây đầy đủ: [UrbanGuard_Docs_Structure.md](./UrbanGuard_Docs_Structure.md)
+1. User submits a multipart form to `POST /api/reports`.
+2. Backend stores the image in `backend/uploads/reports`.
+3. Backend calls `AI_SERVICE_URL/analyze`.
+4. If AI says the report is relevant, backend stores it as `VALIDATED`; otherwise it remains `PENDING`.
+5. `GET /api/reports/active` returns visible validated reports for the map.
 
----
+### Admin user management
 
-## Build production (tham khảo)
+1. Admin calls `GET /api/users` with filters and pagination.
+2. Admin can update role with `PATCH /api/users/:id/role`.
+3. Admin can ban/unban with `PATCH /api/users/:id/ban`.
+4. When a user is banned, refresh tokens are removed and a Socket.IO `account:banned` event is emitted to that user's room.
 
-```bash
-cd backend && npm run build && npm run start:prod
-cd frontend && npm run build && npm run start
-# AI: py -3 -m uvicorn main:app --host 0.0.0.0 --port 8000
-```
+## Documentation Map
 
----
+| File | Purpose |
+|---|---|
+| `SYSTEM_ARCHITECTURE.md` | Root architecture snapshot |
+| `AUTH_USERS_FLOW.md` | Auth and user-management flow |
+| `READ-RUN.md` | Minimal local run guide |
+| `docs/README.md` | Documentation index |
+| `docs/01-system-design/system-architecture.md` | System design copy of the architecture snapshot |
+| `docs/01-system-design/api-design.md` | API contract snapshot |
+| `frontend-v2/README.md` | Frontend-specific guide |
 
-*UrbanGuard — Hệ thống bản đồ cảnh báo sự cố giao thông đô thị.*

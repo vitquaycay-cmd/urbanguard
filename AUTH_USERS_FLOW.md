@@ -1,214 +1,183 @@
-# UrbanGuard — Auth + Users: Luồng hoạt động
+# Auth And Users Flow
 
-> Dev B — `backend/src/auth/` · `backend/src/users/`  
-> Cập nhật: 13/04/2026
+This document tracks the current auth and user-management behavior implemented in `backend/src/auth`, `backend/src/users`, and the matching auth context in `frontend-v2`.
 
----
+## Current Status
 
-## Trạng thái
+| Feature | Status |
+|---|---|
+| Register | Implemented |
+| Login | Implemented |
+| Refresh token rotation | Implemented |
+| Logout one refresh token | Implemented |
+| Current user `/auth/me` | Implemented |
+| Change password | Implemented |
+| Admin list users | Implemented |
+| Admin update role | Implemented |
+| Admin ban/unban | Implemented |
+| Block banned access tokens | Implemented |
+| Frontend current-user sync after login | Implemented |
+| Logout-all endpoint | Not implemented |
+| Delete user endpoint | Not implemented |
 
-| Ký hiệu | Nghĩa |
-|---------|-------|
-| ✅ | Đã hoàn thành |
-| 🔨 | Cần làm tiếp |
+## Backend Endpoints
 
----
+| Method | Path | Auth | Purpose |
+|---|---|---|---|
+| `POST` | `/api/auth/register` | Public | Create account |
+| `POST` | `/api/auth/login` | Public, throttled | Authenticate and return token pair |
+| `GET` | `/api/auth/me` | JWT | Return current user |
+| `POST` | `/api/auth/refresh` | Public body token | Rotate refresh token |
+| `PATCH` | `/api/auth/password` | JWT | Change password |
+| `POST` | `/api/auth/logout` | JWT | Delete one refresh token |
+| `GET` | `/api/users` | ADMIN | List users with filters |
+| `PATCH` | `/api/users/:id/role` | ADMIN | Change role |
+| `GET` | `/api/users/:id/profile` | JWT | User profile summary |
+| `PATCH` | `/api/users/:id/ban` | ADMIN | Ban or unban account |
 
-## 1. Luồng đăng ký / đăng nhập
+## Login Flow
 
-```
-User gửi request
-  POST /auth/register  →  tạo tài khoản, hash bcrypt, lưu DB
-  POST /auth/login     →  kiểm tra email + so sánh hash
-        ↓
-  Tạo cặp token
-    access_token  — sống 15 phút (JWT_SECRET)
-    refresh_token — sống 7 ngày  (JWT_REFRESH_SECRET)
-        ↓
-  Lưu refresh_token vào bảng refresh_tokens (userId, token, expiresAt)
-        ↓
-  Trả về client: { access_token, refresh_token, user }
-```
+```mermaid
+sequenceDiagram
+  participant FE as frontend-v2
+  participant API as backend
+  participant DB as MySQL
 
-**Endpoint:**
-
-| Method | Path | Auth | Trạng thái |
-|--------|------|------|-----------|
-| POST | `/api/auth/register` | — | ✅ |
-| POST | `/api/auth/login` | — | ✅ Throttle 5 req/60s |
-
----
-
-## 2. Luồng refresh token
-
-```
-Access token hết hạn (sau 15 phút)
-  Frontend gọi POST /auth/refresh với refresh_token
-        ↓
-  Server tìm token trong DB (findUnique)
-    Không tìm thấy  →  401 "Refresh token không hợp lệ"
-    Hết hạn         →  xóa token khỏi DB → 401 "Refresh token đã hết hạn"
-        ↓
-  Tìm user theo userId trong record
-        ↓
-  Xóa refresh token cũ khỏi DB  (tránh dùng lại nhiều lần)
-        ↓
-  Tạo cặp token mới → lưu refresh token mới vào DB
-        ↓
-  Trả về: { access_token, refresh_token } mới
+  FE->>API: POST /api/auth/login
+  API->>DB: Find user by email
+  API->>API: bcrypt.compare(password)
+  API->>API: Reject if isBanned
+  API->>DB: Save refresh token
+  API-->>FE: access_token, refresh_token, user
+  FE->>FE: Store both tokens
+  FE->>API: GET /api/auth/me
+  API-->>FE: Current user
+  FE->>FE: Update CurrentUserContext
 ```
 
-**Tại sao xóa token cũ?** — Mỗi lần refresh phải hủy token cũ, tránh 1 token dùng được nhiều lần (rotation pattern).
+Frontend files involved:
 
-**Endpoint:**
+- `frontend-v2/src/pages/LoginPage.tsx`
+- `frontend-v2/src/hooks/CurrentUserProvider.tsx`
+- `frontend-v2/src/hooks/currentUserContext.ts`
+- `frontend-v2/src/hooks/useCurrentUser.tsx`
+- `frontend-v2/src/services/auth.api.ts`
 
-| Method | Path | Auth | Trạng thái |
-|--------|------|------|-----------|
-| POST | `/api/auth/refresh` | — (body: refreshToken) | ✅ |
+## Current User Bootstrap
 
----
+On app load, `CurrentUserProvider` calls `/api/auth/me`.
 
-## 3. Luồng đổi mật khẩu
+| Result | Frontend behavior |
+|---|---|
+| `200` | Store user in memory |
+| `401` or `403` | Clear local tokens and set user to null |
+| Network error or server error | Set user to null, but do not clear tokens unless the error is an auth status |
 
-```
-User đã đăng nhập gọi PATCH /auth/password
-  Body: { oldPassword, newPassword }
-        ↓
-  Tìm user theo userId từ JWT
-        ↓
-  bcrypt.compare(oldPassword, user.password)
-    Không khớp  →  401 "Mật khẩu cũ không đúng"
-        ↓
-  bcrypt.hash(newPassword, 10)
-        ↓
-  prisma.user.update({ password: newHash })
-        ↓
-  Trả về: { message: "Đổi mật khẩu thành công" }
-```
+This keeps temporary backend/network failures from unnecessarily logging out the user.
 
-**Endpoint:**
+## JWT Validation
 
-| Method | Path | Auth | Trạng thái |
-|--------|------|------|-----------|
-| PATCH | `/api/auth/password` | JWT | ✅ |
+Protected backend routes use `JwtStrategy`.
 
----
+Current behavior:
 
-## 4. Luồng đăng xuất
+1. Decode and validate JWT signature/expiry.
+2. Look up the user in DB by `payload.sub`.
+3. Reject missing users.
+4. Reject `isBanned = true`.
+5. Return a clean `req.user` object with only `id`, `email`, `role`, and `reputationScore`.
 
-```
-POST /auth/logout
-  Body: { refreshToken }
-        ↓
-  Tìm token trong DB
-    Không tìm thấy  →  401
-        ↓
-  Xóa token khỏi DB (delete)
-        ↓
-  Trả về: { message: "Đăng xuất thành công" }
+This means a user banned after login cannot continue using an old access token until it expires.
 
-POST /auth/logout-all  [🔨 Cần làm]
-  JWT xác định userId
-        ↓
-  prisma.refreshToken.deleteMany({ where: { userId } })
-        ↓
-  Xóa toàn bộ phiên đăng nhập trên mọi thiết bị
+## Refresh Token Flow
+
+```mermaid
+flowchart TD
+  A["POST /api/auth/refresh"] --> B{"Token exists in DB?"}
+  B -->|"No"| C["401 invalid refresh token"]
+  B -->|"Yes"| D{"expiresAt < now?"}
+  D -->|"Yes"| E["Delete old token, return 401"]
+  D -->|"No"| F["Delete old token"]
+  F --> G["Create new access + refresh token"]
+  G --> H["Save new refresh token"]
+  H --> I["Return token pair"]
 ```
 
-**Endpoint:**
+Notes:
 
-| Method | Path | Auth | Trạng thái |
-|--------|------|------|-----------|
-| POST | `/api/auth/logout` | JWT | ✅ |
-| POST | `/api/auth/logout-all` | JWT | 🔨 |
+- Refresh token rotation is implemented.
+- The stored `expiresAt` is currently calculated with a fixed 7-day period in service code.
+- The service limits each user to 3 stored refresh tokens by deleting the oldest token before saving a new one.
 
----
+## Logout Flow
 
-## 5. Luồng giới hạn 3 thiết bị
+Frontend:
 
-```
-Mỗi lần login → saveRefreshToken() được gọi
-        ↓
-  Đếm số token hiện tại của user
-  prisma.refreshToken.count({ where: { userId } })
-        ↓
-  Nếu >= 3:
-    Tìm token cũ nhất (orderBy: createdAt asc, take: 1)
-    Xóa token đó
-        ↓
-  Tạo token mới → lưu vào DB
-  Kết quả: user tối đa 3 phiên song song
-```
+1. Read refresh token from local storage.
+2. Call `POST /api/auth/logout` if a refresh token exists.
+3. Remove stored tokens locally.
+4. Clear `CurrentUserContext`.
+5. Navigate to `/login`.
 
-**Trạng thái:** 🔨 Cần làm — sửa trong `saveRefreshToken()` của `AuthService`
+Backend:
 
----
+1. Require JWT.
+2. Find refresh token in DB.
+3. Delete that token.
+4. Return success.
 
-## 6. Luồng quản lý user (Admin)
+## Ban/Unban Flow
 
-```
-Admin gọi API với JWT + role ADMIN
-        ↓
-  RolesGuard kiểm tra role trong token
-    Không phải ADMIN  →  403 Forbidden
-        ↓
-  Thực hiện action:
-    GET  /users              →  danh sách, filter role, phân trang
-    PATCH /users/:id/role    →  gán ADMIN / USER
-    GET  /users/:id/profile  →  reputationScore, totalReports
-    PATCH /users/:id/ban     →  khóa / mở khóa tài khoản  [🔨]
-    DELETE /users/:id        →  xóa tài khoản              [🔨]
+```mermaid
+sequenceDiagram
+  participant Admin
+  participant API
+  participant DB
+  participant WS
+  participant UserFE
+
+  Admin->>API: PATCH /api/users/:id/ban
+  API->>DB: Update isBanned
+  alt Ban = true
+    API->>DB: Delete refresh tokens
+    API->>WS: Emit account:banned to user:id room
+    WS-->>UserFE: account:banned
+  end
+  API-->>Admin: Message
 ```
 
-**Endpoint:**
+Expected client behavior after ban:
 
-| Method | Path | Auth | Trạng thái |
-|--------|------|------|-----------|
-| GET | `/api/users` | JWT + ADMIN | ✅ Filter role, phân trang |
-| PATCH | `/api/users/:id/role` | JWT + ADMIN | ✅ |
-| GET | `/api/users/:id/profile` | JWT | ✅ reputationScore + totalReports |
-| PATCH | `/api/users/:id/ban` | JWT + ADMIN | 🔨 |
-| DELETE | `/api/users/:id` | JWT + ADMIN | 🔨 |
+- Online user receives the banned modal.
+- Refresh tokens are removed from DB.
+- Existing access token is rejected on the next protected API call because JWT validation checks `isBanned`.
 
----
+## User Test Checklist
 
-## 7. Database liên quan
+| ID | Case | Expected |
+|---|---|---|
+| AUTH-01 | Login active user | Tokens saved, `/auth/me` loads user, protected route opens |
+| AUTH-02 | Login wrong password | Error shown, no tokens saved |
+| AUTH-03 | Login banned user | `403`, no tokens saved |
+| AUTH-04 | Refresh with valid refresh token | Old refresh token deleted, new pair returned |
+| AUTH-05 | Refresh with invalid token | `401` |
+| AUTH-06 | Logout | DB refresh token deleted, local tokens and context cleared |
+| AUTH-07 | Ban logged-in user | Next protected call returns `401`/`403` |
+| AUTH-08 | `/auth/me` returns `401`/`403` | Frontend clears tokens |
+| USER-01 | Admin list users | Returns paginated rows and stats |
+| USER-02 | Non-admin list users | `403` |
+| USER-03 | Admin update role | Role changed |
+| USER-04 | Admin ban/unban | `isBanned` changed and tokens removed when banned |
 
-```
-users
-  id, email, password (hash), role, reputationScore, createdAt
-  isBanned Boolean  [🔨 thêm vào schema]
+## Current Verification
 
-refresh_tokens
-  id, token (unique), userId (FK), expiresAt, createdAt
-  onDelete: Cascade — xóa user → xóa hết token
-```
+| Check | Result |
+|---|---|
+| Backend TypeScript | Pass |
+| Frontend TypeScript | Pass |
+| Backend unit tests | Pass |
+| Backend build | Pass |
+| Frontend build | Pass |
+| Targeted user/auth lint | Pass |
+| Live API test | Blocked by MySQL connection in the current environment |
 
----
-
-## 8. Bảo mật
-
-| Cơ chế | Chi tiết |
-|--------|---------|
-| Bcrypt | Hash mật khẩu, SALT_ROUNDS = 10 |
-| JWT dual secret | Access: `JWT_SECRET` · Refresh: `JWT_REFRESH_SECRET` |
-| Token rotation | Mỗi refresh → xóa token cũ, cấp token mới |
-| Rate limiting | Login: 5 req/60s · Reports: 10 req/60s |
-| RolesGuard | Kiểm tra role ADMIN trước mọi admin endpoint |
-| Giới hạn thiết bị | Tối đa 3 phiên song song (🔨 đang làm) |
-
----
-
-## 9. Task còn lại (Dev B)
-
-| # | Task | Ưu tiên |
-|---|------|---------|
-| 1 | POST /auth/logout-all | P2 |
-| 2 | Giới hạn 3 thiết bị trong saveRefreshToken | P2 |
-| 3 | PATCH /users/:id/ban — thêm isBanned vào schema | P2 |
-| 4 | DELETE /users/:id | P3 |
-| 5 | GET /users?search= tìm kiếm theo email | P3 |
-
----
-
-*UrbanGuard — Bảo vệ bạn trên mọi cung đường*

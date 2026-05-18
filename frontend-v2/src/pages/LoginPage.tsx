@@ -12,6 +12,7 @@ import {
 export default function LoginPage() {
   const navigate = useNavigate();
   const { refreshUser } = useCurrentUser();
+
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -41,6 +42,7 @@ export default function LoginPage() {
       const res = await loginRequest(formData.email, formData.password);
       setStoredAccessToken(res.access_token);
       setStoredRefreshToken(res.refresh_token);
+      // Sync auth context before entering protected routes.
       await refreshUser();
       navigate("/map");
     } catch (err) {
