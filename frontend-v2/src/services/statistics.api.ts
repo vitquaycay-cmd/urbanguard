@@ -15,6 +15,7 @@ export type StatsOverview = {
     RESOLVED: number;
     REJECTED: number;
   };
+  topAreas: { name: string; count: number }[];
 };
 
 /**
