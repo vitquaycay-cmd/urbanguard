@@ -8,6 +8,8 @@ import {
   CheckCircle,
   MoreHorizontal,
   RefreshCcw,
+  Clock,
+  XCircle,
 } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
@@ -156,34 +158,16 @@ export default function DashboardPage() {
 
   // Stat cards
   const totalReports = allReports.length;
-  const potholesCount = countByKeyword(allReports, [
-    "ổ gà",
-    "pothole",
-    "hố",
-    "lún",
-  ]);
-  const accidentsCount = countByKeyword(allReports, [
-    "tai nạn",
-    "accident",
-    "va chạm",
-    "đâm",
-  ]);
-  const floodsCount = countByKeyword(allReports, [
-    "ngập",
-    "lụt",
-    "flood",
-    "triều",
-  ]);
-  const resolvedPct =
-    totalReports > 0
-      ? Math.round(
-          (allReports.filter(
-            (r) => r.status === "VALIDATED" || r.status === "RESOLVED",
-          ).length /
-            totalReports) *
-            100,
-        )
-      : 89;
+  const total = statsOverview?.total ?? totalReports;
+  const pendingCount = statsOverview?.byStatus.PENDING ?? allReports.filter(r => r.status === "PENDING").length;
+  const validatedCount = statsOverview?.byStatus.VALIDATED ?? allReports.filter(r => r.status === "VALIDATED").length;
+  const rejectedCount = statsOverview?.byStatus.REJECTED ?? allReports.filter(r => r.status === "REJECTED").length;
+  const resolvedCount = statsOverview?.byStatus.RESOLVED ?? allReports.filter(r => r.status === "RESOLVED").length;
+
+  const pendingPct = total > 0 ? Math.round((pendingCount / total) * 100) : 0;
+  const validatedPct = total > 0 ? Math.round((validatedCount / total) * 100) : 0;
+  const rejectedPct = total > 0 ? Math.round((rejectedCount / total) * 100) : 0;
+  const resolvedPct = total > 0 ? Math.round((resolvedCount / total) * 100) : 0;
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
@@ -222,102 +206,90 @@ export default function DashboardPage() {
 
       {/* SECTION 2 — 4 Stat Cards */}
       <div className="mb-6 grid grid-cols-4 gap-4">
-        {/* Card 1: Ổ gà */}
+        {/* Card 1: PENDING */}
         <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
           <div className="flex items-start justify-between">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-50">
-              <HardHat size={20} className="text-orange-500" />
+              <Clock size={20} className="text-orange-500" />
             </div>
-            <div className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-bold text-green-700">
-              Đang có
+            <div className="rounded-full bg-orange-100 px-2 py-0.5 text-xs font-bold text-orange-700">
+              Queue
             </div>
           </div>
           <div className="mt-2 text-3xl font-bold text-gray-900">
-            {potholesCount || "—"}
+            {pendingCount}
           </div>
-          <div className="mt-0.5 text-sm text-gray-500">Ổ gà</div>
+          <div className="mt-0.5 text-sm text-gray-500">PENDING</div>
           <div className="mt-3 h-1.5 rounded-full bg-gray-100">
             <div
               className="h-full rounded-full bg-orange-400"
-              style={{
-                width: totalReports
-                  ? `${Math.min((potholesCount / totalReports) * 100, 100)}%`
-                  : "0%",
-              }}
+              style={{ width: `${pendingPct}%` }}
             ></div>
           </div>
         </div>
 
-        {/* Card 2: Tai nạn */}
-        <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-          <div className="flex items-start justify-between">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-50">
-              <Car size={20} className="text-red-500" />
-            </div>
-            <div className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-bold text-red-600">
-              Gấp
-            </div>
-          </div>
-          <div className="mt-2 text-3xl font-bold text-gray-900">
-            {accidentsCount || "—"}
-          </div>
-          <div className="mt-0.5 text-sm text-gray-500">Tai nạn</div>
-          <div className="mt-3 h-1.5 rounded-full bg-gray-100">
-            <div
-              className="h-full rounded-full bg-red-400"
-              style={{
-                width: totalReports
-                  ? `${Math.min((accidentsCount / totalReports) * 100, 100)}%`
-                  : "0%",
-              }}
-            ></div>
-          </div>
-        </div>
-
-        {/* Card 3: Ngập lụt */}
-        <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-          <div className="flex items-start justify-between">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50">
-              <Droplets size={20} className="text-blue-500" />
-            </div>
-            <div className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-bold text-green-700">
-              Xong
-            </div>
-          </div>
-          <div className="mt-2 text-3xl font-bold text-gray-900">
-            {floodsCount || "—"}
-          </div>
-          <div className="mt-0.5 text-sm text-gray-500">Ngập lụt</div>
-          <div className="mt-3 h-1.5 rounded-full bg-gray-100">
-            <div
-              className="h-full rounded-full bg-blue-400"
-              style={{
-                width: totalReports
-                  ? `${Math.min((floodsCount / totalReports) * 100, 100)}%`
-                  : "0%",
-              }}
-            ></div>
-          </div>
-        </div>
-
-        {/* Card 4: Tỷ lệ xử lý */}
+        {/* Card 2: VALIDATED */}
         <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
           <div className="flex items-start justify-between">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-green-50">
-              <CheckCircle size={20} className="text-green-500" />
+              <CheckCircle size={20} className="text-green-600" />
             </div>
             <div className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-bold text-green-700">
-              Auto
+              Live
             </div>
           </div>
           <div className="mt-2 text-3xl font-bold text-gray-900">
-            {statsOverview ? `${statsOverview.autoValidatedRate}%` : `${resolvedPct}%`}
+            {validatedCount}
           </div>
-          <div className="mt-0.5 text-sm text-gray-500">Đã xử lý</div>
+          <div className="mt-0.5 text-sm text-gray-500">VALIDATED</div>
           <div className="mt-3 h-1.5 rounded-full bg-gray-100">
             <div
               className="h-full rounded-full bg-green-500"
-              style={{ width: `${statsOverview?.autoValidatedRate ?? resolvedPct}%` }}
+              style={{ width: `${validatedPct}%` }}
+            ></div>
+          </div>
+        </div>
+
+        {/* Card 3: REJECTED */}
+        <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+          <div className="flex items-start justify-between">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-50">
+              <XCircle size={20} className="text-red-500" />
+            </div>
+            <div className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-bold text-red-600">
+              Denied
+            </div>
+          </div>
+          <div className="mt-2 text-3xl font-bold text-gray-900">
+            {rejectedCount}
+          </div>
+          <div className="mt-0.5 text-sm text-gray-500">REJECTED</div>
+          <div className="mt-3 h-1.5 rounded-full bg-gray-100">
+            <div
+              className="h-full rounded-full bg-red-400"
+              style={{ width: `${rejectedPct}%` }}
+            ></div>
+          </div>
+        </div>
+
+        {/* Card 4: RESOLVED */}
+        <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+          <div className="flex items-start justify-between">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50">
+              <CheckCircle size={20} className="text-blue-500" />
+            </div>
+            <div className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-bold text-blue-700">
+              Done
+            </div>
+          </div>
+          <div className="mt-2 text-3xl font-bold text-gray-900">
+            {resolvedCount}
+          </div>
+          <div className="mt-0.5 text-sm text-gray-500">RESOLVED</div>
+          <div className="mt-3 h-1.5 rounded-full bg-gray-100">
+            <div
+              className="h-full rounded-full bg-blue-500"
+              style={{ width: `${resolvedPct}%` }}
             ></div>
           </div>
         </div>
