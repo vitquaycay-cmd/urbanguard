@@ -141,10 +141,10 @@ export default function DashboardPage() {
   // Stat cards
   const totalReports = allReports.length;
   const total = statsOverview?.total ?? totalReports;
-  const pendingCount = statsOverview?.byStatus.PENDING ?? allReports.filter((r) => r.status === "PENDING").length;
-  const validatedCount = statsOverview?.byStatus.VALIDATED ?? allReports.filter((r) => r.status === "VALIDATED").length;
-  const rejectedCount = statsOverview?.byStatus.REJECTED ?? allReports.filter((r) => r.status === "REJECTED").length;
-  const resolvedCount = statsOverview?.byStatus.RESOLVED ?? allReports.filter((r) => r.status === "RESOLVED").length;
+  const pendingCount = statsOverview?.byStatus.PENDING ?? allReports.filter(r => r.status === "PENDING").length;
+  const validatedCount = statsOverview?.byStatus.VALIDATED ?? allReports.filter(r => r.status === "VALIDATED").length;
+  const rejectedCount = statsOverview?.byStatus.REJECTED ?? allReports.filter(r => r.status === "REJECTED").length;
+  const resolvedCount = statsOverview?.byStatus.RESOLVED ?? allReports.filter(r => r.status === "RESOLVED").length;
 
   const pendingPct = total > 0 ? Math.round((pendingCount / total) * 100) : 0;
   const validatedPct = total > 0 ? Math.round((validatedCount / total) * 100) : 0;
