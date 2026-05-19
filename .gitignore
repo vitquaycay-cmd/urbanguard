@@ -130,3 +130,6 @@ build/
 
 # Env
 .env
+
+# Docker
+urbanguard-ai/Dockerfile

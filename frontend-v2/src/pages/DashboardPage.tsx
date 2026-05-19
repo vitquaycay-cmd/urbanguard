@@ -2,12 +2,11 @@ import { BarChart, Bar, XAxis, ResponsiveContainer } from "recharts";
 import {
   Hand,
   Plus,
-  HardHat,
-  Car,
-  Droplets,
   CheckCircle,
   MoreHorizontal,
   RefreshCcw,
+  Clock,
+  XCircle,
 } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
@@ -37,16 +36,6 @@ function statusColor(status: string): string {
   return "bg-orange-400";
 }
 
-function countByKeyword(reports: ReportDetail[], keywords: string[]): number {
-  return reports.filter((r) => {
-    const text = `${r.title} ${r.description}`.toLowerCase();
-    const labels = Array.isArray(r.aiLabels)
-      ? (r.aiLabels as string[]).join(" ").toLowerCase()
-      : "";
-    return keywords.some((k) => text.includes(k) || labels.includes(k));
-  }).length;
-}
-
 export default function DashboardPage() {
   const navigate = useNavigate();
   const { user } = useCurrentUser();
@@ -65,7 +54,6 @@ export default function DashboardPage() {
 
   const fetchStats = useCallback(() => {
     setIsLoading(true);
-    // 🔗 KẾT NỐI: Gọi đồng thời cả danh sách báo cáo và dữ liệu thống kê tổng hợp từ Backend
     Promise.all([
       fetchAdminReports({ limit: 100, sortBy: "createdAt", sortOrder: "desc" }),
       getStatisticsOverview(),
@@ -81,9 +69,6 @@ export default function DashboardPage() {
   useEffect(() => {
     fetchStats();
   }, [fetchStats]);
-
-  // Pending count
-  const pendingCount = allReports.filter((r) => r.status === "PENDING").length;
 
   // Chart: group by day of week / day of last month / month of year
   const chartData = (() => {
@@ -130,7 +115,6 @@ export default function DashboardPage() {
         value: counts[i + 1],
       }));
     } else {
-      // year: group by month (T1–T12) for current year
       const year = now.getFullYear();
       const counts: Record<number, number> = {};
       for (let m = 0; m < 12; m++) counts[m] = 0;
@@ -156,34 +140,16 @@ export default function DashboardPage() {
 
   // Stat cards
   const totalReports = allReports.length;
-  const potholesCount = countByKeyword(allReports, [
-    "ổ gà",
-    "pothole",
-    "hố",
-    "lún",
-  ]);
-  const accidentsCount = countByKeyword(allReports, [
-    "tai nạn",
-    "accident",
-    "va chạm",
-    "đâm",
-  ]);
-  const floodsCount = countByKeyword(allReports, [
-    "ngập",
-    "lụt",
-    "flood",
-    "triều",
-  ]);
-  const resolvedPct =
-    totalReports > 0
-      ? Math.round(
-          (allReports.filter(
-            (r) => r.status === "VALIDATED" || r.status === "RESOLVED",
-          ).length /
-            totalReports) *
-            100,
-        )
-      : 89;
+  const total = statsOverview?.total ?? totalReports;
+  const pendingCount = statsOverview?.byStatus.PENDING ?? allReports.filter((r) => r.status === "PENDING").length;
+  const validatedCount = statsOverview?.byStatus.VALIDATED ?? allReports.filter((r) => r.status === "VALIDATED").length;
+  const rejectedCount = statsOverview?.byStatus.REJECTED ?? allReports.filter((r) => r.status === "REJECTED").length;
+  const resolvedCount = statsOverview?.byStatus.RESOLVED ?? allReports.filter((r) => r.status === "RESOLVED").length;
+
+  const pendingPct = total > 0 ? Math.round((pendingCount / total) * 100) : 0;
+  const validatedPct = total > 0 ? Math.round((validatedCount / total) * 100) : 0;
+  const rejectedPct = total > 0 ? Math.round((rejectedCount / total) * 100) : 0;
+  const resolvedPct = total > 0 ? Math.round((resolvedCount / total) * 100) : 0;
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
@@ -222,102 +188,90 @@ export default function DashboardPage() {
 
       {/* SECTION 2 — 4 Stat Cards */}
       <div className="mb-6 grid grid-cols-4 gap-4">
-        {/* Card 1: Ổ gà */}
+        {/* Card 1: PENDING */}
         <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
           <div className="flex items-start justify-between">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-50">
-              <HardHat size={20} className="text-orange-500" />
+              <Clock size={20} className="text-orange-500" />
             </div>
-            <div className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-bold text-green-700">
-              Đang có
+            <div className="rounded-full bg-orange-100 px-2 py-0.5 text-xs font-bold text-orange-700">
+              Queue
             </div>
           </div>
           <div className="mt-2 text-3xl font-bold text-gray-900">
-            {potholesCount || "—"}
+            {pendingCount}
           </div>
-          <div className="mt-0.5 text-sm text-gray-500">Ổ gà</div>
+          <div className="mt-0.5 text-sm text-gray-500">PENDING</div>
           <div className="mt-3 h-1.5 rounded-full bg-gray-100">
             <div
               className="h-full rounded-full bg-orange-400"
-              style={{
-                width: totalReports
-                  ? `${Math.min((potholesCount / totalReports) * 100, 100)}%`
-                  : "0%",
-              }}
+              style={{ width: `${pendingPct}%` }}
             ></div>
           </div>
         </div>
 
-        {/* Card 2: Tai nạn */}
-        <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-          <div className="flex items-start justify-between">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-50">
-              <Car size={20} className="text-red-500" />
-            </div>
-            <div className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-bold text-red-600">
-              Gấp
-            </div>
-          </div>
-          <div className="mt-2 text-3xl font-bold text-gray-900">
-            {accidentsCount || "—"}
-          </div>
-          <div className="mt-0.5 text-sm text-gray-500">Tai nạn</div>
-          <div className="mt-3 h-1.5 rounded-full bg-gray-100">
-            <div
-              className="h-full rounded-full bg-red-400"
-              style={{
-                width: totalReports
-                  ? `${Math.min((accidentsCount / totalReports) * 100, 100)}%`
-                  : "0%",
-              }}
-            ></div>
-          </div>
-        </div>
-
-        {/* Card 3: Ngập lụt */}
-        <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-          <div className="flex items-start justify-between">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50">
-              <Droplets size={20} className="text-blue-500" />
-            </div>
-            <div className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-bold text-green-700">
-              Xong
-            </div>
-          </div>
-          <div className="mt-2 text-3xl font-bold text-gray-900">
-            {floodsCount || "—"}
-          </div>
-          <div className="mt-0.5 text-sm text-gray-500">Ngập lụt</div>
-          <div className="mt-3 h-1.5 rounded-full bg-gray-100">
-            <div
-              className="h-full rounded-full bg-blue-400"
-              style={{
-                width: totalReports
-                  ? `${Math.min((floodsCount / totalReports) * 100, 100)}%`
-                  : "0%",
-              }}
-            ></div>
-          </div>
-        </div>
-
-        {/* Card 4: Tỷ lệ xử lý */}
+        {/* Card 2: VALIDATED */}
         <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
           <div className="flex items-start justify-between">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-green-50">
-              <CheckCircle size={20} className="text-green-500" />
+              <CheckCircle size={20} className="text-green-600" />
             </div>
             <div className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-bold text-green-700">
-              Auto
+              Live
             </div>
           </div>
           <div className="mt-2 text-3xl font-bold text-gray-900">
-            {statsOverview ? `${statsOverview.autoValidatedRate}%` : `${resolvedPct}%`}
+            {validatedCount}
           </div>
-          <div className="mt-0.5 text-sm text-gray-500">Đã xử lý</div>
+          <div className="mt-0.5 text-sm text-gray-500">VALIDATED</div>
           <div className="mt-3 h-1.5 rounded-full bg-gray-100">
             <div
               className="h-full rounded-full bg-green-500"
-              style={{ width: `${statsOverview?.autoValidatedRate ?? resolvedPct}%` }}
+              style={{ width: `${validatedPct}%` }}
+            ></div>
+          </div>
+        </div>
+
+        {/* Card 3: REJECTED */}
+        <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+          <div className="flex items-start justify-between">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-50">
+              <XCircle size={20} className="text-red-500" />
+            </div>
+            <div className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-bold text-red-600">
+              Denied
+            </div>
+          </div>
+          <div className="mt-2 text-3xl font-bold text-gray-900">
+            {rejectedCount}
+          </div>
+          <div className="mt-0.5 text-sm text-gray-500">REJECTED</div>
+          <div className="mt-3 h-1.5 rounded-full bg-gray-100">
+            <div
+              className="h-full rounded-full bg-red-400"
+              style={{ width: `${rejectedPct}%` }}
+            ></div>
+          </div>
+        </div>
+
+        {/* Card 4: RESOLVED */}
+        <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+          <div className="flex items-start justify-between">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50">
+              <CheckCircle size={20} className="text-blue-500" />
+            </div>
+            <div className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-bold text-blue-700">
+              Done
+            </div>
+          </div>
+          <div className="mt-2 text-3xl font-bold text-gray-900">
+            {resolvedCount}
+          </div>
+          <div className="mt-0.5 text-sm text-gray-500">RESOLVED</div>
+          <div className="mt-3 h-1.5 rounded-full bg-gray-100">
+            <div
+              className="h-full rounded-full bg-blue-500"
+              style={{ width: `${resolvedPct}%` }}
             ></div>
           </div>
         </div>
@@ -440,34 +394,33 @@ export default function DashboardPage() {
             <p className="mt-1 text-sm text-gray-500">
               Mật độ sự cố cập nhật theo khu vực thời gian thực.
             </p>
-              <div className="mt-4 flex items-center gap-2">
-                <div className="h-2 w-2 rounded-full bg-green-500"></div>
-                <div>
-                  <p className="text-xs font-semibold text-gray-700">
-                    Khu vực nóng nhất
-                  </p>
-                  <p className="text-xs text-gray-400">
-                    {statsOverview?.topAreas[0]?.name || "Đang xác định..."}
-                  </p>
-                </div>
+            <div className="mt-4 flex items-center gap-2">
+              <div className="h-2 w-2 rounded-full bg-green-500"></div>
+              <div>
+                <p className="text-xs font-semibold text-gray-700">
+                  Khu vực nóng nhất
+                </p>
+                <p className="text-xs text-gray-400">
+                  {statsOverview?.topAreas[0]?.name || "Đang xác định..."}
+                </p>
               </div>
-              {statsOverview && statsOverview.topAreas.length > 1 && (
-                <div className="mt-2 space-y-1">
-                  {statsOverview.topAreas.slice(1, 3).map((area, i) => (
-                    <div key={i} className="flex items-center gap-2 opacity-70">
-                      <div className="h-1.5 w-1.5 rounded-full bg-gray-400"></div>
-                      <p className="text-[10px] text-gray-500">
-                        {area.name} ({area.count})
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              )}
+            </div>
+            {statsOverview && statsOverview.topAreas.length > 1 && (
+              <div className="mt-2 space-y-1">
+                {statsOverview.topAreas.slice(1, 3).map((area, i) => (
+                  <div key={i} className="flex items-center gap-2 opacity-70">
+                    <div className="h-1.5 w-1.5 rounded-full bg-gray-400"></div>
+                    <p className="text-[10px] text-gray-500">
+                      {area.name} ({area.count})
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Right: Fake Map */}
           <div className="relative h-48 flex-1 overflow-hidden rounded-2xl bg-gray-900">
-            {/* Road grid simulation */}
             <div className="absolute inset-0">
               <div className="absolute top-1/4 h-px w-full border-t border-gray-700/50"></div>
               <div className="absolute top-1/2 h-px w-full border-t border-gray-700/50"></div>
@@ -476,12 +429,8 @@ export default function DashboardPage() {
               <div className="absolute left-1/2 h-full w-px border-l border-gray-700/50"></div>
               <div className="absolute right-1/4 h-full w-px border-l border-gray-700/50"></div>
             </div>
-
-            {/* Glow blobs */}
             <div className="absolute left-1/3 top-1/4 h-32 w-32 rounded-full bg-green-500/20 blur-2xl"></div>
             <div className="absolute right-1/4 top-1/3 h-20 w-20 rounded-full bg-orange-500/20 blur-xl"></div>
-
-            {/* Corner buttons */}
             <div className="absolute bottom-3 right-3 flex flex-col gap-1">
               <button
                 type="button"
